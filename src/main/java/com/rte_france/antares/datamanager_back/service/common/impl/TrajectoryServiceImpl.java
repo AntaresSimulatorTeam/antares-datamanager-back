@@ -283,6 +283,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
+            case HYDRO_CAPACITY_ME -> hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
@@ -2008,4 +2009,3 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectory;
     }
 }
-
