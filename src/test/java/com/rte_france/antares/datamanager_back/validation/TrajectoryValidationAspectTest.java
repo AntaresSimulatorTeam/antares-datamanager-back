@@ -87,7 +87,7 @@ class TrajectoryValidationAspectTest {
 
         aspect.validateTrajectoryName(joinPoint);
 
-        verify(trajectoryValidator, never()).validate(anyString(), anyInt());
+        verify(trajectoryValidator, never()).validate(any(String.class), anyInt());
     }
 
     @Test
@@ -100,7 +100,7 @@ class TrajectoryValidationAspectTest {
 
         assertDoesNotThrow(() -> aspect.validateTrajectoryName(joinPoint));
         
-        verify(trajectoryValidator, never()).validate(anyString(), anyInt());
+        verify(trajectoryValidator, never()).validate(any(String.class), anyInt());
     }
 
     @Test
@@ -113,7 +113,7 @@ class TrajectoryValidationAspectTest {
 
         aspect.validateTrajectoryName(joinPoint);
 
-        verify(trajectoryValidator, never()).validate(anyString(), anyInt());
+        verify(trajectoryValidator, never()).validate(any(String.class), anyInt());
     }
 
     @Test
@@ -125,7 +125,7 @@ class TrajectoryValidationAspectTest {
 
         assertDoesNotThrow(() -> aspect.validateTrajectoryName(joinPoint));
         
-        verify(trajectoryValidator, never()).validate(anyString(), anyInt());
+        verify(trajectoryValidator, never()).validate(any(String.class), anyInt());
     }
 
     @Test
@@ -157,7 +157,7 @@ class TrajectoryValidationAspectTest {
 
         aspect.validateTrajectoryName(joinPoint);
 
-        verify(trajectoryValidator, never()).validate(anyString(), anyInt());
+        verify(trajectoryValidator, never()).validate(any(String.class), anyInt());
     }
 
     @Test

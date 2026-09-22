@@ -51,7 +51,7 @@ class DsrControllerTest {
         String isCivilYear = "true";
 
         TrajectoryEntity fakeEntity = Mockito.mock(TrajectoryEntity.class);
-        when(dsrFileProcessorService.processDsrClusterFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString()))
+        when(dsrFileProcessorService.processDsrClusterFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class)))
                 .thenReturn(fakeEntity);
 
 
@@ -67,7 +67,7 @@ class DsrControllerTest {
                 .andExpect(status().isCreated());
 
         verify(dsrFileProcessorService, times(1))
-                .processDsrClusterFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString())
+                .processDsrClusterFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class))
         ;
 
     }
@@ -90,7 +90,7 @@ class DsrControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(dsrFileProcessorService, times(0)).processDsrClusterFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString());
+        verify(dsrFileProcessorService, times(0)).processDsrClusterFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class));
     }
 
     @Test
@@ -109,7 +109,7 @@ class DsrControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(dsrFileProcessorService, times(0)).processDsrClusterFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString());
+        verify(dsrFileProcessorService, times(0)).processDsrClusterFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class));
     }
 
     @Test
@@ -120,7 +120,7 @@ class DsrControllerTest {
         String studyId = "1";
 
         TrajectoryEntity fakeEntity = Mockito.mock(TrajectoryEntity.class);
-        when(dsrCapacityModulationFileProcessorService.processDsrCapacityModulationFile(anyString(), anyString(), anyInt()))
+        when(dsrCapacityModulationFileProcessorService.processDsrCapacityModulationFile(any(String.class), any(String.class), anyInt()))
                 .thenReturn(fakeEntity);
 
 
@@ -134,7 +134,7 @@ class DsrControllerTest {
                 .andExpect(status().isCreated());
 
         verify(dsrCapacityModulationFileProcessorService, times(1))
-                .processDsrCapacityModulationFile(anyString(), anyString(), anyInt())
+                .processDsrCapacityModulationFile(any(String.class), any(String.class), anyInt())
         ;
 
     }
@@ -154,7 +154,7 @@ class DsrControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(dsrCapacityModulationFileProcessorService, times(0)).processDsrCapacityModulationFile(anyString(), anyString(), anyInt());
+        verify(dsrCapacityModulationFileProcessorService, times(0)).processDsrCapacityModulationFile(any(String.class), any(String.class), anyInt());
     }
 
     @Test
@@ -170,6 +170,6 @@ class DsrControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(dsrCapacityModulationFileProcessorService, times(0)).processDsrCapacityModulationFile(anyString(), anyString(), anyInt());
+        verify(dsrCapacityModulationFileProcessorService, times(0)).processDsrCapacityModulationFile(any(String.class), any(String.class), anyInt());
     }
 }

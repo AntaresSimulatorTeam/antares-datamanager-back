@@ -156,7 +156,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenAnswer(invocation -> {
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean())).thenAnswer(invocation -> {
             Path p = invocation.getArgument(0);
             return p.getFileName().toString() + ".uuid123.arrow";
         });
@@ -235,14 +235,14 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output");
-        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenReturn("saved.txt");
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean())).thenReturn("saved.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
 
         // Then
         assertEquals(1, result.size());
-        verify(nasFileService).readAndSaveMatrixToNas(argThat(p -> p.getFileName().toString().contains("Cluster_Accént")), anyString(), any(), anyBoolean());
+        verify(nasFileService).readAndSaveMatrixToNas(argThat(p -> p.getFileName().toString().contains("Cluster_Accént")), any(String.class), any(), anyBoolean());
     }
 
     @Test
@@ -319,7 +319,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
-        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenReturn("saved_ts_1.txt");
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean())).thenReturn("saved_ts_1.txt");
 
         // When
         List<String> result = dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study);
@@ -388,7 +388,7 @@ class DsrPropertiesAssemblerServiceImplTest {
                 .build();
 
         when(antaresDataManagerProperties.getDsrModulationTsOutputDirectory()).thenReturn("output/dsr_arrow");
-        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean())).thenThrow(new IOException("NAS error"));
+        when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean())).thenThrow(new IOException("NAS error"));
 
         // When & Then
         TechnicalException ex = assertThrows(TechnicalException.class, () -> dsrPropertiesAssemblerService.createMatrixDsrTsFiles(study));

@@ -245,7 +245,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(STUDY_ID)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(STUDY_ID, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -282,7 +282,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -311,7 +311,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -342,7 +342,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
@@ -373,7 +373,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -401,7 +401,7 @@ class ResFileProcessorServiceImplTest {
             createMockResExcelFile(tempRoot, "installedRES_solar_pv_BP23_Aref.xlsx", List.of(AREA_AT, AREA_AT), "solar_pv", true);
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -444,7 +444,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -485,7 +485,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -505,7 +505,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -544,7 +544,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -567,7 +567,7 @@ class ResFileProcessorServiceImplTest {
             // Mock pour retourner la première trajectoire
             when(trajectoryRepository
                     .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                            anyString(), anyString(), anyString(), anyString(), any()))
+                            any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.of(firstResult));
 
             // Le deuxième appel avec le même contenu devrait lever une exception
@@ -591,7 +591,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -609,7 +609,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -638,7 +638,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -660,7 +660,7 @@ class ResFileProcessorServiceImplTest {
             Files.createDirectories(nestedDir);
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(nestedDir);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -689,7 +689,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -718,7 +718,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -750,7 +750,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(frDir);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}));
 
@@ -772,7 +772,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -796,7 +796,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -820,7 +820,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -843,7 +843,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -865,7 +865,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -891,10 +891,10 @@ class ResFileProcessorServiceImplTest {
                     .when(spy)
                     .processResCapacityFile(
                             Mockito.any(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
                             Mockito.anyList(),
                             Mockito.anyBoolean(),
                             Mockito.any()
@@ -940,7 +940,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1047,7 +1047,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1082,7 +1082,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1115,7 +1115,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(ANOTHER_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1186,7 +1186,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1222,7 +1222,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
                 TrajectoryEntity saved = invocation.getArgument(0);
@@ -1259,7 +1259,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1294,7 +1294,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1338,7 +1338,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), eq(null)))
+                    any(String.class), any(String.class), any(String.class), any(String.class), eq(null)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1458,7 +1458,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), eq(null)))
+                    any(String.class), any(String.class), any(String.class), any(String.class), eq(null)))
                     .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1490,7 +1490,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1522,7 +1522,7 @@ class ResFileProcessorServiceImplTest {
                 setNni(TEST_USER);
             }});
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), anyString()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1718,7 +1718,7 @@ class ResFileProcessorServiceImplTest {
             ));
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -1747,7 +1747,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -1797,7 +1797,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -1833,7 +1833,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -1868,7 +1868,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -1888,7 +1888,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -1925,7 +1925,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -1933,7 +1933,7 @@ class ResFileProcessorServiceImplTest {
             }});
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), any()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.empty());
 
             // Créer une première trajectoire
@@ -1951,7 +1951,7 @@ class ResFileProcessorServiceImplTest {
             // Mock pour retourner la première trajectoire au deuxième appel
             Mockito.reset(trajectoryRepository);
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), any()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.of(firstResult));
 
             // Le deuxième appel avec le même contenu devrait lever une exception
@@ -1973,7 +1973,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -1995,7 +1995,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2016,7 +2016,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}));
 
@@ -2038,7 +2038,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -2062,7 +2062,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -2086,7 +2086,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -2110,7 +2110,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2131,7 +2131,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2150,7 +2150,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -2172,10 +2172,10 @@ class ResFileProcessorServiceImplTest {
                     .when(spy)
                     .processResCapacityFile(
                             Mockito.any(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
                             Mockito.anyList(),
                             Mockito.anyBoolean(),
                             Mockito.any()
@@ -2211,7 +2211,7 @@ class ResFileProcessorServiceImplTest {
             )).thenReturn(tempRoot);
 
             // Mock de loadStudyAreas
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(area);
             }}));
 
@@ -2222,7 +2222,7 @@ class ResFileProcessorServiceImplTest {
                     .when(spy)
                     .processResCapacityFile(
                             eq(fakeFile),
-                            anyString(),
+                            any(String.class),
                             eq(horizon),
                             eq(area),
                             any(),
@@ -2249,7 +2249,7 @@ class ResFileProcessorServiceImplTest {
             createMockResExcelFile(tempRoot, "repartition_techno_BP23_Aref.xlsx", List.of(AREA_FR), "unknown_group", true);
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(STUDY_ID)).thenReturn(List.of(
+            when(areaRepository.findAllByStudyId(STUDY_ID, TrajectoryType.AREA.toString())).thenReturn(List.of(
                     new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{ setName(AREA_FR); }}
             ));
             // ResTypes connus : ne contiennent pas "unknown_group"
@@ -2371,7 +2371,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -2414,7 +2414,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2446,7 +2446,7 @@ class ResFileProcessorServiceImplTest {
             }
 
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2466,7 +2466,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -2503,7 +2503,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
             when(userService.getCurrentUserDetails()).thenReturn(new UserInfoDto() {{
@@ -2511,7 +2511,7 @@ class ResFileProcessorServiceImplTest {
             }});
             when(trajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), any()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.empty());
 
             // Créer une première trajectoire
@@ -2529,7 +2529,7 @@ class ResFileProcessorServiceImplTest {
             // Mock pour retourner la première trajectoire au deuxième appel
             Mockito.reset(trajectoryRepository);
             when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                    anyString(), anyString(), anyString(), anyString(), any()))
+                    any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.of(firstResult));
 
             // Le deuxième appel avec le même contenu devrait lever une exception
@@ -2551,7 +2551,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2573,7 +2573,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2594,7 +2594,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}));
 
@@ -2616,7 +2616,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_IT);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -2640,7 +2640,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}, new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
@@ -2664,7 +2664,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2685,7 +2685,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_FR);
             }}));
 
@@ -2704,7 +2704,7 @@ class ResFileProcessorServiceImplTest {
 
             // stubs for repository/user
             // Autres mocks
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(AREA_AT);
             }}));
 
@@ -2726,9 +2726,9 @@ class ResFileProcessorServiceImplTest {
                     .when(servicespy)
                     .processResCapacityFile(
                             Mockito.any(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
                             Mockito.any(),
                             Mockito.anyList(),
                             Mockito.anyBoolean(),
@@ -2758,7 +2758,7 @@ class ResFileProcessorServiceImplTest {
             when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(tempRoot);
 
             // Mock de loadStudyAreas
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                 setName(area);
             }}));
 
@@ -2769,9 +2769,9 @@ class ResFileProcessorServiceImplTest {
                     .when(spy)
                     .processResCapacityFile(
                             Mockito.any(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
-                            Mockito.anyString(),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
+                            Mockito.any(String.class),
                             Mockito.any(),
                             Mockito.anyList(),
                             Mockito.anyBoolean(),

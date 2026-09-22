@@ -443,7 +443,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
         // À adapter selon votre contexte pour récupérer l'id de l'étude
-        return areaRepository.findAllByStudyId(studyId)
+        return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();

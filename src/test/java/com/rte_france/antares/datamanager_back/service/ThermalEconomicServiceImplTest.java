@@ -55,7 +55,7 @@ class ThermalEconomicServiceImplTest {
             List<ThermalEconomicEnerContentEntity> enerContentEntities = List.of(new ThermalEconomicEnerContentEntity());
 
             when(userService.getCurrentUserDetails()).thenReturn(null);
-            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.empty());
             when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -81,7 +81,7 @@ class ThermalEconomicServiceImplTest {
             existingTrajectory.setVersion(1);
 
             when(userService.getCurrentUserDetails()).thenReturn(null);
-            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+            when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                     .thenReturn(Optional.of(existingTrajectory));
             when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

@@ -91,7 +91,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                     .build();
         }
 
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
 
         Path filePath = trajectoryService.getTrajectoryFilePath(TrajectoryType.MISC_CAPACITY, trajectoryToUse, null);
 

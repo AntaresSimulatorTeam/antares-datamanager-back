@@ -167,7 +167,7 @@ public class P2gFileProcessorServiceImplTest {
         AreaEntity area2 = new AreaEntity();
         area2.setName("AREA_DE");
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(area1, area2));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area1, area2));
 
         List<String> areas = service.loadStudyAreas(1);
         assertThat(areas).containsExactly("AREA_FR", "AREA_DE");
@@ -265,7 +265,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         // 1. Créer P2G_capacity.xlsx
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
@@ -418,7 +418,7 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of());
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of());
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
@@ -501,7 +501,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
@@ -793,7 +793,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
@@ -863,7 +863,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
@@ -935,7 +935,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
@@ -1009,7 +1009,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
@@ -1088,7 +1088,7 @@ public class P2gFileProcessorServiceImplTest {
 
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(areaEntity));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {

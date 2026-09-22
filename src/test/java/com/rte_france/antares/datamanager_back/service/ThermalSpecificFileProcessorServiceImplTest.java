@@ -98,8 +98,8 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldProcessValidRowsAndReturnEntities() throws IOException {
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build(),AreaEntity.builder().id(1).name("DE").build()));
-        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build(),AreaEntity.builder().id(1).name("DE").build()));
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
 
         Path file = writeWorkbookToTemp(createValidWorkbook(2));
@@ -117,10 +117,10 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowForOthersAreaIfNoStudyAreaPresent() throws IOException {
-        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Study has ES and IT, but rows contain FR and DE -> none present
-        when(areaRepository.findAllByStudyId(anyInt())).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString()))).thenReturn(List.of(
                 AreaEntity.builder().id(1).name("ES").build(),
                 AreaEntity.builder().id(2).name("IT").build()
         ));
@@ -135,8 +135,8 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainText() throws IOException {
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
-        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a text in a numeric column (index 5)
         var wb = createValidWorkbook(1);
@@ -153,8 +153,8 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowWhenNumericColumnsContainNegativeValue() throws IOException {
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
-        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Create wb with one row and inject a negative number in a numeric column (index 5 -> min_stable_generation)
         var wb = createValidWorkbook(1);
@@ -171,10 +171,10 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldThrowRegardlessOfSelectedAreaIfNoStudyAreaPresent() throws IOException {
-        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
                 .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
         // Study has ES and IT, but rows contain FR and DE -> none present
-        when(areaRepository.findAllByStudyId(anyInt())).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString()))).thenReturn(List.of(
                 AreaEntity.builder().id(1).name("ES").build(),
                 AreaEntity.builder().id(2).name("IT").build()
         ));
@@ -193,10 +193,10 @@ class ThermalSpecificFileProcessorServiceImplTest {
         String horizon = "2025-2026";
         Path file = tempDir.resolve("specific_param_test.xlsx");
         Files.write(file, generateSpecificParametersExcelFile(horizon));
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("NODE-A").build()));
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("NODE-A").build()));
 
         // clusters must exist and be resolvable
-        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), anyString(), anyString()))
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
                 .thenAnswer(inv -> ThermalClusterRef.builder()
                         .name(inv.getArgument(1))
                         .namePemmdb(inv.getArgument(2))
@@ -364,7 +364,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldReturnEmptySetWhenNoPreferredEntitiesFound() {
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), any(String.class)))
                 .thenReturn(Collections.emptyList());
 
         Set<String> result = service.getListClusterByAreaForSpecificParam("2025", 1, true);
@@ -374,7 +374,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldReturnClustersForMrSpecificWhenMrIsTrue() {
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), any(String.class)))
                 .thenReturn(List.of(
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
@@ -395,7 +395,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldReturnClustersForCmSpecificWhenMrIsFalse() {
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), any(String.class)))
                 .thenReturn(List.of(
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")
@@ -416,7 +416,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
     @Test
     void shouldIgnoreEntitiesWithNullOrZeroSpecificValues() {
-        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), anyString()))
+        when(thermalSpecificParametersRepository.findPreferredEntitiesByStudyIdAndHorizon(anyInt(), any(String.class)))
                 .thenReturn(List.of(
                         ThermalSpecificParametersEntity.builder()
                                 .area("FR")

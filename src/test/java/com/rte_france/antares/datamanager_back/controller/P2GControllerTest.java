@@ -45,7 +45,7 @@ public class P2GControllerTest {
         String isCivilYear = "true";
 
         TrajectoryEntity fakeEntity = mock(TrajectoryEntity.class);
-        when(p2gFileProcessorService.processModulationP2gFile(anyString(), anyString(), anyInt(), anyBoolean()))
+        when(p2gFileProcessorService.processModulationP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean()))
                 .thenReturn(fakeEntity);
 
 
@@ -60,7 +60,7 @@ public class P2GControllerTest {
                 .andExpect(status().isCreated());
 
         verify(p2gFileProcessorService, times(1))
-                .processModulationP2gFile(anyString(), anyString(), anyInt(), anyBoolean())
+                .processModulationP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean())
         ;
 
     }
@@ -81,7 +81,7 @@ public class P2GControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(p2gFileProcessorService, times(0)).processModulationP2gFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(p2gFileProcessorService, times(0)).processModulationP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -98,7 +98,7 @@ public class P2GControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(p2gFileProcessorService, times(0)).processModulationP2gFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(p2gFileProcessorService, times(0)).processModulationP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -109,7 +109,7 @@ public class P2GControllerTest {
         String studyId = "1";
 
         TrajectoryEntity fakeEntity = mock(TrajectoryEntity.class);
-        when(p2gFileProcessorService.processCapacityP2gFile(anyString(), anyString(), anyInt(), anyBoolean()))
+        when(p2gFileProcessorService.processCapacityP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean()))
                 .thenReturn(fakeEntity);
 
 
@@ -124,7 +124,7 @@ public class P2GControllerTest {
                 .andExpect(status().isCreated());
 
         verify(p2gFileProcessorService, times(1))
-                .processCapacityP2gFile(anyString(), anyString(), anyInt(), anyBoolean())
+                .processCapacityP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean())
         ;
 
     }
@@ -144,7 +144,7 @@ public class P2GControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(p2gFileProcessorService, times(0)).processCapacityP2gFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(p2gFileProcessorService, times(0)).processCapacityP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -160,6 +160,6 @@ public class P2GControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(p2gFileProcessorService, times(0)).processCapacityP2gFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(p2gFileProcessorService, times(0)).processCapacityP2gFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 }

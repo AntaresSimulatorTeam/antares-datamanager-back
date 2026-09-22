@@ -397,7 +397,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
     }
     
     public List<String> loadStudyAreas(Integer studyId) {
-        return areaRepository.findAllByStudyId(studyId)
+        return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();

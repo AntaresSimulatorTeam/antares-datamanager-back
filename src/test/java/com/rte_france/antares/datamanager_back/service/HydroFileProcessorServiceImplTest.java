@@ -99,7 +99,7 @@ class HydroFileProcessorServiceImplTest {
                 .thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -135,7 +135,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -171,7 +171,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -209,7 +209,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -246,7 +246,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}, new AreaEntity() {{
             setName("AT");
@@ -394,7 +394,7 @@ class HydroFileProcessorServiceImplTest {
                 isNull()
         )).thenReturn(trajectory);
 
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}, new AreaEntity() {{
             setName("AT");
@@ -473,7 +473,7 @@ class HydroFileProcessorServiceImplTest {
                 .area(area)
                 .build());
 
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(area);
         }}));
 
@@ -508,7 +508,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -533,7 +533,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -558,7 +558,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -592,7 +592,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -680,7 +680,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -1037,7 +1037,7 @@ class HydroFileProcessorServiceImplTest {
 
     @Test
     void loadStudyAreas_returnsUppercaseAreaNames() {
-        Mockito.when(areaRepository.findAllByStudyId(42)).thenReturn(List.of(
+        Mockito.when(areaRepository.findAllByStudyId(42, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 new AreaEntity() {{ setName("fr"); }},
                 new AreaEntity() {{ setName("at"); }},
                 new AreaEntity() {{ setName("BE"); }}
@@ -1114,7 +1114,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
         // FR en premier, BE en second pour que le bug soit reproductible
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 new AreaEntity() {{ setName(AREA_FR); }},
                 new AreaEntity() {{ setName("BE"); }}
         ));
@@ -1143,7 +1143,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 new AreaEntity() {{ setName(AREA_FR); }},
                 new AreaEntity() {{ setName("BE"); }}
         ));
@@ -1173,7 +1173,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -1201,7 +1201,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -1229,7 +1229,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(new AreaEntity() {{
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(new AreaEntity() {{
             setName(AREA_FR);
         }}));
 
@@ -1257,7 +1257,7 @@ class HydroFileProcessorServiceImplTest {
         when(trajectoryService.normalizeAndValidateDirectory(any(), any(), any())).thenReturn(base);
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TrajectoryEntity());
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 new AreaEntity() {{ setName(AREA_FR); }},
                 new AreaEntity() {{ setName("BE"); }}
         ));
