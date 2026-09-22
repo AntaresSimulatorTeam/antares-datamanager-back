@@ -20,6 +20,7 @@ import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintM
 import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
@@ -123,6 +124,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
+    private final HydroMeFileProcessorService hydroMeFileProcessorService;
+
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
@@ -170,6 +173,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return efficiencyMeFileProcessorService.processEfficiencyMeFile(trajectoryToUse, horizon, studyId);
     }
 
+    @Transactional
+    @Override
+    public TrajectoryEntity processHydroCapacityMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
+    }
 
     @Override
     @Transactional
@@ -275,6 +283,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
+            case HYDRO_CAPACITY_ME -> hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
@@ -1442,6 +1451,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case HYDRO_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getHydroParametersDirectory();
             case HYDRO_PSP_SERIES -> antaresDataManagerProperties.getPspSeriesDirectory();
             case HYDRO_PSP_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getPspParametersDirectory();
+            case HYDRO_CAPACITY_ME -> antaresDataManagerProperties.getHydroCapacityMeDirectory();
             case NUCLEAR_FR_MODULATION -> antaresDataManagerProperties.getNuclearModulationDirectory();
             case NUCLEAR_FR_TALON -> antaresDataManagerProperties.getNuclearTalonDirectory();
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();
@@ -1512,7 +1522,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
             case "LOAD_ME" -> validateLoadMeAreasAgainstAreaMeForTrajectory(studyId, trajectory);
             case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS",
-                 "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
+                 "HYDRO_ALLOCATION", "HYDRO_PARAMETERS", "HYDRO_CAPACITY_ME",
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
                  "NUCLEAR_FR_TS_SMR",
                  "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER", "AREA_ME",
@@ -1999,4 +2009,3 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return trajectory;
     }
 }
-

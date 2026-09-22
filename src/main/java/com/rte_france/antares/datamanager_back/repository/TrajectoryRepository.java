@@ -129,4 +129,12 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
                                                              @Param("type") String type);
 
     Optional<TrajectoryEntity> findFirstByFileNameAndTypeAndHorizonAndAreaIgnoreCaseOrderByVersionDesc(String fileName, String type, String horizon, String area);
+
+    @Query("""
+                SELECT t FROM Trajectory t
+                WHERE t.fileName = :name
+                  AND t.type = :type
+                ORDER BY t.version DESC
+            """)
+    List<TrajectoryEntity> findByNameAndType(@Param("name") String name, @Param("type") String type);
 }

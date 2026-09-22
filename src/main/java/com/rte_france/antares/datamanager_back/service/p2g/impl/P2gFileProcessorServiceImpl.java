@@ -226,7 +226,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             if (parameterName != null && REQUIRED_PARAMETERS_NAMES.contains(parameterName)) {
                 requiredParameters.add(parameterName);
             }
-            if (!isNumericCell(parameterCell)) {
+            if (!isNumericCellAndNotBlank(parameterCell)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(parameterName != null ? parameterName : "", trajectory.getFileName()))
                         .message("Parameter Value {0} must be numeric in parameters tab in P2G Capacity trajectory {1}")
@@ -363,7 +363,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
                 requiredTypes.add(typeName);
             }
             
-            if (!isNumericCell(costCell)) {
+            if (!isNumericCellAndNotBlank(costCell)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(typeName != null ? typeName : "", trajectory.getFileName()))
                         .message("P2G Type Value {0} must be numeric in P2G Costs trajectory {1}")

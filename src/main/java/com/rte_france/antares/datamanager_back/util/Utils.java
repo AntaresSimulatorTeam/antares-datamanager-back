@@ -533,7 +533,7 @@ public class Utils {
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
-            case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME ->
+            case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME , HYDRO_CAPACITY_ME->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case DSR ->
@@ -933,7 +933,7 @@ public class Utils {
         }
     }
 
-    public boolean isNumericCell(Cell cell) {
+    public boolean isNumericCellAndNotBlank(Cell cell) {
         if (cell == null) return false;
         CellType t = cell.getCellType();
         if (t == CellType.BLANK) return false;
@@ -945,6 +945,20 @@ public class Utils {
                 return isParsableAsDouble(cell.getStringCellValue());
             }
             return false;
+        }
+        if (t == CellType.STRING) {
+            return isParsableAsDouble(cell.getStringCellValue());
+        }
+        return false;
+    }
+
+    public boolean isNumericCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.NUMERIC) return true;
+        if (t == CellType.FORMULA) {
+            CellType resType = cell.getCachedFormulaResultType();
+            return resType == CellType.NUMERIC;
         }
         if (t == CellType.STRING) {
             return isParsableAsDouble(cell.getStringCellValue());

@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.TrajectorySer
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -113,6 +114,9 @@ class TrajectoryServiceImplTest {
     @Mock
     private HydroCoherenceCheckService hydroCoherenceCheckService;
 
+    @Mock
+    private HydroMeFileProcessorService hydroMeFileProcessorService;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -164,6 +168,17 @@ class TrajectoryServiceImplTest {
         trajectoryService.processTrajectory(TrajectoryType.LINK_ME, "linkme_ref", "2023-2024", 1);
 
         verify(linkMeProcessorServiceImpl, times(1)).processLinkMeFile(any(), any(), any());
+    }
+
+    @Test
+    void processTrajectory_returnsEntityWhenTrajectoryTypeIsHYDRO_CAPACITY_ME() throws IOException {
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
+        when(antaresDataManagerProperties.getHydroCapacityMeDirectory()).thenReturn("/hydro_me");
+
+        trajectoryService.processTrajectory(TrajectoryType.HYDRO_CAPACITY_ME, "hydro_me_ref", "2023-2024", 1);
+
+        verify(hydroMeFileProcessorService, times(1)).processHydroCapacityMeFile("hydro_me_ref", "2023-2024", 1);
     }
 
     @Test
@@ -5734,5 +5749,4 @@ class TrajectoryServiceImplTest {
         assertFalse(fileNames.contains("LoadMe_BP23_C_ref"));
     }
 }
-
 
