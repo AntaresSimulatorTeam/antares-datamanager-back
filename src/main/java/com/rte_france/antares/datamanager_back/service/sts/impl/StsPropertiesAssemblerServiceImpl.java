@@ -149,7 +149,9 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                 .collect(Collectors.toConcurrentMap(
                         sts -> sts.getArea().toUpperCase() + "_" + sts.getName(),
                         sts -> {
-                            StsGenerationDTO dto = StStorageMapper.mapToStsGenerationDTO(sts);
+                            StsGenerationDTO dto = isMe
+                                    ? StStorageMapper.mapToStsGenerationDTOForMe(sts)
+                                    : StStorageMapper.mapToStsGenerationDTO(sts);
                             dto.setStsTsList(this.createMatrixStsTsFiles(sts, horizon, matrixCache, bytesCache));
                             String clusterKey = sts.getArea().toUpperCase(Locale.ROOT) + "_" + sts.getName();
                             dto.setStsConstraintsSeriesList(

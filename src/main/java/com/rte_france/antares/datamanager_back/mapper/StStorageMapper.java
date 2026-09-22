@@ -18,6 +18,19 @@ public class StStorageMapper {
     }
 
     public static StsGenerationDTO mapToStsGenerationDTO(StStorageEntity entity) {
+        return commonFields(entity)
+                .efficiencyWithdrawal(Optional.ofNullable(entity.getEfficiencyWithdrawal()).map(Number::doubleValue).orElse(0.0))
+                .build();
+    }
+
+    /**
+     * ME STS doesn't use efficiency_withdrawal, leave it empty for default value
+     */
+    public static StsGenerationDTO mapToStsGenerationDTOForMe(StStorageEntity entity) {
+        return commonFields(entity).build();
+    }
+
+    private static StsGenerationDTO.StsGenerationDTOBuilder commonFields(StStorageEntity entity) {
         return StsGenerationDTO.builder()
                 .enabled(Optional.ofNullable(entity.getEnabled()).orElse(false))
                 .groupe(entity.getGroupe())
@@ -25,9 +38,7 @@ public class StStorageMapper {
                 .withdrawal(Optional.ofNullable(entity.getWithdrawal()).map(Number::doubleValue).orElse(0.0))
                 .storage(Optional.ofNullable(entity.getStorage()).map(Number::doubleValue).orElse(0.0))
                 .efficiencyInjection(Optional.ofNullable(entity.getEfficiencyInjection()).map(Number::doubleValue).orElse(0.0))
-                .efficiencyWithdrawal(Optional.ofNullable(entity.getEfficiencyWithdrawal()).map(Number::doubleValue).orElse(0.0))
                 .initialLevel(Optional.ofNullable(entity.getInitialLevel()).map(Number::doubleValue).orElse(0.0))
-                .initialLevelOptim(Optional.ofNullable(entity.getInitialLevelOptim()).orElse(false))
-                .build();
+                .initialLevelOptim(Optional.ofNullable(entity.getInitialLevelOptim()).orElse(false));
     }
 }
