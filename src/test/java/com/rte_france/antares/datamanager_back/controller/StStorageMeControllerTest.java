@@ -46,7 +46,7 @@ class StStorageMeControllerTest {
         String studyId = "1";
 
         TrajectoryEntity fakeEntity = Mockito.mock(TrajectoryEntity.class);
-        when(stStorageMeFileProcessorService.processStStorageMeFile(anyString(), anyString(), anyInt()))
+        when(stStorageMeFileProcessorService.processStStorageMeFile(any(String.class), any(String.class), anyInt()))
                 .thenReturn(fakeEntity);
 
         // When / Then
@@ -59,7 +59,7 @@ class StStorageMeControllerTest {
                 .andExpect(status().isCreated());
 
         verify(stStorageMeFileProcessorService, times(1))
-                .processStStorageMeFile(anyString(), anyString(), anyInt());
+                .processStStorageMeFile(any(String.class), any(String.class), anyInt());
     }
 
     @Test
@@ -77,7 +77,7 @@ class StStorageMeControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(anyString(), anyString(), anyInt());
+        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(any(String.class), any(String.class), anyInt());
     }
 
     @Test
@@ -94,7 +94,7 @@ class StStorageMeControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(anyString(), anyString(), anyInt());
+        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(any(String.class), any(String.class), anyInt());
     }
 
     @Test
@@ -109,7 +109,7 @@ class StStorageMeControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(anyString(), anyString(), anyInt());
+        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(any(String.class), any(String.class), anyInt());
     }
 
     @Test
@@ -126,6 +126,6 @@ class StStorageMeControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(anyString(), anyString(), anyInt());
+        verify(stStorageMeFileProcessorService, times(0)).processStStorageMeFile(any(String.class), any(String.class), anyInt());
     }
 }

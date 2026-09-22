@@ -170,7 +170,7 @@ class TrajectoryServiceImplAdditionalTest {
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId))
                 .thenReturn(Arrays.asList(trajectory1, trajectory2, trajectory3));
 
-        when(areaRepository.findAllByStudyId(studyId))
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()))
                 .thenReturn(Arrays.asList(
                         AreaEntity.builder().name("FR").build(),
                         AreaEntity.builder().name("DE").build()

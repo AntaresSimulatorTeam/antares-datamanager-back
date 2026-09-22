@@ -9,7 +9,9 @@ import com.rte_france.antares.datamanager_back.repository.model.HydroAllocationM
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -25,6 +27,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -36,8 +39,10 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     private final TrajectoryRepository trajectoryRepository;
     private final HydroParametersMeRepository hydroParametersMeRepository;
     private final HydroAllocationMeRepository hydroAllocationMeRepository;
+    private final AreaRepository areaRepository;
     private final UserService userService;
-    private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final PathSecurityUtil pathSecurityUtil;
+
 
     private static final String PARAM_HYDRO_ME_FILE = "param_hydro_ME.xlsx";
     private static final String HYDRO_ALLOCATION_ME_FILE = "hydroAllocation_ME.xlsx";
@@ -45,10 +50,10 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     @Transactional
     @Override
     public TrajectoryEntity processHydroParametersMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return saveHydroParametersMeTrajectoryInDb(trajectoryToUse, horizon);
+        return saveHydroParametersMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
     }
 
-    public TrajectoryEntity saveHydroParametersMeTrajectoryInDb(String trajectoryToUse, String horizon) throws IOException {
+    public TrajectoryEntity saveHydroParametersMeTrajectoryInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
                 .orElseThrow(() ->
@@ -57,15 +62,9 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
-        // Validate trajectory name length
-        if (trajectoryToUse.length() > 40) {
-            throw BusinessException.builder()
-                    .message("Trajectory name cannot exceed 40 characters")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        Path trajectoryDir = buildTrajectoryPath(trajectoryToUse);
+        Path trajectoryDir =  pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath(), properties.getHydroParametersMeDirectory(), trajectoryToUse)
+        );
         Path paramHydroPath = trajectoryDir.resolve(PARAM_HYDRO_ME_FILE);
         Path hydroAllocationPath = trajectoryDir.resolve(HYDRO_ALLOCATION_ME_FILE);
 
@@ -99,9 +98,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-            // New version: delete old data and create new trajectory
-            hydroParametersMeRepository.deleteByTrajectoryId(existingTrajectory.getId());
-            hydroAllocationMeRepository.deleteByTrajectoryId(existingTrajectory.getId());
             
             TrajectoryEntity newTrajectory = buildNewHydroParametersMeTrajectory(trajectoryToUse, horizon, trajectoryDir, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
@@ -109,7 +105,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             
             // Parse and insert data in single pass for each file
             parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, savedTrajectory.getId());
-            parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId());
+            parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
             
             return savedTrajectory;
         }
@@ -120,7 +116,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         
         // Parse and insert data in single pass for each file
         parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, savedTrajectory.getId());
-        parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId());
+        parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
         
         return savedTrajectory;
     }
@@ -146,16 +142,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
                 if (row == null) continue;
-
-                // Check if row has any data
-                boolean hasData = false;
-                for (int i = 0; i < 16; i++) {
-                    if (row.getCell(i) != null && !getCellStringValue(row.getCell(i)).isEmpty()) {
-                        hasData = true;
-                        break;
-                    }
-                }
-                if (!hasData) continue;
 
                 // Validate Node column (A) - must be filled
                 Cell nodeCell = row.getCell(0);
@@ -196,8 +182,8 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .trajectoryId(trajectoryId)
                         .node(nodeName)
                         .interMonthlyCorrelation(getNumericCellValue(row.getCell(1)))
-                        .interDailyBreakdown(getNumericCellValue(row.getCell(3)))
-                        .intraDailyModulation(getNumericCellValue(row.getCell(2)))
+                        .interDailyBreakdown(getNumericCellValue(row.getCell(2)))
+                        .intraDailyModulation(getNumericCellValue(row.getCell(3)))
                         .interMonthlyBreakdown(getNumericCellValue(row.getCell(4)))
                         .initializeReservoirDate(getIntCellValue(row.getCell(5)))
                         .leewayLow(getNumericCellValue(row.getCell(6)))
@@ -223,7 +209,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         }
     }
 
-    private void parseAndInsertHydroAllocationMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId) throws IOException {
+    private void parseAndInsertHydroAllocationMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Integer studyId) throws IOException {
         String horizonYear = extractHorizonYear(horizon);
         List<HydroAllocationMeEntity> entitiesToInsert = new ArrayList<>();
 
@@ -250,20 +236,24 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .build();
             }
 
+            // Load all valid areas and nodes for validation
+            List<String> validAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
+                    .stream()
+                    .map(area -> area.getName().trim().toLowerCase(Locale.ROOT))
+                    .toList();
+
+            List<HydroParametersMeEntity> hydroParams = hydroParametersMeRepository.findByTrajectoryId(trajectoryId);
+            Set<String> validNodes = hydroParams.stream()
+                    .map(param -> param.getNode().trim().toLowerCase(Locale.ROOT))
+                    .collect(Collectors.toSet());
+
+            Set<String> missingAreasOrNodes = new HashSet<>();
+            Set<String> missingNodesInHeader = new HashSet<>();
+
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
                 if (row == null) continue;
-
-                // Check if row has any data
-                boolean hasData = false;
-                for (int i = 0; i < row.getLastCellNum(); i++) {
-                    if (row.getCell(i) != null && !getCellStringValue(row.getCell(i)).isEmpty()) {
-                        hasData = true;
-                        break;
-                    }
-                }
-                if (!hasData) continue;
 
                 // Validate load column (A) - must be filled
                 Cell loadCell = row.getCell(0);
@@ -274,6 +264,12 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                             .errorMessageArguments(List.of(trajectoryName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
+                }
+
+                // RG1: Validate that area/node from load column exists in AREA or HYDRO_ME Param
+                String area = areaName.trim().toLowerCase(Locale.ROOT);
+                if (!validAreas.contains(area) && !validNodes.contains(area)) {
+                    missingAreasOrNodes.add(area);
                 }
 
                 // Validate node columns (from B onwards) are numeric and build entities
@@ -288,10 +284,18 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                                     .httpStatus(HttpStatus.BAD_REQUEST)
                                     .build();
                         }
+                        if(getNumericCellValue(cell) != null && getNumericCellValue(cell).compareTo(BigDecimal.ZERO) <= 0) {
+                            continue;
+                        }
 
                         // Get node name from header
                         String nodeName = getCellStringValue(headerRow.getCell(cellIndex));
-                        
+
+                        // RG2: Validate that node from header is present in HYDRO_ME Param
+                        if (!validNodes.contains(nodeName.trim().toLowerCase(Locale.ROOT))) {
+                            missingNodesInHeader.add(nodeName.trim());
+                        }
+
                         // Build entity
                         HydroAllocationMeEntity entity = HydroAllocationMeEntity.builder()
                                 .trajectoryId(trajectoryId)
@@ -299,10 +303,30 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                                 .node(nodeName)
                                 .allocationCoefficient(getNumericCellValue(cell))
                                 .build();
-                        
+
                         entitiesToInsert.add(entity);
                     }
                 }
+            }
+
+            // Throw error if RG1 validation failed
+            if (!missingAreasOrNodes.isEmpty()) {
+                String missingNames = String.join(", ", missingAreasOrNodes);
+                throw BusinessException.builder()
+                        .message("Missing Areas/nodes {0} in AREA or HYDRO_ME Param trajectory in HYDRO_ME Param Allocation trajectory {1}")
+                        .errorMessageArguments(List.of(missingNames, trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
+            // Throw error if RG2 validation failed
+            if (!missingNodesInHeader.isEmpty()) {
+                String missingNames = String.join(", ", missingNodesInHeader);
+                throw BusinessException.builder()
+                        .message("Missing Nodes {0} in HYDRO_ME Param trajectory in HYDRO_ME Param Allocation trajectory {1}")
+                        .errorMessageArguments(List.of(missingNames, trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         }
 
@@ -352,7 +376,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     private TrajectoryEntity buildNewHydroParametersMeTrajectory(String trajectoryName, String horizon, Path trajectoryDir, String userNni) throws IOException {
         return TrajectoryEntity.builder()
                 .fileName(trajectoryName)
-                .fileSize(computeDirectorySize(trajectoryDir))
+                .fileSize(Files.size(trajectoryDir))
                 .createdBy(userNni)
                 .version(1)
                 .lastModificationContentDate(Files.getLastModifiedTime(trajectoryDir).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
@@ -363,11 +387,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                 .build();
     }
 
-    private Path buildTrajectoryPath(String trajectoryName) {
-        return Path.of(antaresDataManagerProperties.getNasDirectory(),
-                antaresDataManagerProperties.getTrajectoryFilePath(),
-                trajectoryName);
-    }
 
     private boolean isNumeric(Cell cell) {
         if (cell.getCellType() == CellType.NUMERIC) {
@@ -439,17 +458,5 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             temp = temp / 26 - 1;
         }
         return sb.toString();
-    }
-
-    private long computeDirectorySize(Path dir) throws IOException {
-        return Files.walk(dir)
-                .filter(Files::isRegularFile)
-                .mapToLong(p -> {
-                    try {
-                        return Files.size(p);
-                    } catch (IOException e) {
-                        return 0;
-                    }
-                }).sum();
     }
 }

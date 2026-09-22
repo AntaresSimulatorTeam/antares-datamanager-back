@@ -1138,7 +1138,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     private List<String> loadStudyAreas(Integer studyId) {
-        return areaRepository.findAllByStudyId(studyId)
+        return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();

@@ -536,6 +536,7 @@ public class Utils {
             case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME , HYDRO_CAPACITY_ME->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
+            case HYDRO_PARAMETERS_ME -> computeHydroParametersMeChecksum(path, horizon);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
@@ -588,6 +589,38 @@ public class Utils {
 
             return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
         }
+    }
+
+    private static String computeHydroParametersMeChecksum(Path directoryPath, String horizon) throws IOException {
+        String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
+        
+        StringBuilder combinedHash = new StringBuilder();
+        
+        // Hash param_hydro_ME.xlsx sheet
+        Path paramHydroPath = directoryPath.resolve("param_hydro_ME.xlsx");
+        if (Files.exists(paramHydroPath)) {
+            try (InputStream in = Files.newInputStream(paramHydroPath);
+                 Workbook wb = WorkbookFactory.create(in)) {
+                Sheet horizonSheet = wb.getSheet(horizonYear);
+                if (horizonSheet != null) {
+                    combinedHash.append(hashWholeSheet(horizonSheet));
+                }
+            }
+        }
+        
+        // Hash hydroAllocation_ME.xlsx sheet
+        Path hydroAllocationPath = directoryPath.resolve("hydroAllocation_ME.xlsx");
+        if (Files.exists(hydroAllocationPath)) {
+            try (InputStream in = Files.newInputStream(hydroAllocationPath);
+                 Workbook wb = WorkbookFactory.create(in)) {
+                Sheet horizonSheet = wb.getSheet(horizonYear);
+                if (horizonSheet != null) {
+                    combinedHash.append(hashWholeSheet(horizonSheet));
+                }
+            }
+        }
+        
+        return Hashing.sha256().hashString(combinedHash.toString(), StandardCharsets.UTF_8).toString();
     }
 
     private static String canonicalRow(Row row) {

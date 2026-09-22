@@ -83,7 +83,7 @@ class DuplicationTrajectoryUtilsTest {
 
         // Then
         verify(trajectoryService).linkTrajectoryToStudy(trajectory.getId(), studyId, TrajectoryType.LINK);
-        verify(trajectoryService, never()).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), anyString());
+        verify(trajectoryService, never()).checkLinkCoherence(anyInt(), anySet(), any(TrajectoryEntity.class), any(String.class));
         assertEquals(1, missingTrajectoryTypes.size());
         assertEquals(TrajectoryType.LINK.name(), missingTrajectoryTypes.getFirst());
     }

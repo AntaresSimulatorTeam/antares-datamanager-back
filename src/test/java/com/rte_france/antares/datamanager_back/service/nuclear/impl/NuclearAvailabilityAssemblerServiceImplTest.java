@@ -127,9 +127,9 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             capturingWriter = mock(TimeSeriesWriter.class);
             when(capturingWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
             when(nasFileService.getWriter()).thenReturn(capturingWriter);
-            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_n4"), anyString())).thenReturn("lt_n4_arrow_file.arrow");
-            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_p4"), anyString())).thenReturn("lt_p4_arrow_file.arrow");
-            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_cp0_cp1_cp2"), anyString())).thenReturn("lt_cp0_cp1_cp2_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_n4"), any(String.class))).thenReturn("lt_n4_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_p4"), any(String.class))).thenReturn("lt_p4_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), contains("_lt_cp0_cp1_cp2"), any(String.class))).thenReturn("lt_cp0_cp1_cp2_arrow_file.arrow");
         }
 
         private TrajectoryEntity ltTrajectory() {
@@ -231,7 +231,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             capturingWriter = mock(TimeSeriesWriter.class);
             when(capturingWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
             when(nasFileService.getWriter()).thenReturn(capturingWriter);
-            when(nasFileService.saveMatrixBytesToNas(any(), anyString(), anyString())).thenReturn("epr_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), any(String.class), any(String.class))).thenReturn("epr_arrow_file.arrow");
         }
 
         private TrajectoryEntity eprTrajectory(String storedName) {
@@ -317,7 +317,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             capturingWriter = mock(TimeSeriesWriter.class);
             when(capturingWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
             when(nasFileService.getWriter()).thenReturn(capturingWriter);
-            when(nasFileService.saveMatrixBytesToNas(any(), anyString(), anyString())).thenReturn("smr_arrow_file.arrow");
+            when(nasFileService.saveMatrixBytesToNas(any(), any(String.class), any(String.class))).thenReturn("smr_arrow_file.arrow");
         }
 
         private TrajectoryEntity smrTrajectory() {

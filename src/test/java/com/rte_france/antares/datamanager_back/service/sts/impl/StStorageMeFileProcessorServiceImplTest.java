@@ -64,7 +64,7 @@ class StStorageMeFileProcessorServiceImplTest {
         areaEntity.setName("FR");
 
         // Mock default return for repository to avoid NPE
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -236,7 +236,7 @@ class StStorageMeFileProcessorServiceImplTest {
         trajectory.setHorizon("2030");
         trajectory.setId(1);
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
 
         TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
@@ -266,7 +266,7 @@ class StStorageMeFileProcessorServiceImplTest {
         trajectory.setId(1);
 
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
 
         TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
@@ -295,7 +295,7 @@ class StStorageMeFileProcessorServiceImplTest {
 
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
 
         TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
@@ -341,7 +341,7 @@ class StStorageMeFileProcessorServiceImplTest {
         trajectory.setId(1);
 
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
 
         service.processStStorageMeFile("me_test", "2029-2030", 1);
@@ -370,7 +370,7 @@ class StStorageMeFileProcessorServiceImplTest {
         trajectory.setId(1);
 
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
 
         TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
@@ -866,7 +866,7 @@ class StStorageMeFileProcessorServiceImplTest {
 
         StudyEntity study = createStudyWithMeAreas("FR");
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
-        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), any(), eq(1))).thenReturn(false);
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(String.class), any(), eq(1))).thenReturn(false);
 
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setHorizon("2030");
@@ -938,7 +938,7 @@ class StStorageMeFileProcessorServiceImplTest {
 
         StudyEntity study = createStudyWithMeAreas("FR");
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
-        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), any(), eq(1))).thenReturn(true);
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(String.class), any(), eq(1))).thenReturn(true);
 
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setHorizon("2030");

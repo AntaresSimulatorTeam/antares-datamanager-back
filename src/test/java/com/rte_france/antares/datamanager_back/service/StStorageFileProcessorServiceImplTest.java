@@ -72,7 +72,7 @@ class StStorageFileProcessorServiceImplTest {
         when(properties.getStsDirectory()).thenReturn("STS");
 
         // default study areas
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                     setName("FR");
                 }}));
@@ -254,7 +254,7 @@ class StStorageFileProcessorServiceImplTest {
     @Test
     void shouldProcessWhenOTHERSAreaAndSomeStudyAreasMissing() throws IOException {
         // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(
                         new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                             setName("FR");
@@ -287,7 +287,7 @@ class StStorageFileProcessorServiceImplTest {
         String technology = "battery";
 
         // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(
                         new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                             setName("FR");
@@ -360,7 +360,7 @@ class StStorageFileProcessorServiceImplTest {
         String technology = "battery";
 
         // studyAreas peu importe ici, on ne va jamais jusque-là
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of());
 
         // Création d’un Excel avec header incomplet

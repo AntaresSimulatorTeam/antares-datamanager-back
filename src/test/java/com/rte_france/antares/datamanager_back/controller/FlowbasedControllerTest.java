@@ -113,7 +113,7 @@ class FlowbasedControllerTest {
     @Test
     void uploadFlowbasedTrajectory_whenServiceThrowsBusinessException_shouldReturnBadRequest() throws Exception {
         when(flowbasedFileProcessorService.processFlowbasedFiles(
-                any(), anyString(), anyInt(), anyString()))
+                any(), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("File already processed with same content")
                         .httpStatus(HttpStatus.BAD_REQUEST)

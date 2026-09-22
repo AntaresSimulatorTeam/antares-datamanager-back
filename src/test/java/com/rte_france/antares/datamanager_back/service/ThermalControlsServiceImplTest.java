@@ -694,7 +694,7 @@ class ThermalControlsServiceImplTest {
         // Should NOT call trajectoryRepository.findByTypeAndStudyId because type is COMMON
         thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, null);
 
-        verify(trajectoryRepository, never()).findByTypeAndStudyId(anyString(), anyInt());
+        verify(trajectoryRepository, never()).findByTypeAndStudyId(any(String.class), anyInt());
     }
 
     @Test

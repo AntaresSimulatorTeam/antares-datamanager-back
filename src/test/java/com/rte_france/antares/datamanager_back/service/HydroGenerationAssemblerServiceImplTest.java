@@ -551,7 +551,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createFile(fileDir.resolve("mingen_FR_2030.xlsx"));
 
         when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean(), any(), any())).thenReturn(new TimeSeriesMatrix(List.of()));
-        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString()))
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), any(String.class), any(String.class)))
                 .thenThrow(new IOException("write error"));
 
         HydroSeriesEntity hydroSeries = HydroSeriesEntity.builder().tsName("mingen_FR_2030.xlsx").build();
@@ -689,7 +689,7 @@ class HydroGenerationAssemblerServiceImplTest {
         Files.createFile(fileDir.resolve("reservoir_levels_FR_2030.xlsx"));
 
         when(nasFileService.readMatrix(any(Path.class), any(), anyBoolean(), any(), any())).thenReturn(new TimeSeriesMatrix(List.of()));
-        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString()))
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), any(String.class), any(String.class)))
                 .thenReturn("FR_reservoir_levels.arrow");
 
         HydroParametersEntity hp = HydroParametersEntity.builder().node("FR").reservoir(true).build();

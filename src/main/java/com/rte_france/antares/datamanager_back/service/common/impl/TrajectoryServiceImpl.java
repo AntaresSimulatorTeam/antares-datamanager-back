@@ -363,7 +363,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // Filter out rows whose area is not present in the study AREA trajectory
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId)
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();
@@ -969,7 +969,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private boolean isSameVersionOfOtherLoadTrajectory(TrajectoryEntity existingTrajectory, Integer studyId, Path trajectoryPath, String horizon) {
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream()
                 .map(a -> a.getName().toLowerCase())
                 .toList();
 
@@ -1000,18 +1000,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType type) throws IOException {
         String nasDir = antaresDataManagerProperties.getNasDirectory();
         String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
-        String directoryByType = "";
-        if (TrajectoryType.LOAD.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getLoadDirectory();
-        } else if (TrajectoryType.LOAD_ME.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getLoadMeDirectory();
-        } else if (TrajectoryType.CONSTRAINT_ME.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getConstraintMeDirectory();
-        } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getThermalModulationParameterDirectory();
-        } else if (TrajectoryType.MISC_LOAD.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getMiscLoadDirectory();
-        }
+        String directoryByType = getDirectoryByTrajectoryType(type, null, null);
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {
             throw BusinessException.builder()
@@ -1019,7 +1008,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-
 
         Path baseDirectory = Path.of(nasDir)
                 .resolve(trajFilePath)
@@ -1030,7 +1018,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             baseDirectory = baseDirectory.resolve("");
         }
 
-        //download the file
         Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse).normalize();
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
             throw new IOException("Path is outside of the target directory");
@@ -1065,7 +1052,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .map(String::toLowerCase)
                     .toList();
         }
-        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
 
         List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
@@ -1345,7 +1332,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.ADEQUACY_PATCH
                         || trajectoryType == FLOWBASED
                         || trajectoryType == P2G_CAPACITY_COST
-                        || trajectoryType == P2G_MARKET_MODULATION);
+                        || trajectoryType == P2G_MARKET_MODULATION
+                        || trajectoryType == HYDRO_PARAMETERS_ME);
     }
 
     /**
@@ -1452,6 +1440,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case HYDRO_PSP_SERIES -> antaresDataManagerProperties.getPspSeriesDirectory();
             case HYDRO_PSP_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getPspParametersDirectory();
             case HYDRO_CAPACITY_ME -> antaresDataManagerProperties.getHydroCapacityMeDirectory();
+            case HYDRO_PARAMETERS_ME -> antaresDataManagerProperties.getHydroParametersMeDirectory();
             case NUCLEAR_FR_MODULATION -> antaresDataManagerProperties.getNuclearModulationDirectory();
             case NUCLEAR_FR_TALON -> antaresDataManagerProperties.getNuclearTalonDirectory();
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();

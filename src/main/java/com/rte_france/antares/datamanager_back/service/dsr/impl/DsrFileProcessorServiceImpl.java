@@ -59,7 +59,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         }
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
         var dsrClusterEntities = buildDsrClusterEntities(horizon.split("-")[1], trajectoryFilePath, area, studyAreas);
 
         boolean isSeriesTrue = dsrClusterEntities.stream()

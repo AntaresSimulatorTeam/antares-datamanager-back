@@ -68,7 +68,7 @@ class DsrFileProcessorServiceImplTest {
         when(properties.getDsrDirectory()).thenReturn("DSR/cluster");
 
         // default study areas
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                     setName("FR");
                 }}));
@@ -120,7 +120,7 @@ class DsrFileProcessorServiceImplTest {
             setNni("TESTNNI");
         }});
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
 
@@ -261,7 +261,7 @@ class DsrFileProcessorServiceImplTest {
     @Test
     void shouldProcessWhenOTHERSAreaAndSomeStudyAreasMissing() throws IOException {
         // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(
                         new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                             setName("FR");
@@ -276,7 +276,7 @@ class DsrFileProcessorServiceImplTest {
         placeInCluster(xlsx, FILE_NAME_DSR_CLUSTER);
 
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
         when(userService.getCurrentUserDetails()).thenReturn(null);
@@ -294,7 +294,7 @@ class DsrFileProcessorServiceImplTest {
         String areaParam = "IT";
 
         // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(
                         new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                             setName("FR");
@@ -341,7 +341,7 @@ class DsrFileProcessorServiceImplTest {
 
         doReturn(tempFile)
                 .when(serviceSpy)
-                .getTrajectoryFilePath(anyString());
+                .getTrajectoryFilePath(any(String.class));
 
         // WHEN / THEN
         BusinessException ex = assertThrows(
@@ -365,7 +365,7 @@ class DsrFileProcessorServiceImplTest {
         String areaParam = "IT";
 
         // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(
                         new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                             setName("FR");
@@ -426,7 +426,7 @@ class DsrFileProcessorServiceImplTest {
 
         doReturn(tempFile)
                 .when(serviceSpy)
-                .getTrajectoryFilePath(anyString());
+                .getTrajectoryFilePath(any(String.class));
 
         // WHEN / THEN
         BusinessException ex = assertThrows(
@@ -450,7 +450,7 @@ class DsrFileProcessorServiceImplTest {
         String areaParam = "IT";
 
         // study has FR and DE
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of(
                         new com.rte_france.antares.datamanager_back.repository.model.AreaEntity() {{
                             setName("FR");
@@ -511,7 +511,7 @@ class DsrFileProcessorServiceImplTest {
 
         doReturn(tempFile)
                 .when(serviceSpy)
-                .getTrajectoryFilePath(anyString());
+                .getTrajectoryFilePath(any(String.class));
 
         // WHEN / THEN
         BusinessException ex = assertThrows(
@@ -534,7 +534,7 @@ class DsrFileProcessorServiceImplTest {
         String areaParam = "FR";
 
         // studyAreas peu importe ici, on ne va jamais jusque-là
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of());
 
         // Création d’un Excel avec header incomplet
@@ -560,7 +560,7 @@ class DsrFileProcessorServiceImplTest {
         DsrFileProcessorServiceImpl serviceSpy = spy(service);
         doReturn(tempFile)
                 .when(serviceSpy)
-                .getTrajectoryFilePath(anyString());
+                .getTrajectoryFilePath(any(String.class));
 
         // WHEN / THEN
         BusinessException ex = assertThrows(
