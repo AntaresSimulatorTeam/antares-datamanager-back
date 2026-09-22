@@ -292,7 +292,7 @@ public class SettingsImportService {
                 .yearByYear(ParameterValueConverter.getBooleanValue(dataMap, KEY_YEAR_BY_YEAR))
                 .simulationSynthesis(ParameterValueConverter.getBooleanValue(dataMap, KEY_SYNTHESIS))
                 .buildingMode(ParameterValueConverter.getStringValue(dataMap, KEY_BUILDING_MODE))
-                .userPlaylist(ParameterValueConverter.getBooleanValue(dataMap, KEY_SELECTION_MODE))
+                .userPlaylist(ParameterValueConverter.getStringValue(dataMap, KEY_SELECTION_MODE).equalsIgnoreCase(CUSTOM_VALUE))
                 .thematicTrimming(ParameterValueConverter.getStringValue(dataMap, KEY_THEMATIC_TRIMMING).equalsIgnoreCase(CUSTOM_VALUE))
                 .geographicTrimming(ParameterValueConverter.getStringValue(dataMap, KEY_GEOGRAPHIC_TRIMMING).equalsIgnoreCase(CUSTOM_VALUE))
                 .nbTimeseriesThermal(ParameterValueConverter.getIntValue(dataMap, KEY_NBTIMESERIESTHERMAL))
