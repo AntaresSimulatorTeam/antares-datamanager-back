@@ -1082,6 +1082,8 @@ class StsPropertiesAssemblerServiceImplTest {
                 "Pmax_soutirage.xlsx.uuid.arrow",
                 "upper_curve.xlsx.uuid.arrow"
         );
+        // efficiency_withdrawal not needed for ME
+        assertThat(dto.getEfficiencyWithdrawal()).isNull();
     }
 
     @Test
