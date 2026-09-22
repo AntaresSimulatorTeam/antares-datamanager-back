@@ -1,10 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.multi_energy.impl;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
-import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
-import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
@@ -13,14 +10,19 @@ import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonServi
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -31,6 +33,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     private static final String LINKS_ME = "links_me";
     private static final String STS_ME = "sts_me";
     private static final String PROPERTIES = "properties";
+    private static final String BINDING_CONSTRAINTS_ME = "binding_constraints_me";
     private static final String UI = "ui";
     private static final String LOADS = "loads";
     private static final String NO_LOAD_FILES = "No LOAD files for this area";
@@ -42,11 +45,17 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     private static final String INDIRECT_MW = "indirectMw";
     private static final String HURDLE_COST_DIRECT = "hurdleCostDirect";
     private static final String HURDLE_COST_INDIRECT = "hurdleCostIndirect";
+    private static final String CONSTRAINTS_P2G = "constraints_P2G";
+    private static final String NODE = "node";
+    private static final String EFFICIENCY = "efficiency";
 
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
     private final LoadToJsonService loadToJsonService;
     private final StsToJsonService stsToJsonService;
+
+    private record P2gBindingConstraint(String node, BigDecimal efficiency) {
+    }
 
     @Override
     public Map<String, Object> buildMultiEnergyMap(
@@ -81,6 +90,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             }
         }
 
+
         return trajectoriesByType;
     }
 
@@ -110,6 +120,11 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             return TrajectoryType.LOAD_ME;
         }
 
+        if (trajectory.getEfficiencyMeEntities() != null
+                && !trajectory.getEfficiencyMeEntities().isEmpty()) {
+            return TrajectoryType.EFFICIENCY_ME;
+        }
+
         return TrajectoryType.AREA_ME;
     }
 
@@ -127,6 +142,9 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         TrajectoryEntity stsMeTrajectory =
                 trajectoriesByType.get(TrajectoryType.STS_ME);
 
+        TrajectoryEntity efficiencyMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.EFFICIENCY_ME);
+
         Map<String, Object> meMap = new LinkedHashMap<>();
 
         Map<String, Object> areasMap = buildAreasMap(study, areaMeTrajectory, stsMeTrajectory);
@@ -137,6 +155,11 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         Map<String, Object> linksMap = buildLinksMeMap(linkMeTrajectory);
         if (!linksMap.isEmpty()) {
             meMap.put(LINKS_ME, linksMap);
+        }
+
+        Map<String, Object> bindingP2GMeMap = buildBindingP2GMeMap(efficiencyMeTrajectory);
+        if (!bindingP2GMeMap.isEmpty()) {
+            meMap.put(BINDING_CONSTRAINTS_ME, bindingP2GMeMap);
         }
 
         return meMap;
@@ -319,5 +342,46 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         }
 
         return linksMap;
+    }
+
+    private Map<String, Object> buildBindingP2GMeMap(
+            TrajectoryEntity efficiencyMeTrajectory) {
+        if (efficiencyMeTrajectory == null
+                || efficiencyMeTrajectory.getEfficiencyMeEntities() == null) {
+            return Collections.emptyMap();
+        }
+
+        Set<P2gBindingConstraint> constraints = new LinkedHashSet<>();
+
+        for (EfficiencyMeEntity efficiencyMe : efficiencyMeTrajectory.getEfficiencyMeEntities()) {
+            if (efficiencyMe == null
+                    || StringUtils.isBlank(efficiencyMe.getNodeCluster())) {
+                continue;
+            }
+
+            constraints.add(new P2gBindingConstraint(
+                    efficiencyMe.getNodeCluster(),
+                    efficiencyMe.getEfficiency()));
+        }
+
+        if (constraints.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return getBindingP2GMeMap(constraints);
+    }
+
+    private static @NonNull Map<String, Object> getBindingP2GMeMap(Set<P2gBindingConstraint> constraints) {
+        List<Map<String, Object>> constraintP2GEntries = new ArrayList<>();
+        for (P2gBindingConstraint constraint : constraints) {
+            Map<String, Object> constraintP2GEntry = new LinkedHashMap<>();
+            constraintP2GEntry.put(NODE, constraint.node());
+            constraintP2GEntry.put(EFFICIENCY, constraint.efficiency());
+            constraintP2GEntries.add(constraintP2GEntry);
+        }
+
+        Map<String, Object> bindingP2GMeMap = new LinkedHashMap<>();
+        bindingP2GMeMap.put(CONSTRAINTS_P2G, constraintP2GEntries);
+        return bindingP2GMeMap;
     }
 }

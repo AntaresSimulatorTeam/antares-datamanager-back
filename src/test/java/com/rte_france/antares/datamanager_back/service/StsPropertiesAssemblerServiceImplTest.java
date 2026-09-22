@@ -130,6 +130,14 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleStsMeProperties_ShouldReturnEmptyMapWhenTrajectoryIsNull() {
+        Map<String, StsGenerationDTO> result =
+                stsPropertiesAssemblerService.assembleStsMeProperties(null, null);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void assembleStsProperties_ShouldHandleMultipleTrajectoriesAndAreas() {
         // Given
         StStorageEntity stStorage1 = StStorageEntity.builder()

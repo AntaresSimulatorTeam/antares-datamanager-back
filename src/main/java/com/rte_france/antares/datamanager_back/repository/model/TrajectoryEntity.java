@@ -64,6 +64,10 @@ public class TrajectoryEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<LinkMeEntity> linkMeEntities;
 
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<EfficiencyMeEntity> efficiencyMeEntities;
+
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<ThermalClusterCapacityEntity> thermalClusterCapacities;
@@ -145,7 +149,7 @@ public class TrajectoryEntity {
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<NuclearModulationParameterEntity> nuclearModulationParameterEntities;
-    
+
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<FlowbasedVirtualNodesEntity> flowbasedVirtualNodes;
