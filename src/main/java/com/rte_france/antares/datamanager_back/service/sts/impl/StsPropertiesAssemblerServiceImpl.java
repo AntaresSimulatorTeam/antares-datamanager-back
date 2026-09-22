@@ -66,10 +66,8 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     .findFirst()
                     .orElse(null);
         }
-        Objects.requireNonNull(stsMeTrajectory, "STS ME trajectory must not be null");
 
-
-        if (!isStsTrajectoryWithEntities(stsMeTrajectory)) {
+        if (stsMeTrajectory == null) {
             return Collections.emptyMap();
         }
 
@@ -577,4 +575,3 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
 
 }
-
