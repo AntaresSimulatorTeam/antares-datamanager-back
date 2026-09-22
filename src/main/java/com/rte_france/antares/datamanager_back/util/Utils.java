@@ -933,7 +933,7 @@ public class Utils {
         }
     }
 
-    public boolean isNumericCell(Cell cell) {
+    public boolean isNumericCellAndNotBlank(Cell cell) {
         if (cell == null) return false;
         CellType t = cell.getCellType();
         if (t == CellType.BLANK) return false;
@@ -945,6 +945,20 @@ public class Utils {
                 return isParsableAsDouble(cell.getStringCellValue());
             }
             return false;
+        }
+        if (t == CellType.STRING) {
+            return isParsableAsDouble(cell.getStringCellValue());
+        }
+        return false;
+    }
+
+    public boolean isNumericCell(Cell cell) {
+        if (cell == null) return false;
+        CellType t = cell.getCellType();
+        if (t == CellType.NUMERIC) return true;
+        if (t == CellType.FORMULA) {
+            CellType resType = cell.getCachedFormulaResultType();
+            return resType == CellType.NUMERIC;
         }
         if (t == CellType.STRING) {
             return isParsableAsDouble(cell.getStringCellValue());
