@@ -4,7 +4,12 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.EfficiencyMeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.GroupAreaDescEntity;
+import com.rte_france.antares.datamanager_back.repository.model.GroupClusterDescEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ListAreaDescEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ListClusterDescEntity;
+import com.rte_france.antares.datamanager_back.repository.model.MeConstraintEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
@@ -676,6 +681,77 @@ class MultiEnergyServiceImplTest {
         assertThat(constraintsP2G).containsExactly(
                 Map.of("node", "z_p2g_short_fr", "efficiency", shortEfficiency),
                 Map.of("node", "z_p2g_short_fr", "efficiency", longEfficiency));
+    }
+
+    @Test
+    void buildMultiEnergyMap_withConstraintMeTrajectory_shouldReturnG2PBindingConstraintsStructure() {
+        // Given
+        GroupAreaDescEntity groupAreaDesc = GroupAreaDescEntity.builder()
+                .groupName("GROUP_AREA_RIGHT")
+                .areas(new ArrayList<>())
+                .build();
+        groupAreaDesc.setAreas(List.of(
+                ListAreaDescEntity.builder().area("node_right_area1").groupArea(groupAreaDesc).build(),
+                ListAreaDescEntity.builder().area("node_right_area2").groupArea(groupAreaDesc).build()));
+
+        GroupClusterDescEntity groupClusterDesc = GroupClusterDescEntity.builder()
+                .groupName("GROUP_CLUSTER_RIGHT")
+                .clusters(new ArrayList<>())
+                .build();
+        groupClusterDesc.setClusters(List.of(
+                ListClusterDescEntity.builder().cluster("cluster1").groupCluster(groupClusterDesc).build(),
+                ListClusterDescEntity.builder().cluster("cluster2").groupCluster(groupClusterDesc).build()));
+
+        MeConstraintEntity g2pConstraint = MeConstraintEntity.builder()
+                .name("constraint_g2p")
+                .enabled(true)
+                .sign("equal")
+                .temporality("hourly")
+                .type("G2P")
+                .noeud1Gauche("v_me_h2_long_ouest")
+                .noeud2Gauche("z_me_consoelec")
+                .noeud1Droite("GROUP_AREA_RIGHT")
+                .clusterDroite("GROUP_CLUSTER_RIGHT")
+                .build();
+
+        TrajectoryEntity constraintMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.CONSTRAINT_ME.name())
+                .meConstraintEntities(List.of(g2pConstraint))
+                .groupAreaDescEntities(List.of(groupAreaDesc))
+                .groupClusterDescEntities(List.of(groupClusterDesc))
+                .build();
+
+        Map<String, Object> cluster1 = new LinkedHashMap<>();
+        cluster1.put("efficiency", null);
+        Map<String, Object> cluster2 = new LinkedHashMap<>();
+        cluster2.put("efficiency", null);
+
+        Map<String, Object> expectedAreaClusters = new LinkedHashMap<>();
+        expectedAreaClusters.put("node_right_area1", Map.of("cluster1", cluster1, "cluster2", cluster2));
+        expectedAreaClusters.put("node_right_area2", Map.of("cluster1", cluster1, "cluster2", cluster2));
+
+        Map<String, Object> expectedConstraint = new LinkedHashMap<>();
+        expectedConstraint.put("name", "constraint_g2p");
+        expectedConstraint.put("enabled", true);
+        expectedConstraint.put("type", "hourly");
+        expectedConstraint.put("operator", "equal");
+        expectedConstraint.put("node_1_left", "v_me_h2_long_ouest");
+        expectedConstraint.put("node_2_left", "z_me_consoelec");
+        expectedConstraint.put("node_right_area", expectedAreaClusters);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, constraintMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("binding_constraints_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bindingConstraintsMe = (Map<String, Object>) result.get("binding_constraints_me");
+        assertThat(bindingConstraintsMe).containsKey("constraints_G2P");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> constraintsG2P = (List<Map<String, Object>>) bindingConstraintsMe.get("constraints_G2P");
+        assertThat(constraintsG2P).containsExactly(expectedConstraint);
     }
 
     @Test

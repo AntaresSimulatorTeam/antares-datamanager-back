@@ -273,8 +273,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 dispatchResult.trajectoryOfType(TrajectoryType.AREA_ME);
         Optional<TrajectoryEntity> efficiencyMeTrajectory =
                 dispatchResult.trajectoryOfType(TrajectoryType.EFFICIENCY_ME);
+        Optional<TrajectoryEntity> constraintMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.CONSTRAINT_ME);
 
-        if (areaMeTrajectory.isPresent() || efficiencyMeTrajectory.isPresent()) {
+        if (areaMeTrajectory.isPresent() || efficiencyMeTrajectory.isPresent() || constraintMeTrajectory.isPresent()) {
             Optional<TrajectoryEntity> linkMeTrajectory =
                     dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
             Optional<TrajectoryEntity> loadMeTrajectory =
@@ -288,7 +290,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     linkMeTrajectory.orElse(null),
                     loadMeTrajectory.orElse(null),
                     stsMeTrajectory.orElse(null),
-                    efficiencyMeTrajectory.orElse(null));
+                    efficiencyMeTrajectory.orElse(null),
+                    constraintMeTrajectory.orElse(null));
 
             if (meMap != null && !meMap.isEmpty()) {
                 innerGeneratorMap.put("ME", meMap);
