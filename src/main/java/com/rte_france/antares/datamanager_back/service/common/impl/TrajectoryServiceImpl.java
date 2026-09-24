@@ -1394,6 +1394,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     private boolean isValidTrajectoryFile(Path path, TrajectoryType trajectoryType) {
         String fileName = path.getFileName().toString().toLowerCase();
+        
+        // Reject temporary Excel files (locked files starting with ~$)
+        if (fileName.startsWith("~$")) {
+            return false;
+        }
+        
         boolean isXlsx = fileName.endsWith(".xlsx");
 
         return switch (trajectoryType) {

@@ -331,7 +331,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         Sheet sheet = workbook.getSheet(horizonYear);
         if (isSheetEmpty(sheet)) {
             throw BusinessException.builder()
-                    .message("{0} Tab can't be empty in CONSTRAINTS_ME trajectory {1}")
+                    .message("{0} Tab cant be empty in CONSTRAINTS_ME trajectory {1}")
                     .errorMessageArguments(List.of(horizonYear, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
