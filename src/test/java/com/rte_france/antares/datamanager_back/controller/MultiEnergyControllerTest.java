@@ -4,6 +4,8 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +21,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.ArgumentMatchers;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -40,6 +44,12 @@ class MultiEnergyControllerTest {
 
     @MockBean
     private HydroMeFileProcessorService hydroMeFileProcessorService;
+
+    @MockBean
+    private HydroParametersMeFileProcessorService hydroParametersMeFileProcessorService;
+
+    @MockBean
+    private PathSecurityUtil pathSecurityUtil;
 
     @BeforeEach
     public void setup() {
@@ -333,4 +343,110 @@ class MultiEnergyControllerTest {
                     .processHydroCapacityMeFile(TRAJECTORY_NAME, HORIZON, studyId);
         }
     }
+
+    @Test
+    void uploadHydroCapacityMeTrajectory_returns201WithCorrectResponse() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(456);
+        entity.setFileName("hydro_capacity_test");
+        entity.setType(TrajectoryType.HYDRO_CAPACITY_ME.name());
+        entity.setVersion(2);
+        entity.setHorizon("2021-2022");
+
+        when(hydroMeFileProcessorService.processHydroCapacityMeFile(
+                "hydro_capacity_test",
+                "2021-2022",
+                99
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "hydro_capacity_test")
+                        .param("horizon", "2021-2022")
+                        .param("studyId", "99"))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(456))
+                .andExpect(jsonPath("$.trajectoryName").value("hydro_capacity_test"))
+                .andExpect(jsonPath("$.type").value(TrajectoryType.HYDRO_CAPACITY_ME.name()))
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.horizon").value("2021-2022"));
+
+        verify(hydroMeFileProcessorService, times(1))
+                .processHydroCapacityMeFile("hydro_capacity_test", "2021-2022", 99);
+        }
+
+        // ==================== Hydro-Parameters-ME Tests ====================
+
+        @Test
+        void uploadHydroParametersMeTrajectory_returns201AndCallsPathSecurityUtilAndService() throws Exception {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(789);
+            entity.setFileName("hydro_params_test");
+            entity.setType(TrajectoryType.HYDRO_PARAMETERS_ME.name());
+            entity.setVersion(1);
+            entity.setHorizon(HORIZON);
+
+            when(hydroParametersMeFileProcessorService.processHydroParametersMeDirectory(
+                    TRAJECTORY_NAME,
+                    HORIZON,
+                    STUDY_ID
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/hydro-parameters-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", TRAJECTORY_NAME)
+                            .param("horizon", HORIZON)
+                            .param("studyId", STUDY_ID.toString()))
+                    .andExpect(status().isCreated())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.id").value(789))
+                    .andExpect(jsonPath("$.trajectoryName").value("hydro_params_test"))
+                    .andExpect(jsonPath("$.type").value(TrajectoryType.HYDRO_PARAMETERS_ME.name()))
+                    .andExpect(jsonPath("$.horizon").value(HORIZON));
+
+            verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq(TRAJECTORY_NAME));
+            verify(hydroParametersMeFileProcessorService, times(1))
+                    .processHydroParametersMeDirectory(TRAJECTORY_NAME, HORIZON, STUDY_ID);
+        }
+
+        @Test
+        void uploadHydroParametersMeTrajectory_callsPathSecurityUtilWithCorrectParameters() throws Exception {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(999);
+            entity.setFileName("params_trajectory");
+            entity.setType(TrajectoryType.HYDRO_PARAMETERS_ME.name());
+            entity.setVersion(1);
+            entity.setHorizon("2022-2023");
+
+            when(hydroParametersMeFileProcessorService.processHydroParametersMeDirectory(
+                    "params_trajectory",
+                    "2022-2023",
+                    50
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/hydro-parameters-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", "params_trajectory")
+                            .param("horizon", "2022-2023")
+                            .param("studyId", "50"))
+                    .andExpect(status().isCreated());
+
+            verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("params_trajectory"));
+        }
+
+        @Test
+        void uploadHydroParametersMeTrajectory_whenTrajectoryNameTooLong_doesNotCallPathSecurityUtil() throws Exception {
+            String tooLongName = "x".repeat(41);
+
+            mockMvc.perform(post("/v1/trajectory/hydro-parameters-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", tooLongName)
+                            .param("horizon", HORIZON)
+                            .param("studyId", STUDY_ID.toString()))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(pathSecurityUtil);
+            verifyNoInteractions(hydroParametersMeFileProcessorService);
+        }
 }
