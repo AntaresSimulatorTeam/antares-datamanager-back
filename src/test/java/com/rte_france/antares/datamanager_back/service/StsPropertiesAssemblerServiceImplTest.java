@@ -130,6 +130,14 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleStsMeProperties_ShouldReturnEmptyMapWhenTrajectoryIsNull() {
+        Map<String, StsGenerationDTO> result =
+                stsPropertiesAssemblerService.assembleStsMeProperties(null, null);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void assembleStsProperties_ShouldHandleMultipleTrajectoriesAndAreas() {
         // Given
         StStorageEntity stStorage1 = StStorageEntity.builder()
@@ -1082,6 +1090,8 @@ class StsPropertiesAssemblerServiceImplTest {
                 "Pmax_soutirage.xlsx.uuid.arrow",
                 "upper_curve.xlsx.uuid.arrow"
         );
+        // efficiency_withdrawal not needed for ME
+        assertThat(dto.getEfficiencyWithdrawal()).isNull();
     }
 
     @Test

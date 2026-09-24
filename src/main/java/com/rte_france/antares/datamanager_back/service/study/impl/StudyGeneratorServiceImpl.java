@@ -203,7 +203,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case NUCLEAR_FR_TS_ERP, NUCLEAR_FR_TS_LONG_TERM, NUCLEAR_FR_TS_SMR ->
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
-                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME, LOAD_ME, STS_ME -> singleTrajectoryByType.put(trajectoryType, trajectory);
+                     P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME, LOAD_ME, STS_ME, EFFICIENCY_ME,
+                     CONSTRAINT_ME-> singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -270,8 +271,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Optional<TrajectoryEntity> areaMeTrajectory =
                 dispatchResult.trajectoryOfType(TrajectoryType.AREA_ME);
+        Optional<TrajectoryEntity> efficiencyMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.EFFICIENCY_ME);
 
-        if (areaMeTrajectory.isPresent()) {
+        if (areaMeTrajectory.isPresent() || efficiencyMeTrajectory.isPresent()) {
             Optional<TrajectoryEntity> linkMeTrajectory =
                     dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
             Optional<TrajectoryEntity> loadMeTrajectory =
@@ -281,10 +284,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(
                     study,
-                    areaMeTrajectory.get(),
+                    areaMeTrajectory.orElse(null),
                     linkMeTrajectory.orElse(null),
                     loadMeTrajectory.orElse(null),
-                    stsMeTrajectory.orElse(null));
+                    stsMeTrajectory.orElse(null),
+                    efficiencyMeTrajectory.orElse(null));
 
             if (meMap != null && !meMap.isEmpty()) {
                 innerGeneratorMap.put("ME", meMap);

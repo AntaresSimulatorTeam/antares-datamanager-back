@@ -706,8 +706,16 @@ class UtilsTest {
             when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
             when(cell.getStringCellValue()).thenReturn(" 123.45 ");
 
-            assertTrue(Utils.isNumericCell(cell));
+            assertTrue(Utils.isNumericCellAndNotBlank(cell));
         }
+
+    @Test
+    void testBlanckCellResult() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.BLANK);
+
+        assertFalse(Utils.isNumericCellAndNotBlank(cell));
+    }
 
         @Test
         void testFormulaStringEmptyResult() {

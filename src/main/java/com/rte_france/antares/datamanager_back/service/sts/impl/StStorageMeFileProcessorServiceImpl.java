@@ -178,7 +178,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
         stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
         stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
-        stStorageEntity.setEfficiencyWithdrawal(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
         stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
         stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 8));
         stStorageEntity.setEnabled(getBooleanCell(row, 9));

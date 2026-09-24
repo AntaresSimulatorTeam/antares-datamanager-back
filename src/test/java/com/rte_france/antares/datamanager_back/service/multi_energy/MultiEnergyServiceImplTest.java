@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.multi_energy;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.EfficiencyMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -19,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -603,6 +605,77 @@ class MultiEnergyServiceImplTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> linksMe = (Map<String, Object>) result.get("links_me");
         assertThat(linksMe).isNotNull().containsKey("ME/FR");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withEfficiencyMeTrajectory_shouldReturnBindingConstraintsMeStructure() {
+        // Given
+        BigDecimal efficiency = new BigDecimal("0.057");
+        TrajectoryEntity efficiencyMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .efficiencyMeEntities(List.of(
+                        EfficiencyMeEntity.builder()
+                                .nodeCluster("z_p2g_short_fr")
+                                .efficiency(efficiency)
+                                .build()))
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, efficiencyMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("binding_constraints_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bindingConstraintsMe = (Map<String, Object>) result.get("binding_constraints_me");
+        assertThat(bindingConstraintsMe).containsKey("constraints_P2G");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> constraintsP2G = (List<Map<String, Object>>) bindingConstraintsMe.get("constraints_P2G");
+        assertThat(constraintsP2G).containsExactly(Map.of(
+                "node", "z_p2g_short_fr",
+                "efficiency", efficiency));
+    }
+
+    @Test
+    void buildMultiEnergyMap_withEfficiencyMeTrajectory_shouldRemoveStrictDuplicatesAndSkipBlankNodes() {
+        // Given
+        BigDecimal shortEfficiency = new BigDecimal("0.057");
+        BigDecimal longEfficiency = new BigDecimal("0.123");
+        TrajectoryEntity efficiencyMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .efficiencyMeEntities(Arrays.asList(
+                        EfficiencyMeEntity.builder()
+                                .nodeCluster("z_p2g_short_fr")
+                                .efficiency(shortEfficiency)
+                                .build(),
+                        EfficiencyMeEntity.builder()
+                                .nodeCluster("z_p2g_short_fr")
+                                .efficiency(shortEfficiency)
+                                .build(),
+                        EfficiencyMeEntity.builder()
+                                .nodeCluster("z_p2g_short_fr")
+                                .efficiency(longEfficiency)
+                                .build(),
+                        EfficiencyMeEntity.builder()
+                                .nodeCluster("  ")
+                                .efficiency(shortEfficiency)
+                                .build(),
+                        null))
+                .build();
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, efficiencyMeTrajectory);
+
+        // Then
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bindingConstraintsMe = (Map<String, Object>) result.get("binding_constraints_me");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> constraintsP2G = (List<Map<String, Object>>) bindingConstraintsMe.get("constraints_P2G");
+
+        assertThat(constraintsP2G).containsExactly(
+                Map.of("node", "z_p2g_short_fr", "efficiency", shortEfficiency),
+                Map.of("node", "z_p2g_short_fr", "efficiency", longEfficiency));
     }
 
     @Test
