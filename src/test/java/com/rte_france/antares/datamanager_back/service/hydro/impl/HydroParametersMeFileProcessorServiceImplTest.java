@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.HydroAllocationMeRepository;
 import com.rte_france.antares.datamanager_back.repository.HydroParametersMeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.HydroAllocationMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -32,6 +33,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("HydroParametersMeFileProcessorServiceImpl Tests")
@@ -400,6 +403,7 @@ class HydroParametersMeFileProcessorServiceImplTest {
     @Test
     @DisplayName("RG1: Should succeed when all areas/nodes from load column exist in AREA or HYDRO_ME Param")
     void testRG1_SuccessWhenAreasValid() throws IOException {
+
         createParamHydroMeFile();
         createHydroAllocationMeFile();
 
@@ -412,8 +416,7 @@ class HydroParametersMeFileProcessorServiceImplTest {
         });
         
         // Mock with valid area area_1
-        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
-            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
+       AreaEntity area = AreaEntity.builder()
                 .id(1)
                 .name("area_1")
                 .build();
@@ -431,7 +434,10 @@ class HydroParametersMeFileProcessorServiceImplTest {
         when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
 
         // Should not throw exception
-        service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+      TrajectoryEntity trajectory = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+      assertNotNull(trajectory);
+      assertEquals(trajectoryId, trajectory.getId());
     }
 
     @Test
@@ -542,7 +548,143 @@ class HydroParametersMeFileProcessorServiceImplTest {
         when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
 
         // Should not throw exception
-        service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+      TrajectoryEntity trajectory = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+      assertNotNull(trajectory);
+      assertEquals(trajectoryId, trajectory.getId());
+    }
+
+    // ==================== Existing Trajectory Tests ====================
+
+    @Test
+    @DisplayName("Should create new trajectory when no existing trajectory found")
+    void testNewTrajectoryCreation() throws IOException {
+        createBothFiles();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
+            TrajectoryEntity entity = invocation.getArgument(0);
+            entity.setId(trajectoryId);
+            return entity;
+        });
+        
+        // Mock area repository
+        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
+            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
+                .id(1)
+                .name("area_1")
+                .build();
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
+        
+        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
+                .trajectoryId(trajectoryId)
+                .node("node_1")
+                .build();
+        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
+                .trajectoryId(trajectoryId)
+                .node("node_2")
+                .build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
+
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        assertEquals(1, result.getVersion()); // First version should be 1
+    }
+
+    @Test
+    @DisplayName("Should use version 1 when creating new trajectory with existing trajectory found")
+    void testFirstVersionWhenExistingTrajectoryNotPresent() throws IOException {
+        createBothFiles();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryName, horizon, 
+                TrajectoryType.HYDRO_PARAMETERS_ME.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
+            TrajectoryEntity entity = invocation.getArgument(0);
+            entity.setId(trajectoryId);
+            return entity;
+        });
+        
+        // Mock area repository
+        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
+            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
+                .id(1)
+                .name("area_1")
+                .build();
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
+        
+        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
+                .trajectoryId(trajectoryId)
+                .node("node_1")
+                .build();
+        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
+                .trajectoryId(trajectoryId)
+                .node("node_2")
+                .build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
+
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        assertEquals(1, result.getVersion());
+    }
+
+    @Test
+    @DisplayName("Should check if existing trajectory is present and has content")
+    void testExistingTrajectoryPresentBranchCoverage() throws IOException {
+        createBothFiles();
+
+        // Create an existing trajectory with version 3
+        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryName)
+                .version(3)
+                .horizon(horizon)
+                .type(TrajectoryType.HYDRO_PARAMETERS_ME.name())
+                .createdBy("USER123")
+                .build();
+
+        // Mock to return existing trajectory first time
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(eq(trajectoryName), eq(horizon),
+                eq(TrajectoryType.HYDRO_PARAMETERS_ME.name())))
+                .thenReturn(Optional.of(existingTrajectory));
+
+        // Mock save for new version (the if block will create a new version)
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
+            TrajectoryEntity entity = invocation.getArgument(0);
+            entity.setId(2); 
+            // Verify version is incremented
+            assertEquals(4, entity.getVersion(), "New trajectory should have version 4 (existing 3 + 1)");
+            return entity;
+        });
+
+        // Mock area repository
+        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
+            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
+                .id(1)
+                .name("area_1")
+                .build();
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
+        
+        // Mock hydro parameters
+        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
+                .trajectoryId(2)
+                .node("node_1")
+                .build();
+        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
+                .trajectoryId(2)
+                .node("node_2")
+                .build();
+        when(hydroParametersMeRepository.findByTrajectoryId(2)).thenReturn(List.of(hydroParam1, hydroParam2));
+
+        // This will execute the if (existingTrajectoryOpt.isPresent()) block
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        // Verify the if block was executed (findFirstBy was called)
+        verify(trajectoryRepository, times(1)).findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.HYDRO_PARAMETERS_ME.name());
     }
 
     // ==================== Test Helper Methods ====================
