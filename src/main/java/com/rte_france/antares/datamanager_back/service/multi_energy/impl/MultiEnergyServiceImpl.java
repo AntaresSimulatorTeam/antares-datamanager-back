@@ -46,8 +46,17 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     private static final String HURDLE_COST_DIRECT = "hurdleCostDirect";
     private static final String HURDLE_COST_INDIRECT = "hurdleCostIndirect";
     private static final String CONSTRAINTS_P2G = "constraints_P2G";
+    private static final String CONSTRAINTS_G2P = "constraints_G2P";
     private static final String NODE = "node";
     private static final String EFFICIENCY = "efficiency";
+    private static final String G2P = "G2P";
+    private static final String NAME = "name";
+    private static final String ENABLED = "enabled";
+    private static final String TYPE = "type";
+    private static final String OPERATOR = "operator";
+    private static final String NODE_1_LEFT = "node_1_left";
+    private static final String NODE_2_LEFT = "node_2_left";
+    private static final String NODE_RIGHT_AREA = "node_right_area";
 
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
@@ -125,6 +134,11 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             return TrajectoryType.EFFICIENCY_ME;
         }
 
+        if (trajectory.getMeConstraintEntities() != null
+                && !trajectory.getMeConstraintEntities().isEmpty()) {
+            return TrajectoryType.CONSTRAINT_ME;
+        }
+
         return TrajectoryType.AREA_ME;
     }
 
@@ -145,6 +159,9 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         TrajectoryEntity efficiencyMeTrajectory =
                 trajectoriesByType.get(TrajectoryType.EFFICIENCY_ME);
 
+        TrajectoryEntity constraintMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.CONSTRAINT_ME);
+
         Map<String, Object> meMap = new LinkedHashMap<>();
 
         Map<String, Object> areasMap = buildAreasMap(study, areaMeTrajectory, stsMeTrajectory);
@@ -157,9 +174,12 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             meMap.put(LINKS_ME, linksMap);
         }
 
-        Map<String, Object> bindingP2GMeMap = buildBindingP2GMeMap(efficiencyMeTrajectory);
-        if (!bindingP2GMeMap.isEmpty()) {
-            meMap.put(BINDING_CONSTRAINTS_ME, bindingP2GMeMap);
+        Map<String, Object> bindingConstraintsMeMap =
+                buildBindingConstraintsMeMap(
+                        efficiencyMeTrajectory,
+                        constraintMeTrajectory);
+        if (!bindingConstraintsMeMap.isEmpty()) {
+            meMap.put(BINDING_CONSTRAINTS_ME, bindingConstraintsMeMap);
         }
 
         return meMap;
@@ -344,11 +364,30 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         return linksMap;
     }
 
-    private Map<String, Object> buildBindingP2GMeMap(
+    private Map<String, Object> buildBindingConstraintsMeMap(
+            TrajectoryEntity efficiencyMeTrajectory,
+            TrajectoryEntity constraintMeTrajectory) {
+
+        Map<String, Object> bindingConstraintsMeMap = new LinkedHashMap<>();
+
+        List<Map<String, Object>> p2gConstraints = buildBindingP2GConstraints(efficiencyMeTrajectory);
+        if (!p2gConstraints.isEmpty()) {
+            bindingConstraintsMeMap.put(CONSTRAINTS_P2G, p2gConstraints);
+        }
+
+        List<Map<String, Object>> g2pConstraints = buildBindingG2PConstraints(constraintMeTrajectory);
+        if (!g2pConstraints.isEmpty()) {
+            bindingConstraintsMeMap.put(CONSTRAINTS_G2P, g2pConstraints);
+        }
+
+        return bindingConstraintsMeMap;
+    }
+
+    private List<Map<String, Object>> buildBindingP2GConstraints(
             TrajectoryEntity efficiencyMeTrajectory) {
         if (efficiencyMeTrajectory == null
                 || efficiencyMeTrajectory.getEfficiencyMeEntities() == null) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
 
         Set<P2gBindingConstraint> constraints = new LinkedHashSet<>();
@@ -365,13 +404,109 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         }
 
         if (constraints.isEmpty()) {
-            return Collections.emptyMap();
+            return Collections.emptyList();
         }
 
-        return getBindingP2GMeMap(constraints);
+        return getBindingP2GEntries(constraints);
     }
 
-    private static @NonNull Map<String, Object> getBindingP2GMeMap(Set<P2gBindingConstraint> constraints) {
+    private List<Map<String, Object>> buildBindingG2PConstraints(
+            TrajectoryEntity constraintMeTrajectory) {
+        if (constraintMeTrajectory == null
+                || constraintMeTrajectory.getMeConstraintEntities() == null) {
+            return Collections.emptyList();
+        }
+
+        List<Map<String, Object>> constraintG2PEntries = new ArrayList<>();
+
+        for (MeConstraintEntity constraint : constraintMeTrajectory.getMeConstraintEntities()) {
+            if (constraint == null
+                    || !G2P.equalsIgnoreCase(constraint.getType())
+                    || StringUtils.isBlank(constraint.getName())) {
+                continue;
+            }
+
+            Map<String, Object> constraintG2PEntry = new LinkedHashMap<>();
+            constraintG2PEntry.put(NAME, constraint.getName());
+            constraintG2PEntry.put(ENABLED, Boolean.TRUE.equals(constraint.getEnabled()));
+            constraintG2PEntry.put(TYPE, constraint.getTemporality());
+            constraintG2PEntry.put(OPERATOR, constraint.getSign());
+            constraintG2PEntry.put(NODE_1_LEFT, constraint.getNoeud1Gauche());
+            constraintG2PEntry.put(NODE_2_LEFT, constraint.getNoeud2Gauche());
+            constraintG2PEntry.put(
+                    NODE_RIGHT_AREA,
+                    buildRightAreaClusters(constraint, constraintMeTrajectory));
+            constraintG2PEntries.add(constraintG2PEntry);
+        }
+
+        return constraintG2PEntries;
+    }
+
+    private Map<String, Object> buildRightAreaClusters(
+            MeConstraintEntity constraint,
+            TrajectoryEntity constraintMeTrajectory) {
+        List<String> areas =
+                findAreasForGroup(
+                        constraintMeTrajectory.getGroupAreaDescEntities(),
+                        constraint.getNoeud1Droite());
+        List<String> clusters =
+                findClustersForGroup(
+                        constraintMeTrajectory.getGroupClusterDescEntities(),
+                        constraint.getClusterDroite());
+
+        Map<String, Object> rightAreaClusters = new LinkedHashMap<>();
+        for (String area : areas) {
+            Map<String, Object> clusterEntries = new LinkedHashMap<>();
+            for (String cluster : clusters) {
+                Map<String, Object> clusterEntry = new LinkedHashMap<>();
+                clusterEntry.put(EFFICIENCY, null);
+                clusterEntries.put(cluster, clusterEntry);
+            }
+            rightAreaClusters.put(area, clusterEntries);
+        }
+
+        return rightAreaClusters;
+    }
+
+    private List<String> findAreasForGroup(
+            List<GroupAreaDescEntity> groupAreaDescEntities,
+            String groupName) {
+        if (groupAreaDescEntities == null || StringUtils.isBlank(groupName)) {
+            return Collections.emptyList();
+        }
+
+        return groupAreaDescEntities.stream()
+                .filter(group -> group != null
+                        && group.getGroupName() != null
+                        && group.getGroupName().equalsIgnoreCase(groupName)
+                        && group.getAreas() != null)
+                .flatMap(group -> group.getAreas().stream())
+                .filter(area -> area != null && StringUtils.isNotBlank(area.getArea()))
+                .map(ListAreaDescEntity::getArea)
+                .distinct()
+                .toList();
+    }
+
+    private List<String> findClustersForGroup(
+            List<GroupClusterDescEntity> groupClusterDescEntities,
+            String groupName) {
+        if (groupClusterDescEntities == null || StringUtils.isBlank(groupName)) {
+            return Collections.emptyList();
+        }
+
+        return groupClusterDescEntities.stream()
+                .filter(group -> group != null
+                        && group.getGroupName() != null
+                        && group.getGroupName().equalsIgnoreCase(groupName)
+                        && group.getClusters() != null)
+                .flatMap(group -> group.getClusters().stream())
+                .filter(cluster -> cluster != null && StringUtils.isNotBlank(cluster.getCluster()))
+                .map(ListClusterDescEntity::getCluster)
+                .distinct()
+                .toList();
+    }
+
+    private static @NonNull List<Map<String, Object>> getBindingP2GEntries(Set<P2gBindingConstraint> constraints) {
         List<Map<String, Object>> constraintP2GEntries = new ArrayList<>();
         for (P2gBindingConstraint constraint : constraints) {
             Map<String, Object> constraintP2GEntry = new LinkedHashMap<>();
@@ -380,8 +515,8 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             constraintP2GEntries.add(constraintP2GEntry);
         }
 
-        Map<String, Object> bindingP2GMeMap = new LinkedHashMap<>();
-        bindingP2GMeMap.put(CONSTRAINTS_P2G, constraintP2GEntries);
-        return bindingP2GMeMap;
+        return constraintP2GEntries;
     }
+
+
 }
