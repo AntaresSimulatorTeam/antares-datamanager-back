@@ -160,3 +160,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V76-create-hydro-parameters-me-table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V77-create-hydro-allocation-me-table.sql
+  - include: 
+      file: classpath*:db/changelog/1.1.0/V78-create-thermal-me-table.sql    
