@@ -98,4 +98,17 @@ public class MultiEnergyController {
         return new ResponseEntity<>(toTrajectoryDTO(hydroParametersMeFileProcessorService.processHydroParametersMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
+    @Operation(summary = "import THERMAL_ME trajectory file to database")
+    @PostMapping("/thermal-me")
+    public ResponseEntity<TrajectoryDTO> uploadThermalMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+                                                                      @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                                      @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                                      @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processThermalMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
 }
