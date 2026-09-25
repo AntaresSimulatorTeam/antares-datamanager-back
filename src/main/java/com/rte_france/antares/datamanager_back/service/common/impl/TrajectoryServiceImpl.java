@@ -589,7 +589,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
             case LOAD, LOAD_ME, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
                  HYDRO_TECHNICAL_PARAMETERS, HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION,
-                 NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
+                 NUCLEAR_FR_TS_LONG_TERM, HYDRO_RESERVOIR_LEVELS_ME, HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
@@ -1342,7 +1342,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == FLOWBASED
                         || trajectoryType == P2G_CAPACITY_COST
                         || trajectoryType == P2G_MARKET_MODULATION
-                        || trajectoryType == HYDRO_PARAMETERS_ME);
+                        || trajectoryType == HYDRO_PARAMETERS_ME
+                        || trajectoryType == TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME
+                        || trajectoryType == TrajectoryType.HYDRO_TIME_SERIES_ME
+                        || trajectoryType == TrajectoryType.HYDRO_WATER_VALUES_ME);
     }
 
     /**
@@ -1403,6 +1406,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     private boolean isValidTrajectoryFile(Path path, TrajectoryType trajectoryType) {
         String fileName = path.getFileName().toString().toLowerCase();
+        
+        // Reject temporary Excel files (locked files starting with ~$)
+        if (fileName.startsWith("~$")) {
+            return false;
+        }
+        
         boolean isXlsx = fileName.endsWith(".xlsx");
 
         return switch (trajectoryType) {
@@ -1450,6 +1459,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case HYDRO_PSP_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getPspParametersDirectory();
             case HYDRO_CAPACITY_ME -> antaresDataManagerProperties.getHydroCapacityMeDirectory();
             case HYDRO_PARAMETERS_ME -> antaresDataManagerProperties.getHydroParametersMeDirectory();
+            case HYDRO_RESERVOIR_LEVELS_ME -> antaresDataManagerProperties.getHydroReservoirLevelsMeDirectory();
+            case HYDRO_TIME_SERIES_ME -> antaresDataManagerProperties.getHydroTimeSeriesMeDirectory();
+            case HYDRO_WATER_VALUES_ME -> antaresDataManagerProperties.getHydroWaterValuesMeDirectory();
             case NUCLEAR_FR_MODULATION -> antaresDataManagerProperties.getNuclearModulationDirectory();
             case NUCLEAR_FR_TALON -> antaresDataManagerProperties.getNuclearTalonDirectory();
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();

@@ -23,7 +23,7 @@ public class ParameterValueConverter {
         try {
             String result = value.toString().trim();
             if ("none".equalsIgnoreCase(result)) {
-                return "None";
+                return "none";
             }
             return result;
         } catch (Exception e) {
