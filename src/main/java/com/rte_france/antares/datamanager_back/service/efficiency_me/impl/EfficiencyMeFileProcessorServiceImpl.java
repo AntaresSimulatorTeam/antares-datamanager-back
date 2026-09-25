@@ -67,8 +67,10 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
                                 .message("User NNI could not be determined")
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
-
-        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
+        String nasDir = antaresDataManagerProperties.getNasDirectory();
+        String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
+        String directoryByType = antaresDataManagerProperties.getEfficiencyMeDirectory();
+        Path trajectoryPath = buildTrajectoryPath(nasDir, trajFilePath, directoryByType, trajectoryToUse);
         
         try (InputStream fis = Files.newInputStream(trajectoryPath);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -87,14 +89,14 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
-                TrajectoryEntity newTrajectory = buildNewEfficiencyMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+                TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.EFFICIENCY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
                 newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
                 TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
                 insertEfficiencyMeData(workbook, horizon, savedTrajectory);
                 return savedTrajectory;
             }
 
-            TrajectoryEntity newTrajectory = buildNewEfficiencyMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+            TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.EFFICIENCY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
             insertEfficiencyMeData(workbook, horizon, savedTrajectory);
             return savedTrajectory;
@@ -148,35 +150,6 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private Path buildTrajectoryPath(String trajectoryToUse) throws IOException {
-        String nasDir = antaresDataManagerProperties.getNasDirectory();
-        String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
-        String directoryByType = antaresDataManagerProperties.getEfficiencyMeDirectory();
-
-        if (nasDir == null || trajFilePath == null || directoryByType == null) {
-            throw BusinessException.builder()
-                    .message("Antares path configuration is incomplete")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        Path baseDirectory = Path.of(nasDir)
-                .resolve(trajFilePath)
-                .resolve(directoryByType)
-                .normalize();
-
-        if (!baseDirectory.endsWith("/")) {
-            baseDirectory = baseDirectory.resolve("");
-        }
-
-        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse+".xlsx").normalize();
-        if (!trajectoryFilePath.startsWith(baseDirectory)) {
-            throw new IOException("Path is outside of the target directory");
-        }
-
-        return trajectoryFilePath;
     }
 
     private void validateEfficiencyMeExcelFile(Workbook workbook, String trajectoryName, String horizon) throws IOException {
@@ -254,38 +227,8 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         }
     }
 
-    private boolean isSheetEmpty(Sheet sheet) {
-        if (sheet == null) {
-            return true;
-        }
-        if (sheet.getLastRowNum() < 0) {
-            return true;
-        }
-        for (int rowIdx = 0; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
-            Row row = sheet.getRow(rowIdx);
-            if (row != null && row.getLastCellNum() > 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private boolean isSameFileWithSameContent(Path trajectoryPath, TrajectoryEntity existingTrajectory) throws IOException {
         String newChecksum = computeChecksumByType(trajectoryPath, TrajectoryType.EFFICIENCY_ME, existingTrajectory.getHorizon(), null);
         return newChecksum.equals(existingTrajectory.getChecksum());
-    }
-
-    private TrajectoryEntity buildNewEfficiencyMeTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
-        return TrajectoryEntity.builder()
-                .fileName(trajectoryToUse)
-                .fileSize(Files.size(trajectoryPath))
-                .createdBy(userNni)
-                .version(1)
-                .lastModificationContentDate(Files.getLastModifiedTime(trajectoryPath).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
-                .horizon(horizon)
-                .checksum(computeChecksumByType(trajectoryPath, TrajectoryType.EFFICIENCY_ME, horizon, null))
-                .type(TrajectoryType.EFFICIENCY_ME.name())
-                .creationDate(LocalDateTime.now())
-                .build();
     }
 }

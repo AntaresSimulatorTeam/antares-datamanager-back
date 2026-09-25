@@ -57,6 +57,9 @@ public class ThermalMeEntity {
     @Column(name = "mr_modulation")
     private Integer mrModulation;
 
+    @Column(name = "must_run", length = 10)
+    private Boolean mustRun;
+
     @Column(name = "mr_timestep", length = 10)
     private String mrTimestep;
 
@@ -65,9 +68,6 @@ public class ThermalMeEntity {
 
     @Column(name = "cm_timestep", length = 10)
     private String cmTimestep;
-
-    @Column(name = "mr_activate")    
-    private Boolean mrActivate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id")

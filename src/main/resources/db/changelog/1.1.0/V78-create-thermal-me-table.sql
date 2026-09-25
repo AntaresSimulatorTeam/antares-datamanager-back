@@ -1,12 +1,12 @@
 -- liquibase formatted sql
 
--- changeset metienne:110V76-1
+-- changeset metienne:110V78-1
 CREATE TABLE thermal_me
 (
     id                              INTEGER         NOT NULL,
     node                            VARCHAR(60)     NOT NULL,
     group_name                      VARCHAR(20),
-    cluster_name                    VARCHAR(60),
+    cluster_name                    VARCHAR(40),
     enabled                         BOOLEAN,
     nominal_capacity                NUMERIC,
     nb_unit                         INTEGER,
@@ -16,9 +16,9 @@ CREATE TABLE thermal_me
     market_bid_cost                 NUMERIC,
     market_bid_cost_timestep        VARCHAR(10),
     market_bid_cost_modulation      INTEGER,
+    must_run                        BOOLEAN,
     mr_modulation                   INTEGER,
     mr_timestep                     VARCHAR(10),
-    mr_activate                     BOOLEAN,
     cm_timestep                     VARCHAR(10),
     cm_modulation                   INTEGER,
     trajectory_id                   INTEGER         NOT NULL,

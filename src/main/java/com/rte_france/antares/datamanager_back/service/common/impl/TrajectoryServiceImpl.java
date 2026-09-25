@@ -26,6 +26,7 @@ import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcess
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
+import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -125,6 +126,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
     private final HydroMeFileProcessorService hydroMeFileProcessorService;
+    
+    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -177,6 +180,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processHydroCapacityMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processThermalMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return thermalMeFileProcessorService.processThermalMeFile(trajectoryToUse, horizon, studyId);
     }
 
     @Override
@@ -1467,6 +1476,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case STS_ME -> antaresDataManagerProperties.getStsMeDirectory();
             case CONSTRAINT_ME -> antaresDataManagerProperties.getConstraintMeDirectory();
             case EFFICIENCY_ME -> antaresDataManagerProperties.getEfficiencyMeDirectory();
+            case THERMAL_CAPACITY_ME -> antaresDataManagerProperties.getThermalMeDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }
