@@ -537,6 +537,7 @@ public class Utils {
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case HYDRO_PARAMETERS_ME -> computeHydroParametersMeChecksum(path, horizon);
+            case HYDRO_TIME_SERIES_ME -> calculateDirectoryChecksum(path);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";

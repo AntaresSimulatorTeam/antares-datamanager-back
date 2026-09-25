@@ -21,6 +21,7 @@ import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyM
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
@@ -125,6 +126,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
     private final HydroMeFileProcessorService hydroMeFileProcessorService;
+
+    private final HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -284,6 +287,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
             case HYDRO_CAPACITY_ME -> hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
+            case HYDRO_TIME_SERIES_ME -> hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(trajectoryToUse, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
@@ -687,7 +691,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.FLOWBASED,
                 TrajectoryType.SCENARIO_BUILDER,
                 TrajectoryType.CONSTRAINT_ME,
-                TrajectoryType.EFFICIENCY_ME
+                TrajectoryType.EFFICIENCY_ME,
+                TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME,
+                TrajectoryType.HYDRO_TIME_SERIES_ME,
+                TrajectoryType.HYDRO_WATER_VALUES_ME,
+                TrajectoryType.HYDRO_CAPACITY_ME,
+                TrajectoryType.HYDRO_PARAMETERS_ME
         );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
