@@ -36,7 +36,7 @@ public class ScenarioBuilderController {
     private final PathSecurityUtil pathSecurityUtil;
 
     @Operation(summary = "Import scenario builder trajectory from Excel file (scenario_builder_*.xlsx)")
-    @PostMapping("/scenarioBuilder")
+    @PostMapping("/scenario-builder")
     public ResponseEntity<TrajectoryDTO> uploadScenarioBuilderTrajectory(
             @RequestParam("trajectoryToUse")
             @ValidTrajectoryName

@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +34,7 @@ public class MultiEnergyController {
     private final PathSecurityUtil pathSecurityUtil;
     private final HydroMeFileProcessorService hydroMeFileProcessorService;
     private final HydroParametersMeFileProcessorService hydroParametersMeFileProcessorService;
+    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
 
     @Operation(summary = "import Trajectory load ME to database ")
     @PostMapping("/load-me")
@@ -108,7 +110,7 @@ public class MultiEnergyController {
                 properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
                 trajectoryToUse
         );
-        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processThermalMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+        return new ResponseEntity<>(toTrajectoryDTO(thermalMeFileProcessorService.processThermalMeFile(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
 }
