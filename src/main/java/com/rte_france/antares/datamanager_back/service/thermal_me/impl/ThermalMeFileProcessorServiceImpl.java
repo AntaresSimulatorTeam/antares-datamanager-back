@@ -23,9 +23,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
-import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
 
 @Slf4j
@@ -117,15 +117,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
 
             String horizonYear = String.valueOf(Integer.parseInt(horizon.split("-")[1]));
             Sheet sheet = workbook.getSheet(horizonYear);
-            if (workbook.getSheet(horizonYear) == null) {
-                throw BusinessException.builder()
-                        .message("Missing horizon {0} in {1} trajectory {2}")
-                        .errorMessageArguments(List.of(horizonYear, THERMAL_ME, trajectoryToUse))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            if (isSheetEmpty(sheet)) {
+            if (sheet == null || isSheetEmpty(sheet)) {
                 throw BusinessException.builder()
                         .message("Missing horizon {0} in {1} trajectory {2}")
                         .errorMessageArguments(List.of(horizonYear, THERMAL_ME, trajectoryToUse))
@@ -282,8 +274,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
 
 
     private boolean isTimeStepHourly(String value) {
-        return Optional.of(value.equalsIgnoreCase(TIMESTEP_VALUES.getFirst()))
-                .orElse(false);
+        return value != null && TIMESTEP_VALUES.getFirst().equalsIgnoreCase(value);
     }
 
     private boolean checkModulationFile(
@@ -293,8 +284,8 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     ) {
         String modulationTrajectoryName = folderName + "_" + trajectoryToUse + ".xlsx";
 
-        try {
-            Optional<Path> folder = Files.list(trajectoryPath)
+        try (Stream<Path> stream = Files.list(trajectoryPath)) {
+            Optional<Path> folder = stream
                     .filter(Files::isDirectory)
                     .filter(path -> path.getFileName().toString().equals(folderName))
                     .findFirst();
