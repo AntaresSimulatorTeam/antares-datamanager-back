@@ -40,7 +40,7 @@ class ScenarioBuilderControllerTest {
         when(scenarioBuilderFileProcessorService.processScenarioBuilderFile("scenario_builder_BP23_A_ref_vdef", "2023-2024", 1))
                 .thenReturn(TrajectoryEntity.builder().id(1).fileName("BP23_A_ref_vdef").type("SCENARIO_BUILDER").build());
 
-        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
+        mockMvc.perform(post("/v1/trajectory/scenario-builder")
                         .param("trajectoryToUse", "scenario_builder_BP23_A_ref_vdef")
                         .param("horizon", "2023-2024")
                         .param("studyId", "1"))
@@ -49,7 +49,7 @@ class ScenarioBuilderControllerTest {
 
     @Test
     void testUploadScenarioBuilderTrajectoryInvalidHorizon() throws Exception {
-        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
+        mockMvc.perform(post("/v1/trajectory/scenario-builder")
                         .param("trajectoryToUse", "scenario_builder_BP23_A_ref_vdef")
                         .param("horizon", "2023")
                         .param("studyId", "1"))
@@ -60,7 +60,7 @@ class ScenarioBuilderControllerTest {
     void testUploadScenarioBuilderTrajectoryNameTooLong() throws Exception {
         String longTrajectory = "scenario_builder_this_trajectory_name_is_way_too_long_exceeding_forty_characters";
 
-        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
+        mockMvc.perform(post("/v1/trajectory/scenario-builder")
                         .param("trajectoryToUse", longTrajectory)
                         .param("horizon", "2023-2024")
                         .param("studyId", "1"))
@@ -72,7 +72,7 @@ class ScenarioBuilderControllerTest {
 
     @Test
     void testUploadScenarioBuilderTrajectoryOnlySpaces() throws Exception {
-        mockMvc.perform(post("/v1/trajectory/scenarioBuilder")
+        mockMvc.perform(post("/v1/trajectory/scenario-builder")
                         .param("trajectoryToUse", "   ")
                         .param("horizon", "2023-2024")
                         .param("studyId", "1"))
