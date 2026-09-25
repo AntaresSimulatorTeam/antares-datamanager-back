@@ -286,6 +286,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
             Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(
                     study,
+                    thermalClusterProps,
                     areaMeTrajectory.orElse(null),
                     linkMeTrajectory.orElse(null),
                     loadMeTrajectory.orElse(null),
