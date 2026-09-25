@@ -4,15 +4,24 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.EfficiencyMeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.GroupAreaDescEntity;
+import com.rte_france.antares.datamanager_back.repository.model.GroupClusterDescEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LinkMeEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ListAreaDescEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ListClusterDescEntity;
+import com.rte_france.antares.datamanager_back.repository.model.MeConstraintEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalClusterRef;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacyModeEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
+import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
+import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +51,9 @@ class MultiEnergyServiceImplTest {
 
     @Mock
     private StsToJsonService stsToJsonService;
+
+    @Mock
+    private ThermalToJsonService thermalToJsonService;
 
 
     @InjectMocks
@@ -318,7 +330,7 @@ class MultiEnergyServiceImplTest {
                 .build();
 
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, trajWithNullLink);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null, trajWithNullLink);
 
         // Then
         assertThat(result).doesNotContainKey("links_me");
@@ -327,7 +339,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnNoLoadFiles() {
         // Given
-        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService);
+        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService);
         AreaConfigEntity config = AreaConfigEntity.builder()
                 .area(AreaEntity.builder().name("AREA1").build())
                 .build();
@@ -576,7 +588,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withLinkMeTrajectory_shouldReturnLinksMeStructure() {
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, linkMeTrajectory);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null, linkMeTrajectory);
 
         // Then
         assertThat(result).isNotNull().containsKey("links_me").doesNotContainKey("area_me");
@@ -679,6 +691,138 @@ class MultiEnergyServiceImplTest {
     }
 
     @Test
+    void buildMultiEnergyMap_withConstraintMeTrajectory_shouldReturnG2PBindingConstraintsStructure() {
+        // Given
+        GroupAreaDescEntity groupAreaDesc = GroupAreaDescEntity.builder()
+                .groupName("GROUP_AREA_RIGHT")
+                .areas(new ArrayList<>())
+                .build();
+        groupAreaDesc.setAreas(List.of(
+                ListAreaDescEntity.builder().area("node_right_area1").groupArea(groupAreaDesc).build(),
+                ListAreaDescEntity.builder().area("node_right_area2").groupArea(groupAreaDesc).build()));
+
+        GroupClusterDescEntity groupClusterDesc = GroupClusterDescEntity.builder()
+                .groupName("GROUP_CLUSTER_RIGHT")
+                .clusters(new ArrayList<>())
+                .build();
+        groupClusterDesc.setClusters(List.of(
+                ListClusterDescEntity.builder().cluster("cluster1").groupCluster(groupClusterDesc).build(),
+                ListClusterDescEntity.builder().cluster("cluster2").groupCluster(groupClusterDesc).build()));
+
+        MeConstraintEntity g2pConstraint = MeConstraintEntity.builder()
+                .name("constraint_g2p")
+                .enabled(true)
+                .sign("equal")
+                .temporality("hourly")
+                .type("G2P")
+                .noeud1Gauche("v_me_h2_long_ouest")
+                .noeud2Gauche("z_me_consoelec")
+                .noeud1Droite("GROUP_AREA_RIGHT")
+                .clusterDroite("GROUP_CLUSTER_RIGHT")
+                .build();
+
+        TrajectoryEntity constraintMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.CONSTRAINT_ME.name())
+                .meConstraintEntities(List.of(g2pConstraint))
+                .groupAreaDescEntities(List.of(groupAreaDesc))
+                .groupClusterDescEntities(List.of(groupClusterDesc))
+                .build();
+
+        Map<String, Object> expectedAreaClusters = new LinkedHashMap<>();
+        expectedAreaClusters.put("node_right_area1", Collections.emptyMap());
+        expectedAreaClusters.put("node_right_area2", Collections.emptyMap());
+
+        Map<String, Object> expectedConstraint = new LinkedHashMap<>();
+        expectedConstraint.put("name", "constraint_g2p");
+        expectedConstraint.put("enabled", true);
+        expectedConstraint.put("type", "hourly");
+        expectedConstraint.put("operator", "equal");
+        expectedConstraint.put("node_1_left", "v_me_h2_long_ouest");
+        expectedConstraint.put("node_2_left", "z_me_consoelec");
+        expectedConstraint.put("node_right_area", expectedAreaClusters);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, constraintMeTrajectory);
+
+        // Then
+        assertThat(result).isNotNull().containsKey("binding_constraints_me");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bindingConstraintsMe = (Map<String, Object>) result.get("binding_constraints_me");
+        assertThat(bindingConstraintsMe).containsKey("constraints_G2P");
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> constraintsG2P = (List<Map<String, Object>>) bindingConstraintsMe.get("constraints_G2P");
+        assertThat(constraintsG2P).containsExactly(expectedConstraint);
+    }
+
+    @Test
+    void buildMultiEnergyMap_withConstraintMeTrajectoryAndThermalClusterProps_shouldFillEfficiencyAndSkipUnknownClusters() {
+        // Given
+        GroupAreaDescEntity groupAreaDesc = GroupAreaDescEntity.builder()
+                .groupName("GROUP_AREA_RIGHT")
+                .areas(new ArrayList<>())
+                .build();
+        groupAreaDesc.setAreas(List.of(
+                ListAreaDescEntity.builder().area("node_right_area1").groupArea(groupAreaDesc).build()));
+
+        GroupClusterDescEntity groupClusterDesc = GroupClusterDescEntity.builder()
+                .groupName("GROUP_CLUSTER_RIGHT")
+                .clusters(new ArrayList<>())
+                .build();
+        groupClusterDesc.setClusters(List.of(
+                ListClusterDescEntity.builder().cluster("cluster1").groupCluster(groupClusterDesc).build(),
+                ListClusterDescEntity.builder().cluster("cluster2").groupCluster(groupClusterDesc).build()));
+
+        MeConstraintEntity g2pConstraint = MeConstraintEntity.builder()
+                .name("constraint_g2p")
+                .enabled(true)
+                .sign("equal")
+                .temporality("hourly")
+                .type("G2P")
+                .noeud1Gauche("v_me_h2_long_ouest")
+                .noeud2Gauche("z_me_consoelec")
+                .noeud1Droite("GROUP_AREA_RIGHT")
+                .clusterDroite("GROUP_CLUSTER_RIGHT")
+                .build();
+
+        TrajectoryEntity constraintMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.CONSTRAINT_ME.name())
+                .meConstraintEntities(List.of(g2pConstraint))
+                .groupAreaDescEntities(List.of(groupAreaDesc))
+                .groupClusterDescEntities(List.of(groupClusterDesc))
+                .build();
+
+        ThermalClusterRef cluster1Ref = ThermalClusterRef.builder().name("cluster1").build();
+        ThermalClusterGenerationDto cluster1Dto = new ThermalClusterGenerationDto();
+        cluster1Dto.setEfficiency(60.0);
+
+        Map<ThermalPropertiesAssemblerService.AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps =
+                Map.of(new ThermalPropertiesAssemblerService.AreaClusterRefKey("node_right_area1", cluster1Ref), cluster1Dto);
+
+        when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster1")).thenReturn("NODE_RIGHT_AREA1_cluster1");
+        when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster2")).thenReturn("NODE_RIGHT_AREA1_cluster2");
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, thermalClusterProps, constraintMeTrajectory);
+
+        // Then
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bindingConstraintsMe = (Map<String, Object>) result.get("binding_constraints_me");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> constraintsG2P = (List<Map<String, Object>>) bindingConstraintsMe.get("constraints_G2P");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> nodeRightArea = (Map<String, Object>) constraintsG2P.get(0).get("node_right_area");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> area1Clusters = (Map<String, Object>) nodeRightArea.get("node_right_area1");
+
+        // cluster1 found in THERMAL -> present with its efficiency; cluster2 not found -> not written to the JSON
+        assertThat(area1Clusters).containsOnlyKeys("cluster1");
+        assertThat((Map<String, Object>) area1Clusters.get("cluster1")).containsEntry("efficiency", 60.0);
+    }
+
+    @Test
     void buildMultiEnergyMap_withBothAreaMeAndLinkMe_shouldReturnBothSections() {
         // Given
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
@@ -721,7 +865,7 @@ class MultiEnergyServiceImplTest {
                 .build();
 
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, trajWithInvalidLinks);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null, trajWithInvalidLinks);
 
         // Then
         assertThat(result).containsKey("links_me");
