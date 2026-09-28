@@ -11,7 +11,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity(name = "ThermalMe")
-@Table(name = "thermal_me")
+@Table(name = "thermal_me", uniqueConstraints = {
+        @UniqueConstraint(
+                name = "thermal_me_uk_node_cluster_trajectory",
+                columnNames = {"node", "cluster_name", "trajectory_id"}
+        )
+})
 public class ThermalMeEntity {
 
     @Id

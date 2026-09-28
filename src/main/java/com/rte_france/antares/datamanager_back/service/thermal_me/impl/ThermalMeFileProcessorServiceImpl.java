@@ -38,6 +38,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     
     private static final String THERMAL_ME = "THERMAL_ME";
+    private static final String FILE_EXTENSION_XLSX = ".xlsx";
     private static final String MARGINAL_COST_MODULATION = "marginal_cost_modulation";
     private static final String MARKET_BID_MODULATION = "market_bid_modulation";
     private static final String MUST_RUN = "must_run";
@@ -159,6 +160,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private List<ThermalMeEntity> buildEntities(Sheet sheet, TrajectoryEntity trajectory, String trajectoryToUse, Path trajectoryPath) {
         List<ThermalMeEntity> thermalMeEntities = new ArrayList<>();
         List<String> columnNames = new ArrayList<>();
+        Set<String> seenCombinations = new HashSet<>();
         
         for (Row row : sheet) {
             if (row == null || isRowEmpty(row) || row.getRowNum() < 3) continue;
@@ -238,10 +240,24 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                 }
             }
 
+            // --- Récupération du node et du cluster_name ---
+            String node = Objects.toString(getCellValue(row, 0), "").trim();
+            String clusterName = Objects.toString(getCellValue(row, 2), "").trim();
+
+            // --- Validation d'unicité (insensible à la casse) ---
+            String uniqueKey = node.toUpperCase() + "|" + clusterName.toUpperCase();
+            if (!seenCombinations.add(uniqueKey)) {
+                throw BusinessException.builder()
+                        .message("Duplicate entry detected in {0} trajectory {1}: node {2} and cluster {3} is defined more than once for this horizon.")
+                        .errorMessageArguments(List.of(THERMAL_ME, trajectoryToUse, node, clusterName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+
             ThermalMeEntity thermalMeEntity = ThermalMeEntity.builder()
-                    .node(row.getCell(0).getStringCellValue())
+                    .node(node)
                     .groupName(row.getCell(1).getStringCellValue())
-                    .clusterName(row.getCell(2).getStringCellValue())
+                    .clusterName(clusterName)
                     .enabled(getBooleanCell(row,3))
                     .nominalCapacity(row.getCell(4).getNumericCellValue())
                     .nbUnit((int) row.getCell(5).getNumericCellValue())
@@ -282,7 +298,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
             String folderName,
             String trajectoryToUse
     ) {
-        String modulationTrajectoryName = folderName + "_" + trajectoryToUse + ".xlsx";
+        String modulationTrajectoryName = folderName + "_" + trajectoryToUse + FILE_EXTENSION_XLSX;
 
         try (Stream<Path> stream = Files.list(trajectoryPath)) {
             Optional<Path> folder = stream
