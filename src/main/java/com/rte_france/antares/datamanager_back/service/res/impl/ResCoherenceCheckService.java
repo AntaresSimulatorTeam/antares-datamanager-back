@@ -64,6 +64,7 @@ public class ResCoherenceCheckService {
     private final TrajectoryRepository trajectoryRepository;
     private final DefaultConfigService defaultConfigService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final static String STRING_FORMAT = "%s/%s/%s";
 
     /**
      * Valide la cohérence entre les trajectoires IP et TD pour un study donné.
@@ -362,7 +363,7 @@ public class ResCoherenceCheckService {
      * Formate une clé avec les composants area/groupe/cluster.
      */
     private String formatKey(String area, String groupe, String cluster) {
-        return String.format("%s/%s/%s", area != null ? area : "", groupe != null ? groupe : "", cluster != null ? cluster : "");
+        return String.format(STRING_FORMAT, area != null ? area : "", groupe != null ? groupe : "", cluster != null ? cluster : "");
     }
 
 
@@ -1004,7 +1005,7 @@ public class ResCoherenceCheckService {
         return dtTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null ? trajectory.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> (entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA)) && (importedTechnology == null || (importedTechnology != null && importedTechnology.equals(entity.getGroupe()) && availableTDTechnologies.contains(entity.getGroupe()))))
-                .map(entity -> String.format("%s/%s/%s", entity.getArea(), entity.getGroupe(), entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                .map(entity -> String.format(STRING_FORMAT, entity.getArea(), entity.getGroupe(), entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
 
@@ -1016,7 +1017,7 @@ public class ResCoherenceCheckService {
         return dzTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResZonalDistributionCapacityEntities() != null ? trajectory.getResZonalDistributionCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA))
-                .map(entity -> String.format("%s/%s/%s", entity.getArea(), entity.getGroupe() != null ? entity.getGroupe() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                .map(entity -> String.format(STRING_FORMAT, entity.getArea(), entity.getGroupe() != null ? entity.getGroupe() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
 

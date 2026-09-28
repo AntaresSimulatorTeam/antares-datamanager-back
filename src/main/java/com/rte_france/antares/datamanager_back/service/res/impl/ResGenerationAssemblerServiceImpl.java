@@ -39,6 +39,7 @@ import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomain
 public class ResGenerationAssemblerServiceImpl implements ResGenerationAssemblerService {
 
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
+    private static final String CLUSTER_STRING = "', cluster '";
     private static final double MAX_COEFF_SUM = 1d;
 
     private final NasFileService nasFileService;
@@ -108,7 +109,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         throw BusinessException.builder()
                 .message("No load-factor series found for area '" + area + "', group '" + group
-                        + "', cluster '" + cluster + "'. Link a load-factor trajectory that contains a series file for this area and group.")
+                        + CLUSTER_STRING + cluster + "'. Link a load-factor trajectory that contains a series file for this area and group.")
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }
@@ -319,7 +320,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         throw BusinessException.builder()
-                .message("No load-factor series found for FR zone '" + zone + "', cluster '" + cluster
+                .message("No load-factor series found for FR zone '" + zone + CLUSTER_STRING + cluster
                         + "', technology '" + technology
                         + "'. The load-factor trajectory must include a series file for this zone and technology.")
                 .httpStatus(HttpStatus.BAD_REQUEST)
@@ -648,7 +649,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         if (ep > rp) return existing;
         throw BusinessException.builder()
                 .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
-                        + "', cluster '" + existing.cluster()
+                        + CLUSTER_STRING + existing.cluster()
                         + "'. Two trajectories linked to this area, group and cluster both contain a series for it:"
                         + " trajectory '" + existing.trajectoryFileName() + "' and trajectory '" + replacement.trajectoryFileName() + "'."
                         + " Only one trajectory should provide a load-factor series per area, RES group and cluster."

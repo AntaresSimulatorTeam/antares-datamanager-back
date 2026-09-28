@@ -37,13 +37,15 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
 
+    private static final String FLOWBASED_NODES_LINKS = "Flowbased_nodes_links.xlsx";
     private static final String[] REQUIRED_FILES = {
-            "Flowbased_nodes_links.xlsx",
+            FLOWBASED_NODES_LINKS,
             "IdTypDays.csv",
             "second_member.txt",
             "weight.txt",
             "ts.txt",
     };
+
 
     @Override
     public void validateRequiredFiles(Path trajectoryFilePath) {
@@ -126,7 +128,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     @Override
     public List<FlowbasedVirtualNodesEntity> buildFlowbasedVirtualNodesList(Path trajectoryFilePath) {
         List<FlowbasedVirtualNodesEntity> result = new ArrayList<>();
-        Path excelPath = trajectoryFilePath.resolve("Flowbased_nodes_links.xlsx");
+        Path excelPath = trajectoryFilePath.resolve(FLOWBASED_NODES_LINKS);
 
         try (InputStream inputStream = Files.newInputStream(excelPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -162,7 +164,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     @Override
     public List<FlowbasedLinkCapacityEntity> buildFlowbasedLinkCapacityList(Path trajectoryFilePath) {
         List<FlowbasedLinkCapacityEntity> result = new ArrayList<>();
-        Path excelPath = trajectoryFilePath.resolve("Flowbased_nodes_links.xlsx");
+        Path excelPath = trajectoryFilePath.resolve(FLOWBASED_NODES_LINKS);
 
         try (InputStream inputStream = Files.newInputStream(excelPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {

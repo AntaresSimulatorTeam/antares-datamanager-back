@@ -143,17 +143,20 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String DSR_PREFIX = "cluster_dsr_";
     private static final String DSR_CAPACITY_PREFIX = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
-    public static final String RES_CAPACITY_PREFIX = "installedres_";
-    public static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
-    public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
     private static final String NUCLEAR_TALON_PREFIX = "talon_nuc_";
     private static final String NUCLEAR_EPR_PREFIX = "ts_epr_";
     private static final String NUCLEAR_SMR_PREFIX = "ts_smr_";
     private static final String NUCLEAR_EPR_FOLDER = "epr";
     private static final String NUCLEAR_SMR_FOLDER = "smr";
+    private static final String FILE_ALREADY_PROCESSED = "File already processed with same content {0}";
+    private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
+
+    public static final String RES_CAPACITY_PREFIX = "installedres_";
+    public static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
+    public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
     public static final String SETTINGS_PREFIX = "general_data_";
     public static final String SCENARIO_BUILDER_PREFIX = "scenario_builder_";
-    private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
+
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -921,7 +924,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             )
             ) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -969,7 +972,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (isSameTrajectory(trajectoryPath, existingTrajectory)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -2015,7 +2018,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
