@@ -57,7 +57,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -88,7 +88,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearModulationFile(
-                    anyString(), eq(testHorizon), anyInt(), anyString()))
+                    any(String.class), eq(testHorizon), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -118,7 +118,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearModulationFile(
-                    anyString(), anyString(), anyInt(), eq(area)))
+                    any(String.class), any(String.class), anyInt(), eq(area)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -148,7 +148,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearModulationFile(
-                    eq(name), anyString(), anyInt(), anyString()))
+                    eq(name), any(String.class), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -233,7 +233,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                eq(maxName), anyString(), anyInt(), anyString()))
+                eq(maxName), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -308,7 +308,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                anyString(), anyString(), anyInt(), eq(maxArea)))
+                any(String.class), any(String.class), anyInt(), eq(maxArea)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -354,7 +354,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                anyString(), anyString(), eq(-1), anyString()))
+                any(String.class), any(String.class), eq(-1), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -370,7 +370,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearModulationTrajectory_whenServiceThrowsBusinessException_mustReturnErrorResponse() throws Exception {
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear modulation trajectory folder not found: {0}")
                         .httpStatus(HttpStatus.BAD_REQUEST)
@@ -387,7 +387,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearModulationTrajectory_whenServiceThrowsConflictException_mustReturn409() throws Exception {
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear modulation trajectory {0} with the same checksum already exists")
                         .httpStatus(HttpStatus.CONFLICT)
@@ -417,7 +417,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearModulationFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
@@ -449,7 +449,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearLongTermFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
@@ -480,7 +480,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearLongTermFile(
-                    anyString(), eq(testHorizon), anyInt(), anyString()))
+                    any(String.class), eq(testHorizon), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
@@ -510,7 +510,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearLongTermFile(
-                    eq(name), anyString(), anyInt(), anyString()))
+                    eq(name), any(String.class), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
@@ -546,7 +546,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearLongTermTrajectory_whenServiceThrowsBadRequestException_mustReturn400() throws Exception {
         when(nuclearFileProcessorService.processNuclearLongTermFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Simulation file not found: Simu_2025-2026.xlsx")
                         .httpStatus(HttpStatus.BAD_REQUEST)
@@ -563,7 +563,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearLongTermTrajectory_whenServiceThrowsConflictException_mustReturn409() throws Exception {
         when(nuclearFileProcessorService.processNuclearLongTermFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear long-term trajectory {0} with the same checksum already exists")
                         .httpStatus(HttpStatus.CONFLICT)
@@ -591,7 +591,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearLongTermFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
@@ -623,7 +623,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTsErpFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
@@ -651,7 +651,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTsErpFile(
-                anyString(), anyString(), anyInt(), isNull()))
+                any(String.class), any(String.class), anyInt(), isNull()))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
@@ -680,7 +680,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearTsErpFile(
-                    anyString(), eq(testHorizon), anyInt(), anyString()))
+                    any(String.class), eq(testHorizon), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
@@ -710,7 +710,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearTsErpFile(
-                    eq(name), anyString(), anyInt(), anyString()))
+                    eq(name), any(String.class), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
@@ -749,7 +749,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearTsErpTrajectory_whenServiceThrowsBadRequestException_mustReturn400() throws Exception {
         when(nuclearFileProcessorService.processNuclearTsErpFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear trajectory file not found: ts_epr_2030.xlsx")
                         .httpStatus(HttpStatus.BAD_REQUEST)
@@ -766,7 +766,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearTsErpTrajectory_whenServiceThrowsConflictException_mustReturn409() throws Exception {
         when(nuclearFileProcessorService.processNuclearTsErpFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear NUCLEAR_FR_TS_ERP trajectory {0} with the same checksum already exists")
                         .httpStatus(HttpStatus.CONFLICT)
@@ -794,7 +794,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTsErpFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
@@ -826,7 +826,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
@@ -854,7 +854,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                anyString(), anyString(), anyInt(), isNull()))
+                any(String.class), any(String.class), anyInt(), isNull()))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
@@ -883,7 +883,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                    anyString(), eq(testHorizon), anyInt(), anyString()))
+                    any(String.class), eq(testHorizon), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
@@ -913,7 +913,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                    eq(name), anyString(), anyInt(), anyString()))
+                    eq(name), any(String.class), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
@@ -951,7 +951,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearTsSmrTrajectory_whenServiceThrowsBadRequestException_mustReturn400() throws Exception {
         when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear trajectory file not found: ts_smr_2030.xlsx")
                         .httpStatus(HttpStatus.BAD_REQUEST)
@@ -968,7 +968,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearTsSmrTrajectory_whenServiceThrowsConflictException_mustReturn409() throws Exception {
         when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear NUCLEAR_FR_TS_SMR trajectory {0} with the same checksum already exists")
                         .httpStatus(HttpStatus.CONFLICT)
@@ -996,7 +996,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTsSmrFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
@@ -1028,7 +1028,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTalonFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
@@ -1056,7 +1056,7 @@ class NuclearControllerTest {
                 .build();
 
         when(nuclearFileProcessorService.processNuclearTalonFile(
-                anyString(), anyString(), anyInt(), isNull()))
+                any(String.class), any(String.class), anyInt(), isNull()))
                 .thenReturn(trajectory);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
@@ -1085,7 +1085,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearTalonFile(
-                    anyString(), eq(testHorizon), anyInt(), anyString()))
+                    any(String.class), eq(testHorizon), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
@@ -1114,7 +1114,7 @@ class NuclearControllerTest {
                     .build();
 
             when(nuclearFileProcessorService.processNuclearTalonFile(
-                    eq(name), anyString(), anyInt(), anyString()))
+                    eq(name), any(String.class), anyInt(), any(String.class)))
                     .thenReturn(trajectory);
 
             this.mockMvc.perform(post("/v1/trajectory/nuclear-talon")
@@ -1129,7 +1129,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearTalonTrajectory_whenServiceThrowsConflictException_mustReturn409() throws Exception {
         when(nuclearFileProcessorService.processNuclearTalonFile(
-                anyString(), anyString(), anyInt(), anyString()))
+                any(String.class), any(String.class), anyInt(), any(String.class)))
                 .thenThrow(BusinessException.builder()
                         .message("Nuclear NUCLEAR_FR_TALON trajectory talon_2030.xlsx with the same checksum already exists")
                         .httpStatus(HttpStatus.CONFLICT)

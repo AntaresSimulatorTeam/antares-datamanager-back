@@ -61,7 +61,7 @@ class ThermalFileProcessorServiceCapacityValueTest {
         Path tempFile = tempDir.resolve("thermal_capacity_negative.xlsx");
         Files.write(tempFile, generateCapacityExcelFileWithNegativeNumber());
 
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
         when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
                 .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
 

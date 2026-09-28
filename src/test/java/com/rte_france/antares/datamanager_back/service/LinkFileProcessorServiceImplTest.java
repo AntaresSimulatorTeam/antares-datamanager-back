@@ -91,7 +91,7 @@ class LinkFileProcessorServiceImplTest {
                 .build();
         when(trajectoryRepository.findByTypeAndStudyId(any(), any())).thenReturn(List.of(trajectoryEntity));
 
-        when(warningService.getMessage(anyString(), any())).thenReturn("Expected message");
+        when(warningService.getMessage(any(String.class), any())).thenReturn("Expected message");
     }
 
     @Test
@@ -99,7 +99,7 @@ class LinkFileProcessorServiceImplTest {
         StudyEntity studyEntity = StudyEntity.builder().id(1).hvdc(true).build();
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
         when(studyRepository.findById(any())).thenReturn(Optional.of(studyEntity));
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.of(trajectoryEntity));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class))).thenReturn(Optional.of(trajectoryEntity));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
 
@@ -112,7 +112,7 @@ class LinkFileProcessorServiceImplTest {
     @Test
     void processLinkFile_whenTrajectoryDoesNotExist() throws IOException {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class))).thenReturn(Optional.empty());
         when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
 
         linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1);
@@ -235,7 +235,7 @@ class LinkFileProcessorServiceImplTest {
                 ))
                 .build();
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 1)).thenReturn(List.of(areaTrajectory));
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString())).thenReturn(Optional.empty());
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class))).thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> linkFileProcessorService.processLinkFile(tempFile, "2030-2031", 1));
 
@@ -538,7 +538,7 @@ class LinkFileProcessorServiceImplTest {
                 .errorMessageArguments(List.of("ES"))
                 .build())
                 .when(serviceSpy)
-                .validateLinkAreas(anyString(), anyList());
+                .validateLinkAreas(any(String.class), anyList());
 
 
         assertThrows(BusinessException.class, () ->
@@ -550,11 +550,11 @@ class LinkFileProcessorServiceImplTest {
 
         verify(studyRepository).findById(studyId);
 
-        verify(serviceSpy).validateLinkAreas(anyString(), anyList());
+        verify(serviceSpy).validateLinkAreas(any(String.class), anyList());
 
 
-        verify(warningService, never()).getMessage(anyString(), any());
-        verify(warningRepository, never()).existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt());
+        verify(warningService, never()).getMessage(any(String.class), any());
+        verify(warningRepository, never()).existsByWarningContentAndTrajectoryIdAndStudyId(any(String.class), anyInt(), anyInt());
 
         assertTrue(warningMessages.isEmpty());
     }
@@ -694,8 +694,8 @@ class LinkFileProcessorServiceImplTest {
         StudyEntity study = StudyEntity.builder().id(studyId).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
-        when(warningService.getMessage(anyString(), any())).thenReturn("Warning Message");
-        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt())).thenReturn(false);
+        when(warningService.getMessage(any(String.class), any())).thenReturn("Warning Message");
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(String.class), anyInt(), anyInt())).thenReturn(false);
 
         // When
         linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(
@@ -726,8 +726,8 @@ class LinkFileProcessorServiceImplTest {
         StudyEntity study = StudyEntity.builder().id(studyId).build();
 
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
-        when(warningService.getMessage(anyString(), any())).thenReturn("Warning Message");
-        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(anyString(), anyInt(), anyInt())).thenReturn(true);
+        when(warningService.getMessage(any(String.class), any())).thenReturn("Warning Message");
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(String.class), anyInt(), anyInt())).thenReturn(true);
 
         // When
         linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(

@@ -41,7 +41,7 @@ class AdequacyControllerTest {
 
     @Test
     void uploadAdequacyTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(adequacyFileProcessorService.processAdequacyFile(anyString(), anyString(), anyInt(), anyBoolean()))
+        when(adequacyFileProcessorService.processAdequacyFile(any(String.class), any(String.class), anyInt(), anyBoolean()))
                 .thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory/adequacy-patch")
@@ -54,7 +54,7 @@ class AdequacyControllerTest {
                 .andExpect(status().isCreated())
                 .andDo(MockMvcResultHandlers.print());
 
-        verify(adequacyFileProcessorService, times(1)).processAdequacyFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(adequacyFileProcessorService, times(1)).processAdequacyFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -68,7 +68,7 @@ class AdequacyControllerTest {
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isBadRequest());
 
-        verify(adequacyFileProcessorService, never()).processAdequacyFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(adequacyFileProcessorService, never()).processAdequacyFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -83,6 +83,6 @@ class AdequacyControllerTest {
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isBadRequest());
 
-        verify(adequacyFileProcessorService, never()).processAdequacyFile(anyString(), anyString(), anyInt(), anyBoolean());
+        verify(adequacyFileProcessorService, never()).processAdequacyFile(any(String.class), any(String.class), anyInt(), anyBoolean());
     }
 }

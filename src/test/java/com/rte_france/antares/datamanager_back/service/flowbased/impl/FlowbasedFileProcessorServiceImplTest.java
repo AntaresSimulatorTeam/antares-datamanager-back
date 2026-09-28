@@ -113,7 +113,7 @@ class FlowbasedFileProcessorServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), isNull(), isNull()))
+                any(String.class), any(String.class), any(String.class), isNull(), isNull()))
                 .thenReturn(Optional.of(existingTrajectory));
 
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class);
@@ -136,7 +136,7 @@ class FlowbasedFileProcessorServiceImplTest {
         createAllRequiredFilesWithContent(tempDir);
 
         when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), isNull(), isNull()))
+                any(String.class), any(String.class), any(String.class), isNull(), isNull()))
                 .thenReturn(Optional.empty());
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER001").build());

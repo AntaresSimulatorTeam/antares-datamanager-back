@@ -8,10 +8,9 @@ import com.rte_france.antares.datamanager_back.repository.ScenarioBuilderReposit
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ScenarioBuilderEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -43,7 +42,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
     private static final int SB_FILE_NAME_MAX_SIZE= 40;
     private final TrajectoryRepository trajectoryRepository;
     private final ScenarioBuilderRepository scenarioBuilderRepository;
-    private final TrajectoryServiceImpl trajectoryService;
+    private final TrajectoryService trajectoryService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final UserService userService;
 

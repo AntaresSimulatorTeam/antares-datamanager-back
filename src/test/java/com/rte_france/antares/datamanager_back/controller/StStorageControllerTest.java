@@ -48,7 +48,7 @@ class StStorageControllerTest {
         String isCivilYear = "true";
 
         TrajectoryEntity fakeEntity = Mockito.mock(TrajectoryEntity.class);
-        when(stStorageFileProcessorService.processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString()))
+        when(stStorageFileProcessorService.processStStorageFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class), any(String.class)))
                 .thenReturn(fakeEntity);
 
 
@@ -65,7 +65,7 @@ class StStorageControllerTest {
                     .andExpect(status().isCreated());
 
             verify(stStorageFileProcessorService, times(1))
-                    .processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString())
+                    .processStStorageFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class), any(String.class))
             ;
 
     }
@@ -90,7 +90,7 @@ class StStorageControllerTest {
                 .andExpect(status().isBadRequest());
 
         // service should not be called
-        verify(stStorageFileProcessorService, times(0)).processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString());
+        verify(stStorageFileProcessorService, times(0)).processStStorageFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class), any(String.class));
     }
 
     @Test
@@ -111,6 +111,6 @@ class StStorageControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(stStorageFileProcessorService, times(0)).processStStorageFile(anyString(), anyString(), anyInt(), anyBoolean(), anyString(), anyString());
+        verify(stStorageFileProcessorService, times(0)).processStStorageFile(any(String.class), any(String.class), anyInt(), anyBoolean(), any(String.class), any(String.class));
     }
 }

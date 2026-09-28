@@ -3,6 +3,9 @@ package com.rte_france.antares.datamanager_back.controller;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,6 +34,9 @@ public class MultiEnergyController {
     private final TrajectoryService trajectoryService;
     private final PathSecurityUtil pathSecurityUtil;
     private final HydroMeFileProcessorService hydroMeFileProcessorService;
+    private final HydroParametersMeFileProcessorService hydroParametersMeFileProcessorService;
+    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
+    private final HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
 
     @Operation(summary = "import Trajectory load ME to database ")
     @PostMapping("/load-me")
@@ -80,6 +86,47 @@ public class MultiEnergyController {
             @RequestParam("studyId") Integer studyId) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import HYDRO PARAMETERS ME trajectory to database")
+    @PostMapping("/hydro-parameters-me")
+    public ResponseEntity<TrajectoryDTO> uploadHydroParametersMeTrajectory(
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "example of horizon : 2020-2021") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(hydroParametersMeFileProcessorService.processHydroParametersMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import THERMAL_ME trajectory file to database")
+    @PostMapping("/thermal-me")
+    public ResponseEntity<TrajectoryDTO> uploadThermalMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+                                                                      @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+                                                                      @Parameter(description = "example of horizon : 2020-2021") String horizon,
+                                                                      @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(thermalMeFileProcessorService.processThermalMeFile(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import HYDRO TIME SERIES ME trajectory to database")
+    @PostMapping("/hydro-ts-me")
+    public ResponseEntity<TrajectoryDTO> uploadHydroTimeSeriesMeTrajectory(
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "example of horizon : 2020-2021") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
 }

@@ -1,53 +1,99 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.area_link.AreaFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.util.Utils;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.apache.poi.ss.usermodel.Sheet;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.apache.poi.ss.usermodel.Workbook;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.BeforeEach;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.Test;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.io.TempDir;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.params.ParameterizedTest;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.params.provider.EnumSource;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.params.provider.ValueSource;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.mockito.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.http.HttpStatus;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import java.io.IOException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.lang.reflect.InvocationTargetException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.nio.file.Files;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.nio.file.Path;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.nio.file.Paths;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.time.LocalDateTime;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.util.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.util.stream.Collectors;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.junit.jupiter.api.Assertions.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.mockito.ArgumentMatchers.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.mockito.Mockito.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 class TrajectoryServiceImplTest {
 
@@ -1459,7 +1505,7 @@ class TrajectoryServiceImplTest {
                 .loadEntities(Set.of(LoadEntity.builder().fileName("load1").build()))
                 .build();
 
-        when(areaRepository.findAllByStudyId(any())).thenReturn(Collections.singletonList(AreaEntity.builder().name("FR").build()));
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(Collections.singletonList(AreaEntity.builder().name("FR").build()));
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("/INPUT");
         when(antaresDataManagerProperties.getLoadDirectory())
@@ -1468,7 +1514,7 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("nni").build());
-        when(loadRepository.findByFileNameAndTrajectoryFileName(anyString(), anyString()))
+        when(loadRepository.findByFileNameAndTrajectoryFileName(any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         TrajectoryEntity result = trajectoryService.processLoadTrajectory(area, trajectoryToUse, horizon, studyId);
 
@@ -1932,7 +1978,7 @@ class TrajectoryServiceImplTest {
                 .build();
 
         Path mockPath = mock(Path.class);
-        when(mockPath.resolve(anyString())).thenReturn(mockPath);
+        when(mockPath.resolve(any(String.class))).thenReturn(mockPath);
         when(nasFileService.readAndSaveMatrixToNas(mockPath, "outputDir", null, true)).thenThrow(IOException.class);
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
         when(areaRepository.findAreaByNameAndStudyId(area, studyId)).thenReturn(Optional.of(new AreaEntity()));
@@ -1947,7 +1993,7 @@ class TrajectoryServiceImplTest {
         String horizon = "2023-2024";
         Integer studyId = 1;
 
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 AreaEntity.builder().name("AREA1").build(),
                 AreaEntity.builder().name("AREA2").build()
         ));
@@ -1977,7 +2023,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getLoadDirectory()).thenReturn("");
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of());
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(List.of());
         when(loadFileProcessorService.checkForMissingLoadFiles(any(), any(), any(), any(), any()))
                 .thenReturn(Set.of());
 
@@ -2184,7 +2230,7 @@ class TrajectoryServiceImplTest {
 
         var area1 = AreaEntity.builder().name("FR").build();
         var area2 = AreaEntity.builder().name("DE").build();
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(List.of(area1, area2));
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(List.of(area1, area2));
 
         var existingLoad = LoadEntity.builder().fileName("load_fr_2030-2031.txt").build();
         var existingTrajectory = TrajectoryEntity.builder()
@@ -3470,7 +3516,7 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of(loadFactorTraj));
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
 
             spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
 
@@ -3507,13 +3553,13 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of(loadFactorTraj));
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
 
             spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
 
             verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj1, List.of(loadFactorTraj), horizon);
             verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj2, List.of(loadFactorTraj), horizon);
-            verify(spyService, times(2)).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+            verify(spyService, times(2)).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
         }
 
         @Test
@@ -3534,7 +3580,7 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of());
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
 
             spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
 
@@ -3559,7 +3605,7 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of());
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doThrow(new IOException("File not found")).when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+            doThrow(new IOException("File not found")).when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
 
             assertThrows(IOException.class, () ->
                 spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon)
@@ -3590,7 +3636,7 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of(loadFactorTraj));
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), anyString());
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
 
             spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
 
@@ -3614,7 +3660,7 @@ class TrajectoryServiceImplTest {
             List<MiscClusterCapacityEntity> capacities = List.of(capacity1, capacity2);
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), any(String.class));
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
 
@@ -3634,7 +3680,7 @@ class TrajectoryServiceImplTest {
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
             ArgumentCaptor<String> horizonCaptor = ArgumentCaptor.forClass(String.class);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), horizonCaptor.capture());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), horizonCaptor.capture());
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
 
@@ -3649,7 +3695,7 @@ class TrajectoryServiceImplTest {
             List<MiscClusterCapacityEntity> capacities = List.of();
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), any(String.class));
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
 
@@ -3668,7 +3714,7 @@ class TrajectoryServiceImplTest {
             List<MiscClusterCapacityEntity> capacities = List.of(capacity);
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doThrow(new IOException("File error")).when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), isNull());
+            doThrow(new IOException("File error")).when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), isNull());
 
             assertThrows(IOException.class, () ->
                     spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area)
@@ -3687,7 +3733,7 @@ class TrajectoryServiceImplTest {
             List<MiscClusterCapacityEntity> capacities = List.of(capacity);
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), any(String.class));
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
 
@@ -3708,7 +3754,7 @@ class TrajectoryServiceImplTest {
             List<MiscClusterCapacityEntity> capacities = List.of(capacity);
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), any(String.class));
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
 
@@ -3728,7 +3774,7 @@ class TrajectoryServiceImplTest {
             );
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), anyString(), anyString());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), any(String.class), any(String.class));
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, area);
 
@@ -3750,7 +3796,7 @@ class TrajectoryServiceImplTest {
             List<MiscClusterCapacityEntity> capacities = List.of(capacity);
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), nullable(String.class), anyString());
+            doNothing().when(spyService).controlesMiscInstalledPower(anyInt(), anyList(), nullable(String.class), any(String.class));
 
             spyService.controlesMiscOnImportInstalledPower(studyId, capacities, null);
 
@@ -5285,7 +5331,7 @@ class TrajectoryServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name()))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
-        when(loadRepository.findByFileNameAndTrajectoryFileName(anyString(), anyString()))
+        when(loadRepository.findByFileNameAndTrajectoryFileName(any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When
@@ -5484,12 +5530,12 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
-        when(loadRepository.findByFileNameAndTrajectoryFileName(anyString(), anyString()))
+        when(loadRepository.findByFileNameAndTrajectoryFileName(any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenReturn(loadMeTrajectory);
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), 1))
                 .thenReturn(List.of(areaMeTrajectory));
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When
@@ -5519,7 +5565,7 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When & Then

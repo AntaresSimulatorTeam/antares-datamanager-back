@@ -52,5 +52,6 @@ public interface TrajectoryService {
 
     TrajectoryEntity processThermalEconomicParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 
+    TrajectoryEntity processThermalMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException; 
 }
 

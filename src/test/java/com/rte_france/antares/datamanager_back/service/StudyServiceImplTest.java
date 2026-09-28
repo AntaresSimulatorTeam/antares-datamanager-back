@@ -185,7 +185,7 @@ class StudyServiceImplTest {
         });
 
         assertEquals("Project name must be provided.", exception.getMessage());
-        verify(projectRepository, never()).findByName(anyString());
+        verify(projectRepository, never()).findByName(any(String.class));
         verify(projectRepository, never()).save(any(ProjectEntity.class));
         verify(studyRepository, never()).save(any(StudyEntity.class));
     }
@@ -517,7 +517,7 @@ class StudyServiceImplTest {
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(projectRepository.findByName("NewProject")).thenReturn(Optional.of(newProject));
-        when(studyRepository.existsByNameAndProjectName(anyString(), eq("NewProject"))).thenReturn(false);
+        when(studyRepository.existsByNameAndProjectName(any(String.class), eq("NewProject"))).thenReturn(false);
         when(studyRepository.save(any(StudyEntity.class))).thenReturn(study);
 
         var dto = StudyDTO.builder()
@@ -556,7 +556,7 @@ class StudyServiceImplTest {
 
         assertNotNull(result);
         verify(studyRepository).save(any(StudyEntity.class));
-        verify(projectRepository, never()).findByName(anyString());
+        verify(projectRepository, never()).findByName(any(String.class));
     }
 
     @Test
@@ -607,7 +607,7 @@ class StudyServiceImplTest {
 
         assertNotNull(result);
         verify(studyRepository).save(any(StudyEntity.class));
-        verify(projectRepository, never()).findByName(anyString());
+        verify(projectRepository, never()).findByName(any(String.class));
     }
 
     @Test

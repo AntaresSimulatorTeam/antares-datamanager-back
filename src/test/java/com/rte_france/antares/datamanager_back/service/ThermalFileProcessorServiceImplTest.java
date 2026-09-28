@@ -181,7 +181,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
         when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
                 .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         var horizon = "2025-2026";
         thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,"FR","CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
@@ -198,7 +198,7 @@ class ThermalFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenReturn(trajectoryEntity);
         when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
                 .thenReturn(ThermalClusterRef.builder().name("Cluster1").thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         var horizon = "2025-2026";
         thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,OTHERS_AREA,"CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
@@ -229,7 +229,7 @@ class ThermalFileProcessorServiceImplTest {
         String horizon = "2025-2026";
         String area = "FR";
         String technology = "CCGT";
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
             filesMock.when(() -> Files.newInputStream(mockPath)).thenThrow(new IOException("File read error"));
@@ -271,7 +271,7 @@ class ThermalFileProcessorServiceImplTest {
         }
 
         // Stubs minimaux
-        when(areaRepository.findAllByStudyId(any())).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(
                 AreaEntity.builder().id(1).name("FR").build()
         ));
 
@@ -649,7 +649,7 @@ class ThermalFileProcessorServiceImplTest {
 
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
             utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(
-                            anyString(),
+                            any(String.class),
                             eq(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())))
                     .thenReturn("thermal_common_parameters_test");
 
@@ -691,8 +691,8 @@ class ThermalFileProcessorServiceImplTest {
             utilsMock.verify(() -> Utils.buildTrajectory(
                     eq(file),
                     eq(0),
-                    anyString(),
-                    anyString(),
+                    any(String.class),
+                    any(String.class),
                     any(),
                     any(),
                     any(),
@@ -964,7 +964,7 @@ class ThermalFileProcessorServiceImplTest {
         List<ThermalCostsRateEntity> rates = Collections.emptyList();
 
         // No existing trajectory
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
                 .thenReturn(Optional.empty());
 
         // User info
@@ -975,7 +975,7 @@ class ThermalFileProcessorServiceImplTest {
 
         // Mock static Utils.buildTrajectory
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
-            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(any(String.class), any(String.class)))
                     .thenAnswer(inv -> {
                         String fileName = inv.getArgument(0);
                         // simulate Utils: return name without extension
@@ -1007,7 +1007,7 @@ class ThermalFileProcessorServiceImplTest {
         String horizon = "2030";
 
         TrajectoryEntity existing = TrajectoryEntity.builder().fileName("thermal_costs_rates_existing").version(3).checksum("111").build();
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), eq(horizon), eq(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())))
                 .thenReturn(Optional.of(existing));
 
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("NNI2").build());
@@ -1020,7 +1020,7 @@ class ThermalFileProcessorServiceImplTest {
 
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
             // Static name helper not strictly needed in this branch, but keep consistent
-            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(any(String.class), any(String.class)))
                     .thenAnswer(inv -> {
                         String fileName = inv.getArgument(0);
                         int dot = fileName.lastIndexOf('.');
@@ -1066,7 +1066,7 @@ class ThermalFileProcessorServiceImplTest {
                 .build();
 
         try (MockedStatic<Utils> utilsMock = mockStatic(Utils.class)) {
-            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(anyString(), anyString()))
+            utilsMock.when(() -> Utils.getFileNameWithoutExtensionAndWithoutPrefix(any(String.class), any(String.class)))
                     .thenReturn("thermal_costs_rates_existing");
 
             utilsMock.when(() -> Utils.calculateThermalCostTrajectoryChecksum(eq(costs), eq(rates)))

@@ -60,7 +60,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
      * Main logic for both checkForMissingLoadFiles and checkForMissingLoadByAreaFromDb
      */
     public List<String> getAreasLoadWithoutTrajectorySelected(Integer studyId) {
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream()
                 .map(AreaEntity::getName)
                 .map(Utils::normalize)
                 .distinct()

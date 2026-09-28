@@ -76,20 +76,20 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         Path workbook = createWorkbookWithHorizon(tmp);
 
         TrajectoryServiceImpl spyService = spy(service);
-        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), anyString(), anyString());
+        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), any(String.class), any(String.class));
 
         // Study areas only FR (so no missing area warning)
-        when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 AreaEntity.builder().name("FR").build()
         ));
 
         // Params contain FR and an unrelated XX (should be filtered out)
         List<ThermalSpecificParametersEntity> params = List.of(param("FR"), param("XX"));
-        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
+        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(any(String.class), any(Path.class), eq(HORIZON), any(String.class), anyInt()))
                 .thenReturn(params);
 
         // No existing trajectory
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(any(String.class), any(String.class), any(String.class), any(String.class), any()))
                 .thenReturn(Optional.empty());
 
         // Save returns the trajectory passed in
@@ -116,9 +116,9 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         // Given
         Path workbook = createWorkbookWithHorizon(tmp);
         TrajectoryServiceImpl spyService = spy(service);
-        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), anyString(), anyString());
+        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), any(String.class), any(String.class));
 
-        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
+        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(any(String.class), any(Path.class), eq(HORIZON), any(String.class), anyInt()))
                 .thenReturn(new ArrayList<>());
 
         // When / Then
@@ -133,17 +133,17 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         // Given
         Path workbook = createWorkbookWithHorizon(tmp);
         TrajectoryServiceImpl spyService = spy(service);
-        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), anyString(), anyString());
+        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), any(String.class), any(String.class));
 
-        when(areaRepository.findAllByStudyId(5)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(5, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 AreaEntity.builder().name("FR").build(),
                 AreaEntity.builder().name("DE").build()
         ));
         // File only contains FR => DE is missing and should trigger warning
-        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
+        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(any(String.class), any(Path.class), eq(HORIZON), any(String.class), anyInt()))
                 .thenReturn(List.of(param("FR")));
 
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(any(String.class), any(String.class), any(String.class), any(String.class), any()))
                 .thenReturn(Optional.empty());
 
         when(studyRepository.findById(5)).thenReturn(Optional.of(StudyEntity.builder().id(5).build()));
@@ -169,10 +169,10 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         // Given
         Path workbook = createWorkbookWithHorizon(tmp);
         TrajectoryServiceImpl spyService = spy(service);
-        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), anyString(), anyString());
+        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), any(String.class), any(String.class));
 
-        when(areaRepository.findAllByStudyId(2)).thenReturn(List.of(AreaEntity.builder().name("FR").build()));
-        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
+        when(areaRepository.findAllByStudyId(2, TrajectoryType.AREA.toString())).thenReturn(List.of(AreaEntity.builder().name("FR").build()));
+        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(any(String.class), any(Path.class), eq(HORIZON), any(String.class), anyInt()))
                 .thenReturn(List.of(param("FR")));
 
         // Existing trajectory with version 3
@@ -186,7 +186,7 @@ class TrajectoryServiceImplThermalSpecificParamTest {
                 .lastModificationContentDate(LocalDateTime.now().minusDays(1))
                 .build();
 
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(any(String.class), any(String.class), any(String.class), any(String.class), any()))
                 .thenReturn(Optional.of(existing));
 
         when(studyRepository.findById(2)).thenReturn(Optional.of(StudyEntity.builder().id(2).build()));
@@ -209,19 +209,19 @@ class TrajectoryServiceImplThermalSpecificParamTest {
         // Given
         Path workbook = createWorkbookWithHorizon(tmp);
         TrajectoryServiceImpl spyService = spy(service);
-        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), anyString(), anyString());
+        doReturn(workbook).when(spyService).getTrajectoryFilePath(eq(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER), any(String.class), any(String.class));
 
         // Study areas list (doesn't include AT to focus on file presence rule)
-        when(areaRepository.findAllByStudyId(7)).thenReturn(List.of(
+        when(areaRepository.findAllByStudyId(7, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 AreaEntity.builder().name("FR").build(),
                 AreaEntity.builder().name("DE").build()
         ));
         // File contains only FR in node column
-        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(anyString(), any(Path.class), eq(HORIZON), anyString(), anyInt()))
+        when(thermalSpecificProcessorService.buildThermalSpecificParameterValueList(any(String.class), any(Path.class), eq(HORIZON), any(String.class), anyInt()))
                 .thenReturn(List.of(param("FR")));
 
         // No existing trajectory
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(anyString(), anyString(), anyString(), anyString(), any()))
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(any(String.class), any(String.class), any(String.class), any(String.class), any()))
                 .thenReturn(Optional.empty());
 
         // When / Then

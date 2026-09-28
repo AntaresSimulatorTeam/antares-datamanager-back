@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -533,9 +534,11 @@ public class Utils {
             case LINK -> computeLinkChecksum(path.toString(), horizon);
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
-            case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME , HYDRO_CAPACITY_ME->
+            case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME , HYDRO_CAPACITY_ME, THERMAL_CAPACITY_ME->
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
+            case HYDRO_PARAMETERS_ME -> computeHydroParametersMeChecksum(path, horizon);
+            case HYDRO_TIME_SERIES_ME -> calculateDirectoryChecksum(path);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
@@ -588,6 +591,38 @@ public class Utils {
 
             return Hashing.sha256().hashString(sb.toString(), StandardCharsets.UTF_8).toString();
         }
+    }
+
+    private static String computeHydroParametersMeChecksum(Path directoryPath, String horizon) throws IOException {
+        String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
+        
+        StringBuilder combinedHash = new StringBuilder();
+        
+        // Hash param_hydro_ME.xlsx sheet
+        Path paramHydroPath = directoryPath.resolve("param_hydro_ME.xlsx");
+        if (Files.exists(paramHydroPath)) {
+            try (InputStream in = Files.newInputStream(paramHydroPath);
+                 Workbook wb = WorkbookFactory.create(in)) {
+                Sheet horizonSheet = wb.getSheet(horizonYear);
+                if (horizonSheet != null) {
+                    combinedHash.append(hashWholeSheet(horizonSheet));
+                }
+            }
+        }
+        
+        // Hash hydroAllocation_ME.xlsx sheet
+        Path hydroAllocationPath = directoryPath.resolve("hydroAllocation_ME.xlsx");
+        if (Files.exists(hydroAllocationPath)) {
+            try (InputStream in = Files.newInputStream(hydroAllocationPath);
+                 Workbook wb = WorkbookFactory.create(in)) {
+                Sheet horizonSheet = wb.getSheet(horizonYear);
+                if (horizonSheet != null) {
+                    combinedHash.append(hashWholeSheet(horizonSheet));
+                }
+            }
+        }
+        
+        return Hashing.sha256().hashString(combinedHash.toString(), StandardCharsets.UTF_8).toString();
     }
 
     private static String canonicalRow(Row row) {
@@ -919,6 +954,50 @@ public class Utils {
             return String.format("%04d-%s", year - 1, s);
         }
         return s;
+    }
+
+    private Boolean parseBooleanString(String s) {
+        if (s == null) return null;
+        s = s.trim().toLowerCase(Locale.ROOT);
+        if (s.isEmpty()) return null;
+
+        if (s.equals("true")) return true;
+        if (s.equals("false")) return false;
+        if (s.equals("1")) return true;
+        if (s.equals("0")) return false;
+
+        return null;
+    }
+
+    public Boolean getBooleanCell(Row row, int idx) {
+        Cell cell = row.getCell(idx);
+        if (cell == null) return null;
+
+        switch (cell.getCellType()) {
+            case BOOLEAN:
+                return cell.getBooleanCellValue();
+
+            case FORMULA:
+                switch (cell.getCachedFormulaResultType()) {
+                    case BOOLEAN:
+                        return cell.getBooleanCellValue();
+                    case NUMERIC:
+                        return cell.getNumericCellValue() == 1.0 || cell.getNumericCellValue() == 1;
+                    case STRING:
+                        return parseBooleanString(cell.getStringCellValue());
+                    default:
+                        return null;
+                }
+
+            case STRING:
+                return parseBooleanString(cell.getStringCellValue());
+
+            case NUMERIC:
+                return cell.getNumericCellValue() == 1.0 || cell.getNumericCellValue() == 1;
+
+            default:
+                return null;
+        }
     }
 
     private boolean isParsableAsDouble(String s) {
@@ -1745,6 +1824,7 @@ public class Utils {
     public static boolean isBooleanCell(Cell cell) {
         if (cell == null) return false;
         CellType t = cell.getCellType();
+        if (t == CellType.BLANK) return false;
         if (t == CellType.BOOLEAN) return true;
         if (t == CellType.NUMERIC) {
             double value = cell.getNumericCellValue();
@@ -1776,5 +1856,60 @@ public class Utils {
         String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
         return "true".equals(normalized) || "false".equals(normalized) || "1".equals(normalized)
                 || "0".equals(normalized);
+    }
+
+    public Path buildTrajectoryPath(String nasDir, String trajFilePath, String directoryByType, String trajectoryToUse) throws IOException {
+        if (nasDir == null || trajFilePath == null || directoryByType == null) {
+            throw BusinessException.builder()
+                    .message("Antares path configuration is incomplete")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        Path baseDirectory = Path.of(nasDir)
+                .resolve(trajFilePath)
+                .resolve(directoryByType)
+                .normalize();
+
+        if (!baseDirectory.endsWith("/")) {
+            baseDirectory = baseDirectory.resolve("");
+        }
+
+        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse+".xlsx").normalize();
+        if (!trajectoryFilePath.startsWith(baseDirectory)) {
+            throw new IOException("Path is outside of the target directory");
+        }
+
+        return trajectoryFilePath;
+    }
+
+    public boolean isSheetEmpty(Sheet sheet) {
+        if (sheet == null) {
+            return true;
+        }
+        if (sheet.getLastRowNum() < 0) {
+            return true;
+        }
+        for (int rowIdx = 0; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
+            Row row = sheet.getRow(rowIdx);
+            if (row != null && row.getLastCellNum() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public TrajectoryEntity buildNewTrajectory(TrajectoryType type, String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
+        return TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .fileSize(Files.size(trajectoryPath))
+                .createdBy(userNni)
+                .version(1)
+                .lastModificationContentDate(Files.getLastModifiedTime(trajectoryPath).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                .horizon(horizon)
+                .checksum(computeChecksumByType(trajectoryPath, type, horizon, null))
+                .type(type.name())
+                .creationDate(LocalDateTime.now())
+                .build();
     }
 }

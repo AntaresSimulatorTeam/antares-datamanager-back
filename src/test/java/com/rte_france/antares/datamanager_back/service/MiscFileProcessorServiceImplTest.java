@@ -69,10 +69,10 @@ class MiscFileProcessorServiceImplTest {
 
         when(trajectoryRepository
                 .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                        anyString(), anyString(), anyString(), anyString(), any()))
+                        any(String.class), any(String.class), any(String.class), any(String.class), any()))
                 .thenReturn(Optional.empty());
 
-        when(areaRepository.findAllByStudyId(anyInt()))
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.toString())))
                 .thenReturn(List.of());
     }
 
@@ -113,7 +113,7 @@ class MiscFileProcessorServiceImplTest {
             }
         }
 
-        when(trajectoryService.getTrajectoryFilePath(any(), anyString(), any()))
+        when(trajectoryService.getTrajectoryFilePath(any(), any(String.class), any()))
                 .thenReturn(file);
 
         return file;
@@ -150,7 +150,7 @@ class MiscFileProcessorServiceImplTest {
             }
         }
 
-        when(trajectoryService.getTrajectoryFilePath(any(), anyString(), any()))
+        when(trajectoryService.getTrajectoryFilePath(any(), any(String.class), any()))
                 .thenReturn(file);
 
         return file;
@@ -166,7 +166,7 @@ class MiscFileProcessorServiceImplTest {
             }
         }
 
-        when(trajectoryService.getTrajectoryFilePath(any(), anyString(), any()))
+        when(trajectoryService.getTrajectoryFilePath(any(), any(String.class), any()))
                 .thenReturn(file);
 
         return file;
@@ -182,7 +182,7 @@ class MiscFileProcessorServiceImplTest {
         Path csv = dir.resolve("load_factor_" + cluster + "_" + horizon + ".csv");
         Files.writeString(csv, header + "\n1;2;3");
 
-        when(trajectoryService.buildTrajectoryPath(anyString(), any()))
+        when(trajectoryService.buildTrajectoryPath(any(String.class), any()))
                 .thenReturn(root);
 
         return root;
@@ -218,7 +218,7 @@ class MiscFileProcessorServiceImplTest {
             AreaEntity de = new AreaEntity();
             de.setName("DE");
 
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             createInstalledWorkbook(List.of(
                     new Object[]{1, "FR", "biomass", "c1", "cat", 100},
@@ -239,7 +239,7 @@ class MiscFileProcessorServiceImplTest {
             AreaEntity de = new AreaEntity();
             de.setName("DE");
 
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             createInstalledWorkbook(List.of(
                     new Object[]{1, "FR", "biomass", "c1", "cat", 100},
@@ -269,7 +269,7 @@ class MiscFileProcessorServiceImplTest {
             fr.setName("FR");
             AreaEntity de = new AreaEntity();
             de.setName("DE");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             TrajectoryEntity existing = new TrajectoryEntity();
             existing.setChecksum("OLD");
@@ -277,7 +277,7 @@ class MiscFileProcessorServiceImplTest {
 
             when(trajectoryRepository
                     .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                            anyString(), anyString(), anyString(), anyString(), any()))
+                            any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.of(existing));
 
             createInstalledWorkbook(Collections.singletonList(
@@ -295,7 +295,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenAlreadyProcessedSameContent() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             // On crée un fichier avec une seule ligne valide
             createInstalledWorkbook(Collections.singletonList(
@@ -318,7 +318,7 @@ class MiscFileProcessorServiceImplTest {
             // Mock pour retourner la première trajectoire
             when(trajectoryRepository
                     .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                            anyString(), anyString(), anyString(), anyString(), any()))
+                            any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.of(firstResult));
 
             // Le deuxième appel avec le même contenu devrait lever une exception
@@ -369,7 +369,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenToUseIsMissing() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(List.<Object[]>of(
                     new Object[]{null, "FR", "biomass", "c", "cat", 100}
@@ -387,7 +387,7 @@ class MiscFileProcessorServiceImplTest {
             fr.setName("FR");
             AreaEntity de = new AreaEntity();
             de.setName("DE");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             // areaParam = FR mais seules des lignes DE => filtrées => entities vide
             createInstalledWorkbook(
@@ -403,7 +403,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenNonNumericValuesExist() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(List.<Object[]>of(
                     new Object[]{true, "FR", "biogas", "biogas", "cat", "abc"},
@@ -422,7 +422,7 @@ class MiscFileProcessorServiceImplTest {
             fr.setName("FR");
             AreaEntity de = new AreaEntity();
             de.setName("DE");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             createInstalledWorkbook(List.<Object[]>of(
                     new Object[]{true, "DE", "g", "c", "cat", 100}
@@ -437,7 +437,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldNotRequireSelectedAreaWhenAreaIsOthers() throws Exception {
             AreaEntity de = new AreaEntity();
             de.setName("DE");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(de));
 
             createInstalledWorkbook(List.<Object[]>of(
                     new Object[]{true, "DE", "biomass", "c", "cat", 100}
@@ -454,7 +454,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenGroupIsEmpty() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(List.<Object[]>of(
                     new Object[]{true, "FR", "", "c", "cat", 100}
@@ -470,7 +470,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenGroupIsNotValid() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(List.<Object[]>of(
                     new Object[]{true, "FR", "invalidgroup", "c", "cat", 100}
@@ -487,7 +487,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldAcceptAllValidGroups() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             String[] validGroups = {"biomass", "biogas", "geothermal", "other", "waste", "wave", "hydrokinetic"};
             for (String validGroup : validGroups) {
@@ -508,7 +508,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldAcceptGroupsWithDifferentCaseValidation() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             // Test uppercase group name (should be accepted and converted to lowercase)
             createInstalledWorkbook(List.<Object[]>of(
@@ -527,7 +527,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenGroupContainsNumbersInvalid() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             // "biomass1" is not in VALID_GROUPS
             createInstalledWorkbook(List.<Object[]>of(
@@ -545,7 +545,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenGroupContainsSpecialCharactersInvalid() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             // "biomass@" is not in VALID_GROUPS
             createInstalledWorkbook(List.<Object[]>of(
@@ -563,7 +563,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldThrowWhenGroupContainsSpacesInvalid() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             // "bio mass" is not in VALID_GROUPS
             createInstalledWorkbook(List.<Object[]>of(
@@ -610,7 +610,7 @@ class MiscFileProcessorServiceImplTest {
 
             Path root = Files.createTempDirectory(tempDir, "misc_load_");
 
-            when(trajectoryService.buildTrajectoryPath(anyString(), any()))
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any()))
                     .thenReturn(root);
 
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR"))
@@ -1058,7 +1058,7 @@ class MiscFileProcessorServiceImplTest {
             fr.setName("FR");
             AreaEntity de = new AreaEntity();
             de.setName("DE");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             createLoadFactorStructure(horizon, "biomass", "Small biomass", "FR;DE");
 
@@ -1076,7 +1076,7 @@ class MiscFileProcessorServiceImplTest {
             String horizon = "2029-2030";
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createLoadFactorStructure(horizon, "biomass", "Small biomass", "FR;DE");
 
@@ -1094,7 +1094,7 @@ class MiscFileProcessorServiceImplTest {
             String horizon = "2029-2030";
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createLoadFactorStructure(horizon, "biomass", "Small biomass", "DE");
 
@@ -1230,7 +1230,7 @@ class MiscFileProcessorServiceImplTest {
                 Files.writeString(csv, "FR;DE\n1;2");
             }
 
-            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any())).thenReturn(root);
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR")).thenReturn(List.of());
 
             assertDoesNotThrow(() ->
@@ -1255,7 +1255,7 @@ class MiscFileProcessorServiceImplTest {
                 Files.writeString(csv, header);
             }
 
-            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any())).thenReturn(root);
             when(miscClusterCapacityRepository.findByStudyIdAndArea(1, "FR")).thenReturn(List.of());
 
             assertThatThrownBy(() ->
@@ -1272,7 +1272,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldSkipRowWhenToUseIsFalse() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(Arrays.asList(
                     new Object[]{false, "FR", "biomass", "c", "cat", 100},
@@ -1290,7 +1290,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldHandleStringNumericValue() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             Path file = Files.createTempFile(tempDir, "installedMisc_", ".xlsx");
             try (Workbook wb = new XSSFWorkbook()) {
@@ -1317,8 +1317,8 @@ class MiscFileProcessorServiceImplTest {
                 }
             }
 
-            when(trajectoryService.getTrajectoryFilePath(any(), anyString(), any())).thenReturn(file);
-            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(tempDir);
+            when(trajectoryService.getTrajectoryFilePath(any(), any(String.class), any())).thenReturn(file);
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any())).thenReturn(tempDir);
 
             TrajectoryEntity result = service.processInstalledMiscFile("installedMisc_test", "2029-2030", 1, "FR", false);
 
@@ -1333,7 +1333,7 @@ class MiscFileProcessorServiceImplTest {
             fr.setName("FR");
             AreaEntity de = new AreaEntity();
             de.setName("DE");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr, de));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr, de));
 
             createInstalledWorkbook(Arrays.asList(
                     new Object[]{true, "DE", "biomass", "c", "cat", 100},
@@ -1350,7 +1350,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldSkipRowWhenAreaIsNotInStudyAreasAndOthersParam() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(Arrays.asList(
                     new Object[]{true, "XX", "biomass", "c", "cat", 100},
@@ -1371,7 +1371,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldSetVersionToOneForNewTrajectory() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             createInstalledWorkbook(Collections.singletonList(
                     new Object[]{true, "FR", "biomass", "c", "cat", 100}
@@ -1386,7 +1386,7 @@ class MiscFileProcessorServiceImplTest {
         void shouldIncrementVersionWhenChecksumDiffers() throws Exception {
             AreaEntity fr = new AreaEntity();
             fr.setName("FR");
-            when(areaRepository.findAllByStudyId(1)).thenReturn(List.of(fr));
+            when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(fr));
 
             TrajectoryEntity existing = new TrajectoryEntity();
             existing.setChecksum("OLD_CHECKSUM");
@@ -1394,7 +1394,7 @@ class MiscFileProcessorServiceImplTest {
 
             when(trajectoryRepository
                     .findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                            anyString(), anyString(), anyString(), anyString(), any()))
+                            any(String.class), any(String.class), any(String.class), any(String.class), any()))
                     .thenReturn(Optional.of(existing));
 
             createInstalledWorkbook(Collections.singletonList(
@@ -1422,7 +1422,7 @@ class MiscFileProcessorServiceImplTest {
                     ));
 
             Path root = Files.createTempDirectory(tempDir, "misc_load_");
-            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any())).thenReturn(root);
 
             // Créer le fichier TS avec la zone FR (qui est demandée mais pas attendue)
             Path groupDir = root.resolve("biomass").resolve("Small biomass");
@@ -1444,7 +1444,7 @@ class MiscFileProcessorServiceImplTest {
                     .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
 
             Path root = Files.createTempDirectory(tempDir, "misc_load_");
-            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any())).thenReturn(root);
 
             // Créer le fichier TS sans la zone FR
             Path groupDir = root.resolve("biomass").resolve("Small biomass");
@@ -1465,7 +1465,7 @@ class MiscFileProcessorServiceImplTest {
                     .thenReturn(List.of(buildGroup("biomass", "Small biomass", "FR")));
 
             Path root = Files.createTempDirectory(tempDir, "misc_load_");
-            when(trajectoryService.buildTrajectoryPath(anyString(), any())).thenReturn(root);
+            when(trajectoryService.buildTrajectoryPath(any(String.class), any())).thenReturn(root);
 
             Path groupDir = root.resolve("biomass").resolve("Small biomass");
             Files.createDirectories(groupDir);

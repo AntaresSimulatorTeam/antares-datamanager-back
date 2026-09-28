@@ -1,27 +1,46 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.LoadRepository;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.WarningService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import org.junit.jupiter.api.BeforeEach;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.Test;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.io.TempDir;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.mockito.InjectMocks;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.mockito.Mock;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.mockito.MockitoAnnotations;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import java.io.IOException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.nio.file.Files;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.nio.file.Path;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.util.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.mockito.Mockito.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 class LoadFileProcessorServiceImplTest {
     @InjectMocks
@@ -70,7 +89,7 @@ class LoadFileProcessorServiceImplTest {
                 .map(name -> AreaEntity.builder().name(name).build())
                 .toList();
 
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(areaEntities);
         when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
@@ -99,7 +118,7 @@ class LoadFileProcessorServiceImplTest {
                 .toList();
 
 
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(areaEntities);
         when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
@@ -139,7 +158,7 @@ class LoadFileProcessorServiceImplTest {
                 .map(name -> AreaEntity.builder().name(name).build())
                 .toList();
 
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(areaEntities);
         when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
@@ -158,7 +177,7 @@ class LoadFileProcessorServiceImplTest {
 
         // Then
         assertTrue(result.isEmpty());
-        verify(warningService, never()).getMessage(anyString(), any());
+        verify(warningService, never()).getMessage(any(String.class), any());
         verify(warningService, never()).addWarning(any(), any(), any(), any(), any(), any());
     }
 
@@ -172,7 +191,7 @@ class LoadFileProcessorServiceImplTest {
         var beLoad = LoadEntity.builder().area("be").fileName("load_BE_" + horizon + ".txt").build();
 
         // When
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(areaEntities);
         when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 
@@ -194,7 +213,7 @@ class LoadFileProcessorServiceImplTest {
                 eq(trajectory)
         );
 
-        verify(loadRepository, never()).findByFileNameAndTrajectoryFileName(anyString(), anyString());
+        verify(loadRepository, never()).findByFileNameAndTrajectoryFileName(any(String.class), any(String.class));
     }
 
     @Test
@@ -206,7 +225,7 @@ class LoadFileProcessorServiceImplTest {
                 .toList();
 
         // When
-        when(areaRepository.findAllByStudyId(studyId)).thenReturn(areaEntities);
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())).thenReturn(areaEntities);
         when(trajectoryRepository.findByTypeAndStudyId("LOAD", studyId))
                 .thenReturn(List.of());
 

@@ -1683,7 +1683,7 @@ class UtilsTest {
             utilities.when(() -> Utils.checkMissingColumns(
                     Mockito.eq(sheet),
                     Mockito.eq(required),
-                    Mockito.anyString(),
+                    Mockito.any(String.class),
                     Mockito.any()
             )).thenAnswer(inv -> null);
 
@@ -1736,7 +1736,7 @@ class UtilsTest {
             utilities.when(() -> Utils.checkMissingColumns(
                     Mockito.eq(sheet),
                     Mockito.eq(required),
-                    Mockito.anyString(),
+                    Mockito.any(String.class),
                     Mockito.any()
             )).thenThrow(
                     BusinessException.builder()

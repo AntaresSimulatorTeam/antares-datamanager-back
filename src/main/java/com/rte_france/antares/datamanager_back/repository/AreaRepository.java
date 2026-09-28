@@ -25,6 +25,6 @@ public interface AreaRepository extends JpaRepository<AreaEntity, String> {
             "LEFT OUTER JOIN AreaConfigEntity ac ON ac.area.id = a.id " +
             "LEFT OUTER JOIN Trajectory t ON t.id = ac.trajectory.id " +
             "LEFT OUTER JOIN studyTrajectory st ON st.trajectory.id = t.id " +
-            "WHERE st.studyEntity.id = :studyId")
-    List<AreaEntity> findAllByStudyId(@Param("studyId") Integer studyId);
+            "WHERE st.studyEntity.id = :studyId and t.type= :trajectoryType")
+    List<AreaEntity> findAllByStudyId(@Param("studyId") Integer studyId, @Param("trajectoryType") String trajectoryType);
 }

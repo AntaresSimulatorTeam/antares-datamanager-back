@@ -67,7 +67,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse, technology);
 
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
 
         List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1], trajectoryFilePath, areaParam, technology, studyAreas, studyId);
         if (stStorageEntityList.isEmpty()) {

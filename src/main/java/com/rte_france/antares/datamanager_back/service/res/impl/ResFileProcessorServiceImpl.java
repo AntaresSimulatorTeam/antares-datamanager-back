@@ -106,7 +106,9 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 .orElse(null);
           Path referencePath = isFR ? files.get(0).getParent() : files.get(0);
 
-           validateNoDuplicateRows(aggregated, trajectoryToUse);
+           if (aggregated != null) {
+               validateNoDuplicateRows(aggregated, trajectoryToUse);
+           }
 
            // Construire la trajectoire complète AVANT la validation
            TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, referencePath, TrajectoryType.RES_CAPACITY, aggregated);
@@ -1138,7 +1140,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     }
 
     private List<String> loadStudyAreas(Integer studyId) {
-        return areaRepository.findAllByStudyId(studyId)
+        return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();

@@ -93,7 +93,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         setupMocks(tempDir.toString(), "", "");
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
         TrajectoryEntity savedEntity = createTrajectoryEntity(trajectoryName, horizon, 1);
@@ -162,7 +162,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         setupMocks(tempDir.toString(), "", "");
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.of(existingEntity));
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(newEntity);
@@ -203,7 +203,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         setupMocks(tempDir.toString(), "", "");
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.of(existingEntity));
         
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -306,7 +306,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         setupMocks(tempDir.toString(), "", "");
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
@@ -341,7 +341,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         setupMocks(tempDir.toString(), "", "");
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
@@ -376,7 +376,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         setupMocks(tempDir.toString(), "", "");
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));

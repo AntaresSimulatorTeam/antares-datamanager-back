@@ -442,8 +442,8 @@ class MiscGenerationAssemblerServiceImplTest {
         Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
         verify(miscFileProcessorService, never()).getAreasByGroupClusterByTrajectoryId(anyInt());
-        verify(miscFileProcessorService, never()).getAreasByGroupClusterByStudyId(anyInt(), anyString());
-        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
+        verify(miscFileProcessorService, never()).getAreasByGroupClusterByStudyId(anyInt(), any(String.class));
+        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), any(String.class), any(String.class));
         assertTrue(result.containsKey("FR"));
         assertTrue(result.get("FR").getFirst().getMiscGenTsList().isEmpty());
     }
@@ -479,8 +479,8 @@ class MiscGenerationAssemblerServiceImplTest {
 
         assertTrue(results.isEmpty());
         verify(timeSeriesReader, never()).readFromTxt(any(Path.class));
-        verify(timeSeriesReader, never()).readFromXlsx(any(Path.class), anyString(), anyBoolean());
-        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
+        verify(timeSeriesReader, never()).readFromXlsx(any(Path.class), any(String.class), anyBoolean());
+        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), any(String.class), any(String.class));
     }
 
     @Test
@@ -561,7 +561,7 @@ class MiscGenerationAssemblerServiceImplTest {
         List<Path> results = miscGenerationAssemblerService.splitMiscGenLoadFiles(csvFile, Set.of("BE"), "2030-2031", "wave");
 
         assertTrue(results.isEmpty());
-        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), anyString(), anyString());
+        verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), any(String.class), any(String.class));
     }
 
     @Test

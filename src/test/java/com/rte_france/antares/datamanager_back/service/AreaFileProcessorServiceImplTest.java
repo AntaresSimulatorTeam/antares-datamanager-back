@@ -85,7 +85,7 @@ class AreaFileProcessorServiceImplTest {
         areaEntity.setName("Area1");
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
                 .thenReturn(Optional.of(trajectoryEntity));
-        when(areaRepository.findAreaByNameIgnoreCase(anyString()))
+        when(areaRepository.findAreaByNameIgnoreCase(any(String.class)))
                 .thenReturn(Optional.of(areaEntity));
 
         areaFileProcessorService.processAreaFile(tempFile, "2030-2031", TrajectoryType.AREA);

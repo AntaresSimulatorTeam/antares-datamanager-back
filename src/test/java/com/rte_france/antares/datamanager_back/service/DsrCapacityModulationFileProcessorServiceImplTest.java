@@ -89,7 +89,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
                 .thenReturn(List.of(clusterEntity));
 
-        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+        doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         TrajectoryEntity trajectory = service.processDsrCapacityModulationFile(
                 "cm_capacity_test.xlsx",
@@ -127,7 +127,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
                 .thenReturn(List.of(clusterEntity2));
 
-        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+        doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         UserInfoDto user = new UserInfoDto();
         user.setNni("TESTNNI");
@@ -194,7 +194,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
                 .thenReturn(List.of(clusterEntity3));
 
-        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+        doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         assertThatThrownBy(() ->
                 service.processDsrCapacityModulationFile(
@@ -227,7 +227,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1))
                 .thenReturn(List.of(clusterEntity4));
 
-        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+        doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         assertThatThrownBy(() ->
                 service.processDsrCapacityModulationFile(
@@ -256,7 +256,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         clusterEntity.setTrajectory(clusterTrajectory);
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(1)).thenReturn(List.of(clusterEntity));
 
-        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+        doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         TrajectoryEntity trajectoryToValidate = new TrajectoryEntity();
         trajectoryToValidate.setFileName("cm_validation_test");
@@ -310,7 +310,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         when(dsrRepository.findAllDsrClusterEntitiesByStudyId(100))
                 .thenReturn(List.of(fr, others));
 
-        doReturn(xlsx).when(service).getTrajectoryFilePath(anyString());
+        doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         assertThatThrownBy(() -> service.processDsrCapacityModulationFile("cm_specific_true", "2029-2030", 100))
                 .isInstanceOf(BusinessException.class)

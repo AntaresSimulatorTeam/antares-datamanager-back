@@ -2,33 +2,59 @@ package com.rte_france.antares.datamanager_back.controller;
 
 
 import com.rte_france.antares.datamanager_back.dto.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.BeforeEach;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.Test;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.mockito.Mockito;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.http.HttpStatus;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.http.MediaType;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.test.web.servlet.MockMvc;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.springframework.web.context.WebApplicationContext;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import java.util.List;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import java.util.Map;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import static org.mockito.ArgumentMatchers.any;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.mockito.Mockito.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

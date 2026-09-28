@@ -97,7 +97,7 @@ class DuplicationStudyImplTest {
         studyEntity.setTrajectories(trajectories);
 
         // Mock checkTrajectoryCoherence to avoid IOException
-        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), any(String.class));
         // Mock trajectoryRepository
         when(trajectoryRepository.findAllByIdWithWarnings(List.of(1))).thenReturn(trajectories);
 
@@ -184,7 +184,7 @@ class DuplicationStudyImplTest {
                 .thenReturn(studyEntity);
 
         // Mock checkTrajectoryCoherence to avoid IOException
-        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), any(String.class));
         // Mock trajectoryRepository - for same horizon, return the area only
          when(trajectoryRepository.findAllByIdWithWarnings(List.of(1))).thenReturn(Set.of(areaTrajectory));
 
@@ -234,7 +234,7 @@ class DuplicationStudyImplTest {
                 .thenReturn(studyEntity);
         
         // Mock checkTrajectoryCoherence to avoid IOException
-        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        doAnswer(invocation -> null).when(trajectoryService).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), any(String.class));
         // Mock trajectoryRepository - for same horizon, return all trajectories
         when(trajectoryRepository.findAllByIdWithWarnings(any())).thenReturn(trajectories);
 
@@ -244,7 +244,7 @@ class DuplicationStudyImplTest {
         assertNotNull(result);
         
         // Verify that checkTrajectoryCoherence was called for both trajectories
-        verify(trajectoryService, times(2)).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), anyString());
+        verify(trajectoryService, times(2)).checkTrajectoryCoherence(anyInt(), any(), any(TrajectoryEntity.class), any(String.class));
         verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(areaTrajectory), eq("user1"));
         verify(trajectoryService).checkTrajectoryCoherence(eq(1), any(), eq(loadTrajectory), eq("user1"));
     }

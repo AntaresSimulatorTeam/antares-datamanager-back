@@ -151,7 +151,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private List<String> getStudyAreasForCurrentStudy(Integer studyId) {
 
-        List<AreaEntity> areas = areaRepository.findAllByStudyId(studyId);
+        List<AreaEntity> areas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString());
         if (areas == null) {
             return Collections.emptyList();
         }

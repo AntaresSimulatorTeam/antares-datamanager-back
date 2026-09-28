@@ -268,25 +268,25 @@ class StudyGeneratorServiceImplTest {
 
         // Delegate STS building to real implementation by default
         lenient().doAnswer(inv -> new StsToJsonService().stsMapGenerator(inv.getArgument(0), inv.getArgument(1)))
-                .when(stsToJsonService).stsMapGenerator(anyString(), anyMap());
+                .when(stsToJsonService).stsMapGenerator(any(String.class), anyMap());
         // Delegate Thermal building to real implementation by default
         lenient().doAnswer(inv -> new ThermalToJsonService().getClusterPropsForArea(inv.getArgument(0), inv.getArgument(1)))
-                .when(thermalToJsonService).getClusterPropsForArea(anyMap(), anyString());
+                .when(thermalToJsonService).getClusterPropsForArea(anyMap(), any(String.class));
         lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMapGenerator(inv.getArgument(0)))
                 .when(thermalToJsonService).thermalsMapGenerator(anyMap());
         lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMapGenerator(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
                 .when(thermalToJsonService).thermalsMapGenerator(anyMap(), anyMap(), anyMap());
         lenient().doAnswer(inv -> new ThermalToJsonService().buildClusterKey(inv.getArgument(0), inv.getArgument(1)))
-                .when(thermalToJsonService).buildClusterKey(anyString(), anyString());
+                .when(thermalToJsonService).buildClusterKey(any(String.class), any(String.class));
 
         lenient().doAnswer(inv -> new DsrToJsonService().buildDsrDataMap(inv.getArgument(0), inv.getArgument(1)))
-                .when(drsToJsonService).buildDsrDataMap(anyString(),anyMap());
+                .when(drsToJsonService).buildDsrDataMap(any(String.class),anyMap());
 
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
-                .when(resToJsonService).buildResDataMap(anyString(), anyMap());
+                .when(resToJsonService).buildResDataMap(any(String.class), anyMap());
 
         lenient().doAnswer(inv -> new ResToJsonService().buildResDataMap(inv.getArgument(0), inv.getArgument(1)))
-                .when(hydroToJsonService).buildHydroDataMap(anyString(), anyMap());
+                .when(hydroToJsonService).buildHydroDataMap(any(String.class), anyMap());
 
         lenient().doAnswer(inv -> {
             StudyEntity study = inv.getArgument(0);
@@ -323,7 +323,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
 
         // Then
-        verify(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), anyString());
+        verify(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), any(String.class));
 
         byte[] generatedJson = captureGeneratedJson(studyId);
 
@@ -421,7 +421,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
     private byte[] captureGeneratedJson(Integer studyId) throws IOException {
 
         ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
-        verify(nasFileService).saveFile(eq(studyId + ".json"), captor.capture(), anyString());
+        verify(nasFileService).saveFile(eq(studyId + ".json"), captor.capture(), any(String.class));
 
         return captor.getValue();
     }
@@ -432,7 +432,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         Integer studyId = 1;
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
-        doThrow(new IOException("IO error")).when(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), anyString());
+        doThrow(new IOException("IO error")).when(nasFileService).saveFile(eq(studyId + ".json"), any(byte[].class), any(String.class));
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> studyGeneratorService.buildJsonForStudyGeneration(studyId));
 
@@ -471,7 +471,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
         ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
-        verify(nasFileService).saveFile(eq("1.json"), captor.capture(), anyString());
+        verify(nasFileService).saveFile(eq("1.json"), captor.capture(), any(String.class));
 
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> jsonMap = objectMapper.readValue(captor.getValue(), new TypeReference<>() {
@@ -508,7 +508,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
         ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
-        verify(nasFileService).saveFile(eq("1.json"), captor.capture(), anyString());
+        verify(nasFileService).saveFile(eq("1.json"), captor.capture(), any(String.class));
 
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> jsonMap = objectMapper.readValue(captor.getValue(), new TypeReference<>() {

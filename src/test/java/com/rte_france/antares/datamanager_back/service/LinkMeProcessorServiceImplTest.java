@@ -64,7 +64,7 @@ class LinkMeProcessorServiceImplTest {
 
         // Setup default mocks
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -638,7 +638,7 @@ class LinkMeProcessorServiceImplTest {
      */
     @Test
     void checkForDuplicateChecksum_handlesVariousChecksumFormats() {
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> linkMeProcessorService.checkForDuplicateChecksum("traj1", "2024-2025", "abc123"));

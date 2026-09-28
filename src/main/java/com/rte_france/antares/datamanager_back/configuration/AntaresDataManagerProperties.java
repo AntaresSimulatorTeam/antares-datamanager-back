@@ -121,6 +121,18 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.hydro.capacity.me.directory}")
     public String hydroCapacityMeDirectory;
 
+    @Value("${antares.datamanager.hydro.parameters.me.directory}")
+    public String hydroParametersMeDirectory;
+
+    @Value("${antares.datamanager.hydro.reservoir.levels.me.directory}")
+    public String hydroReservoirLevelsMeDirectory;
+
+    @Value("${antares.datamanager.hydro.time.series.me.directory}")
+    public String hydroTimeSeriesMeDirectory;
+
+    @Value("${antares.datamanager.hydro.water.values.me.directory}")
+    public String hydroWaterValuesMeDirectory;
+
     @Value("${antares.datamanager.nuclear.modulation.directory}")
     public String nuclearModulationDirectory;
 
@@ -168,4 +180,19 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.efficiency.me.directory}")
     public String efficiencyMeDirectory;
+
+    @Value("${antares.datamanager.thermal.me.directory}")
+    public String thermalMeDirectory;
+
+    @Value("${antares.datamanager.thermal.me.marginal.cost.modulation.directory}")
+    public String thermalMeMarginalCostModulationDirectory;
+
+    @Value("${antares.datamanager.thermal.me.market.bid.cost.modulation.directory}")
+    public String thermalMeMarketBidCostModulationDirectory;
+
+    @Value("${antares.datamanager.thermal.me.must.run.modulation.directory}")
+    public String thermalMeMustRunModulationDirectory;
+
+    @Value("${antares.datamanager.thermal.me.capacity.modulation.directory}")
+    public String thermalMeCapacityModulationDirectory;
 }

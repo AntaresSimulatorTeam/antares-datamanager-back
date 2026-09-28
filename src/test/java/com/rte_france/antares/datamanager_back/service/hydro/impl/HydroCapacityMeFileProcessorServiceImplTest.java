@@ -91,7 +91,7 @@ class HydroMeFileProcessorServiceImplTest {
                 .checksum("test_checksum")
                 .build();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -120,7 +120,7 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_NodeColumnExceeds60Chars() throws IOException {
         createExcelFileWithLongNode();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -136,7 +136,7 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_InvalidTimestepValue() throws IOException {
         createExcelFileWithInvalidTimestep();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -152,7 +152,7 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_NonNumericColumn() throws IOException {
         createExcelFileWithNonNumericValue();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -186,7 +186,7 @@ class HydroMeFileProcessorServiceImplTest {
                 .checksum("new_checksum")
                 .build();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.of(existingTrajectory));
         
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -388,7 +388,7 @@ class HydroMeFileProcessorServiceImplTest {
                 .checksum("test_checksum")
                 .build();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(mockTrajectory);
@@ -431,7 +431,7 @@ class HydroMeFileProcessorServiceImplTest {
                 .checksum("test_checksum")
                 .build();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(mockTrajectory);
@@ -477,7 +477,7 @@ class HydroMeFileProcessorServiceImplTest {
                 .checksum("test_checksum")
                 .build();
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(mockTrajectory);
@@ -507,7 +507,7 @@ class HydroMeFileProcessorServiceImplTest {
         
         createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -536,7 +536,7 @@ class HydroMeFileProcessorServiceImplTest {
         
         createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -568,7 +568,7 @@ class HydroMeFileProcessorServiceImplTest {
         Path generatingDailyTsDir = uniqueTempDir.resolve("Generating Pmax daily ts");
         Files.createDirectories(generatingDailyTsDir);
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -600,7 +600,7 @@ class HydroMeFileProcessorServiceImplTest {
         Path pumpingDailyTsDir = capaStoragePath.resolve("Pumping Pmax daily ts");
         Files.createDirectories(pumpingDailyTsDir);
         
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(anyString(), anyString(), anyString()))
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));

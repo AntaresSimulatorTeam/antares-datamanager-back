@@ -59,7 +59,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         }
 
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream().map(a -> a.getName().toUpperCase()).toList();
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
         var dsrClusterEntities = buildDsrClusterEntities(horizon.split("-")[1], trajectoryFilePath, area, studyAreas);
 
         boolean isSeriesTrue = dsrClusterEntities.stream()
@@ -184,50 +184,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-    }
-
-    private Boolean getBooleanCell(Row row, int idx) {
-        Cell cell = row.getCell(idx);
-        if (cell == null) return null;
-
-        switch (cell.getCellType()) {
-            case BOOLEAN:
-                return cell.getBooleanCellValue();
-
-            case FORMULA:
-                switch (cell.getCachedFormulaResultType()) {
-                    case BOOLEAN:
-                        return cell.getBooleanCellValue();
-                    case NUMERIC:
-                        return cell.getNumericCellValue() == 1.0;
-                    case STRING:
-                        return parseBooleanString(cell.getStringCellValue());
-                    default:
-                        return null;
-                }
-
-            case STRING:
-                return parseBooleanString(cell.getStringCellValue());
-
-            case NUMERIC:
-                return cell.getNumericCellValue() == 1.0;
-
-            default:
-                return null;
-        }
-    }
-
-    private Boolean parseBooleanString(String s) {
-        if (s == null) return null;
-        s = s.trim().toLowerCase(Locale.ROOT);
-        if (s.isEmpty()) return null;
-
-        if (s.equals("true")) return true;
-        if (s.equals("false")) return false;
-        if (s.equals("1")) return true;
-        if (s.equals("0")) return false;
-
-        return null;
     }
 
     private void validateBooleanValue(Row row, int idx, String rowArea, String clusterName, String trajectoryFileName) {

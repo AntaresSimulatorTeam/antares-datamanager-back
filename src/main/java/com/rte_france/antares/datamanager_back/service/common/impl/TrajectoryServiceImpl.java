@@ -21,11 +21,13 @@ import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyM
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
+import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -125,6 +127,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
     private final HydroMeFileProcessorService hydroMeFileProcessorService;
+    
+    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
+
+    private final HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -177,6 +183,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processHydroCapacityMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
+    }
+
+    @Transactional
+    @Override
+    public TrajectoryEntity processThermalMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return thermalMeFileProcessorService.processThermalMeFile(trajectoryToUse, horizon, studyId);
     }
 
     @Override
@@ -284,6 +296,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
             case HYDRO_CAPACITY_ME -> hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
+            case HYDRO_TIME_SERIES_ME -> hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(trajectoryToUse, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
@@ -363,7 +376,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // Filter out rows whose area is not present in the study AREA trajectory
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId)
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
                 .map(a -> a.getName().toUpperCase())
                 .toList();
@@ -580,7 +593,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
             case LOAD, LOAD_ME, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
                  HYDRO_TECHNICAL_PARAMETERS, HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION,
-                 NUCLEAR_FR_TS_LONG_TERM -> Files.isDirectory(path);
+                 NUCLEAR_FR_TS_LONG_TERM, HYDRO_RESERVOIR_LEVELS_ME, HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME -> Files.isDirectory(path);
             case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
             case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
@@ -687,7 +700,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.FLOWBASED,
                 TrajectoryType.SCENARIO_BUILDER,
                 TrajectoryType.CONSTRAINT_ME,
-                TrajectoryType.EFFICIENCY_ME
+                TrajectoryType.EFFICIENCY_ME,
+                TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME,
+                TrajectoryType.HYDRO_TIME_SERIES_ME,
+                TrajectoryType.HYDRO_WATER_VALUES_ME,
+                TrajectoryType.HYDRO_CAPACITY_ME,
+                TrajectoryType.HYDRO_PARAMETERS_ME
         );
 
         Optional<StudyTrajectoryEntity> existingLink = Optional.empty();
@@ -969,7 +987,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private boolean isSameVersionOfOtherLoadTrajectory(TrajectoryEntity existingTrajectory, Integer studyId, Path trajectoryPath, String horizon) {
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId).stream()
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream()
                 .map(a -> a.getName().toLowerCase())
                 .toList();
 
@@ -1000,18 +1018,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public Path buildTrajectoryPath(String trajectoryToUse, TrajectoryType type) throws IOException {
         String nasDir = antaresDataManagerProperties.getNasDirectory();
         String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
-        String directoryByType = "";
-        if (TrajectoryType.LOAD.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getLoadDirectory();
-        } else if (TrajectoryType.LOAD_ME.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getLoadMeDirectory();
-        } else if (TrajectoryType.CONSTRAINT_ME.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getConstraintMeDirectory();
-        } else if (TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getThermalModulationParameterDirectory();
-        } else if (TrajectoryType.MISC_LOAD.equals(type)) {
-            directoryByType = antaresDataManagerProperties.getMiscLoadDirectory();
-        }
+        String directoryByType = getDirectoryByTrajectoryType(type, null, null);
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {
             throw BusinessException.builder()
@@ -1019,7 +1026,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-
 
         Path baseDirectory = Path.of(nasDir)
                 .resolve(trajFilePath)
@@ -1030,7 +1036,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             baseDirectory = baseDirectory.resolve("");
         }
 
-        //download the file
         Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse).normalize();
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
             throw new IOException("Path is outside of the target directory");
@@ -1065,7 +1070,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .map(String::toLowerCase)
                     .toList();
         }
-        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
 
         List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
@@ -1345,7 +1350,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         || trajectoryType == TrajectoryType.ADEQUACY_PATCH
                         || trajectoryType == FLOWBASED
                         || trajectoryType == P2G_CAPACITY_COST
-                        || trajectoryType == P2G_MARKET_MODULATION);
+                        || trajectoryType == P2G_MARKET_MODULATION
+                        || trajectoryType == HYDRO_PARAMETERS_ME
+                        || trajectoryType == TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME
+                        || trajectoryType == TrajectoryType.HYDRO_TIME_SERIES_ME
+                        || trajectoryType == TrajectoryType.HYDRO_WATER_VALUES_ME);
     }
 
     /**
@@ -1406,6 +1415,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     private boolean isValidTrajectoryFile(Path path, TrajectoryType trajectoryType) {
         String fileName = path.getFileName().toString().toLowerCase();
+        
+        // Reject temporary Excel files (locked files starting with ~$)
+        if (fileName.startsWith("~$")) {
+            return false;
+        }
+        
         boolean isXlsx = fileName.endsWith(".xlsx");
 
         return switch (trajectoryType) {
@@ -1452,6 +1467,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case HYDRO_PSP_SERIES -> antaresDataManagerProperties.getPspSeriesDirectory();
             case HYDRO_PSP_TECHNICAL_PARAMETERS -> antaresDataManagerProperties.getPspParametersDirectory();
             case HYDRO_CAPACITY_ME -> antaresDataManagerProperties.getHydroCapacityMeDirectory();
+            case HYDRO_PARAMETERS_ME -> antaresDataManagerProperties.getHydroParametersMeDirectory();
+            case HYDRO_RESERVOIR_LEVELS_ME -> antaresDataManagerProperties.getHydroReservoirLevelsMeDirectory();
+            case HYDRO_TIME_SERIES_ME -> antaresDataManagerProperties.getHydroTimeSeriesMeDirectory();
+            case HYDRO_WATER_VALUES_ME -> antaresDataManagerProperties.getHydroWaterValuesMeDirectory();
             case NUCLEAR_FR_MODULATION -> antaresDataManagerProperties.getNuclearModulationDirectory();
             case NUCLEAR_FR_TALON -> antaresDataManagerProperties.getNuclearTalonDirectory();
             case NUCLEAR_FR_TS_ERP -> antaresDataManagerProperties.getNuclearEprDirectory();
@@ -1466,6 +1485,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case STS_ME -> antaresDataManagerProperties.getStsMeDirectory();
             case CONSTRAINT_ME -> antaresDataManagerProperties.getConstraintMeDirectory();
             case EFFICIENCY_ME -> antaresDataManagerProperties.getEfficiencyMeDirectory();
+            case THERMAL_CAPACITY_ME -> antaresDataManagerProperties.getThermalMeDirectory();
             default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
         };
     }

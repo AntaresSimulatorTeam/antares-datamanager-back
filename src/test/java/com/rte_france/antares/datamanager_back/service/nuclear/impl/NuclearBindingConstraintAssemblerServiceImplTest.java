@@ -92,7 +92,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             Files.createDirectories(tsDir);
             createWeeklyXlsx(tsDir.resolve(TRAJ_NAME + "_weekly.xlsx"), NB_COLUMNS);
 
-            when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean()))
+            when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean()))
                     .thenReturn("arrow_hourly.arrow", "arrow_daily.arrow", "arrow_weekly.arrow");
             when(nasFileService.countXlsxColumns(any(Path.class), any())).thenReturn(NB_COLUMNS);
         }
@@ -214,7 +214,7 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             Files.createDirectories(talonDir);
             createTalonXlsx(talonDir.resolve("TALON_NUC_" + STORED_FILE_NAME + ".xlsx"), NB_COLUMNS);
 
-            when(nasFileService.readAndSaveMatrixToNas(any(Path.class), anyString(), any(), anyBoolean()))
+            when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean()))
                     .thenReturn("talon_arrow.arrow");
             when(nasFileService.countXlsxColumns(any(Path.class), any())).thenReturn(NB_COLUMNS);
         }

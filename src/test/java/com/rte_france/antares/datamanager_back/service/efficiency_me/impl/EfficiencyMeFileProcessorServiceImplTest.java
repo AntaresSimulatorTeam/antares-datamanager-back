@@ -85,7 +85,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
 
@@ -153,7 +153,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
 
@@ -189,7 +189,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
                 .build();
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.of(existingTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
 
@@ -210,7 +210,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         createTestExcelFileWithoutHorizonSheet(trajectoryName, horizon);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When & Then
@@ -229,7 +229,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         createEmptyExcelFile(trajectoryName);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When & Then
@@ -248,7 +248,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         createExcelFileWithLongNodeCluster(trajectoryName, horizon);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When & Then
@@ -267,7 +267,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         createExcelFileWithMissingEfficiency(trajectoryName, horizon);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When & Then
@@ -286,7 +286,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         createExcelFileWithOrphanedData(trajectoryName, horizon);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                anyString(), anyString(), anyString()))
+                any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
 
         // When & Then

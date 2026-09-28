@@ -104,7 +104,7 @@ class ThermalControllerTest {
 
     @Test
     void uploadThermalSpecificParameterTrajectory_shouldReturnCreatedStatusWhenValidRequest() throws Exception {
-        when(trajectoryService.processThermalSpecificParameterTrajectory(anyString(), anyString(), anyString(), anyInt()))
+        when(trajectoryService.processThermalSpecificParameterTrajectory(any(String.class), any(String.class), any(String.class), anyInt()))
                 .thenReturn(TrajectoryEntity.builder().build());
 
         mockMvc.perform(post("/v1/trajectory/thermal-specific-parameter")
@@ -245,7 +245,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnTrueWhenModulationIsRequired() throws Exception {
-        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt())).thenReturn(true);
+        when(thermalSpecificFileProcessorService.isParamModulationRequired(any(String.class), anyInt())).thenReturn(true);
 
         mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
@@ -259,7 +259,7 @@ class ThermalControllerTest {
 
     @Test
     void isParamModulationRequired_shouldReturnFalseWhenModulationIsNotRequired() throws Exception {
-        when(thermalSpecificFileProcessorService.isParamModulationRequired(anyString(), anyInt())).thenReturn(false);
+        when(thermalSpecificFileProcessorService.isParamModulationRequired(any(String.class), anyInt())).thenReturn(false);
 
         mockMvc.perform(post("/v1/trajectory/param-modulation/check")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
