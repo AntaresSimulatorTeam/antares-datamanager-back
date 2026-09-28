@@ -39,7 +39,7 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
     private static final String MOD_FILE = "mod.xlsx";
     private static final String ROR_FILE = "ror.xlsx";
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processHydroTimeSeriesMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveHydroTimeSeriesMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
