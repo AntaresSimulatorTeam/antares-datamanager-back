@@ -539,7 +539,7 @@ public class Utils {
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case HYDRO_PARAMETERS_ME -> computeHydroParametersMeChecksum(path, horizon);
-            case HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME -> calculateDirectoryChecksum(path);
+            case HYDRO_TIME_SERIES_ME, HYDRO_RESERVOIR_LEVELS_ME, HYDRO_WATER_VALUES_ME -> calculateDirectoryChecksum(path);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
@@ -1912,5 +1912,19 @@ public class Utils {
                 .type(type.name())
                 .creationDate(LocalDateTime.now())
                 .build();
+    }
+
+    public static long calculateDirectorySize(Path directory) throws IOException {
+        long size = 0;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
+            for (Path file : stream) {
+                if (Files.isDirectory(file)) {
+                    size += calculateDirectorySize(file);
+                } else {
+                    size += Files.size(file);
+                }
+            }
+        }
+        return size;
     }
 }

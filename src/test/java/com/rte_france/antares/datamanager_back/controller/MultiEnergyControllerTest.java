@@ -5,6 +5,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroReservoirLevelsMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -55,6 +56,9 @@ class MultiEnergyControllerTest {
 
     @MockBean
     private ThermalMeFileProcessorService thermalMeFileProcessorService;
+
+    @MockBean
+    private HydroReservoirLevelsMeFileProcessorService hydroReservoirLevelsMeFileProcessorService;
 
     @MockBean
     private PathSecurityUtil pathSecurityUtil;
@@ -638,5 +642,146 @@ class MultiEnergyControllerTest {
                         .param("studyId", "1")
                         .accept(MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ==================== Hydro-Reservoir-Levels-ME Tests ====================
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_returns201AndCallsPathSecurityUtilAndService() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(789);
+        entity.setFileName("hydro_res_test");
+        entity.setType(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name());
+        entity.setVersion(1);
+        entity.setHorizon(HORIZON);
+
+        when(hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(
+                "hydro_res_test",
+                HORIZON,
+                STUDY_ID
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "hydro_res_test")
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(789))
+                .andExpect(jsonPath("$.trajectoryName").value("hydro_res_test"))
+                .andExpect(jsonPath("$.type").value(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name()))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.horizon").value(HORIZON));
+
+        verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("hydro_res_test"));
+        verify(hydroReservoirLevelsMeFileProcessorService, times(1))
+                .processHydroReservoirLevelsMeFile("hydro_res_test", HORIZON, STUDY_ID);
+    }
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_whenTrajectoryNameTooLong_returns400AndDoesNotCallService() throws Exception {
+        String tooLongName = "x".repeat(41);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", tooLongName)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroReservoirLevelsMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_whenHorizonInvalid_returns400AndDoesNotCallService() throws Exception {
+        String invalidHorizon = "2020-21";
+
+        mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", TRAJECTORY_NAME)
+                        .param("horizon", invalidHorizon)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroReservoirLevelsMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_whenStudyIdMissing_returns400AndDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", TRAJECTORY_NAME)
+                        .param("horizon", HORIZON))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroReservoirLevelsMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_whenTrajectoryToUseMissing_returns400AndDoesNotCallService() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(hydroReservoirLevelsMeFileProcessorService);
+    }
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_withValidHorizonFormats_returns201() throws Exception {
+        String[] validHorizons = {"2020-2021", "2025-2026", "2030-2031"};
+
+        for (String horizon : validHorizons) {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(123);
+            entity.setFileName(TRAJECTORY_NAME);
+            entity.setType(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name());
+            entity.setVersion(1);
+            entity.setHorizon(horizon);
+
+            when(hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(
+                    TRAJECTORY_NAME,
+                    horizon,
+                    STUDY_ID
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", TRAJECTORY_NAME)
+                            .param("horizon", horizon)
+                            .param("studyId", STUDY_ID.toString()))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.horizon").value(horizon));
+
+            verify(hydroReservoirLevelsMeFileProcessorService, times(1))
+                    .processHydroReservoirLevelsMeFile(TRAJECTORY_NAME, horizon, STUDY_ID);
+        }
+    }
+
+    @Test
+    void uploadHydroReservoirLevelsMeTrajectory_callsPathSecurityUtilWithCorrectParameters() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(999);
+        entity.setFileName("hydro_res_trajectory");
+        entity.setType(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name());
+        entity.setVersion(1);
+        entity.setHorizon("2022-2023");
+
+        when(hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(
+                "hydro_res_trajectory",
+                "2022-2023",
+                50
+        )).thenReturn(entity);
+
+        mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "hydro_res_trajectory")
+                        .param("horizon", "2022-2023")
+                        .param("studyId", "50"))
+                .andExpect(status().isCreated());
+
+        verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("hydro_res_trajectory"));
     }
 }
