@@ -579,6 +579,92 @@ class ThermalMeFileProcessorServiceImplTest {
         assertTrue(exception.getMessage().contains("Could not process THERMAL ME file"));
     }
 
+    @Test
+    @DisplayName("saveThermalMeTrajectoryInDb - should throw BusinessException when duplicate node and cluster_name exist")
+    void saveThermalMeTrajectoryInDb_duplicateNodeAndCluster_throwsBusinessException() throws IOException {
+        String trajectoryName = "test_duplicate_trajectory";
+        String horizon = "2024-2025";
+
+        Workbook workbook = new XSSFWorkbook();
+        String horizonYear = horizon.split("-")[1];
+        Sheet sheet = workbook.createSheet(horizonYear);
+
+        sheet.createRow(0);
+        sheet.createRow(1);
+        sheet.createRow(2);
+
+        Row headerRow = sheet.createRow(3);
+        for (int i = 0; i < HEADERS.length; i++) {
+            headerRow.createCell(i).setCellValue(HEADERS[i]);
+        }
+
+        Row dataRow1 = sheet.createRow(4);
+        fillDataRow(dataRow1, "FR", "nuclear_group", "cluster_1", "annual");
+
+        Row dataRow2 = sheet.createRow(5);
+        fillDataRow(dataRow2, "FR", "other_group", "cluster_1", "annual");
+
+        for (int i = 6; i <= 17; i++) {
+            sheet.createRow(i);
+        }
+
+        saveWorkbook(workbook, trajectoryFilePath.resolve(trajectoryName + ".xlsx"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+        );
+
+        assertEquals("Duplicate entry detected in {0} trajectory {1}: node {2} and cluster {3} is defined more than once for this horizon.", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertThat(exception.getErrorMessageArguments()).containsExactly("THERMAL_ME", trajectoryName, "FR", "cluster_1");
+    }
+
+    @Test
+    @DisplayName("saveThermalMeTrajectoryInDb - should allow same node with different clusters")
+    void saveThermalMeTrajectoryInDb_sameNodeDifferentClusters_success() throws IOException {
+        String trajectoryName = "test_same_node_diff_cluster";
+        String horizon = "2024-2025";
+
+        Workbook workbook = new XSSFWorkbook();
+        String horizonYear = horizon.split("-")[1];
+        Sheet sheet = workbook.createSheet(horizonYear);
+
+        sheet.createRow(0);
+        sheet.createRow(1);
+        sheet.createRow(2);
+
+        Row headerRow = sheet.createRow(3);
+        for (int i = 0; i < HEADERS.length; i++) {
+            headerRow.createCell(i).setCellValue(HEADERS[i]);
+        }
+
+        Row dataRow1 = sheet.createRow(4);
+        fillDataRow(dataRow1, "FR", "nuclear_group", "cluster_1", "annual");
+
+        Row dataRow2 = sheet.createRow(5);
+        fillDataRow(dataRow2, "FR", "gas_group", "cluster_2", "annual");
+
+        for (int i = 6; i <= 17; i++) {
+            sheet.createRow(i);
+        }
+
+        saveWorkbook(workbook, trajectoryFilePath.resolve(trajectoryName + ".xlsx"));
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                eq(trajectoryName), eq(horizon), eq(TrajectoryType.THERMAL_CAPACITY_ME.name())))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon);
+
+        assertNotNull(result);
+        assertEquals(2, result.getThermalMeEntities().size());
+        assertEquals("FR", result.getThermalMeEntities().get(0).getNode());
+        assertEquals("cluster_1", result.getThermalMeEntities().get(0).getClusterName());
+        assertEquals("FR", result.getThermalMeEntities().get(1).getNode());
+        assertEquals("cluster_2", result.getThermalMeEntities().get(1).getClusterName());
+    }
+
     // ============ Helper Methods ============
 
     private Path createValidThermalMeExcelFile(String fileName, String horizon, String timestep) throws IOException {
