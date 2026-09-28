@@ -187,7 +187,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withNullTrajectory_shouldReturnEmptyMap() {
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null);
 
         // Then
         assertThat(result).isNotNull().isEmpty();
@@ -330,7 +330,7 @@ class MultiEnergyServiceImplTest {
                 .build();
 
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null, trajWithNullLink);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, trajWithNullLink);
 
         // Then
         assertThat(result).doesNotContainKey("links_me");
@@ -588,7 +588,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withLinkMeTrajectory_shouldReturnLinksMeStructure() {
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null, linkMeTrajectory);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, linkMeTrajectory);
 
         // Then
         assertThat(result).isNotNull().containsKey("links_me").doesNotContainKey("area_me");
@@ -804,7 +804,8 @@ class MultiEnergyServiceImplTest {
         when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster2")).thenReturn("NODE_RIGHT_AREA1_cluster2");
 
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, thermalClusterProps, constraintMeTrajectory);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMapWithThermalClusterProps(
+                studyEntity, thermalClusterProps, constraintMeTrajectory);
 
         // Then
         @SuppressWarnings("unchecked")
@@ -865,7 +866,7 @@ class MultiEnergyServiceImplTest {
                 .build();
 
         // When
-        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, (TrajectoryEntity) null, trajWithInvalidLinks);
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, null, trajWithInvalidLinks);
 
         // Then
         assertThat(result).containsKey("links_me");

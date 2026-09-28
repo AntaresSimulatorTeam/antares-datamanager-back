@@ -71,7 +71,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     }
 
     @Override
-    public Map<String, Object> buildMultiEnergyMap(
+    public Map<String, Object> buildMultiEnergyMapWithThermalClusterProps(
             StudyEntity study,
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
             TrajectoryEntity... trajectories) {

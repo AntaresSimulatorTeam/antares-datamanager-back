@@ -284,7 +284,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
             Optional<TrajectoryEntity> stsMeTrajectory =
                     dispatchResult.trajectoryOfType(TrajectoryType.STS_ME);
 
-            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMap(
+            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMapWithThermalClusterProps(
                     study,
                     thermalClusterProps,
                     areaMeTrajectory.orElse(null),
