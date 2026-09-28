@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroReservoirLevelsMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -37,6 +38,7 @@ public class MultiEnergyController {
     private final HydroParametersMeFileProcessorService hydroParametersMeFileProcessorService;
     private final ThermalMeFileProcessorService thermalMeFileProcessorService;
     private final HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
+    private final HydroReservoirLevelsMeFileProcessorService hydroReservoirLevelsMeFileProcessorService;
 
     @Operation(summary = "import Trajectory load ME to database ")
     @PostMapping("/load-me")
@@ -138,6 +140,20 @@ public class MultiEnergyController {
             @RequestParam("studyId") Integer studyId) throws IOException {
 
         return new ResponseEntity<>(toTrajectoryDTO(hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "import HYDRO RESERVOIR LEVELS ME trajectory to database")
+    @PostMapping("/hydro-reservoir-levels-me")
+    public ResponseEntity<TrajectoryDTO> uploadHydroReservoirLevelsMeTrajectory(
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
+            @Parameter(description = "example of horizon : 2020-2021") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+        pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
+                trajectoryToUse
+        );
+        return new ResponseEntity<>(toTrajectoryDTO(hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
 }
