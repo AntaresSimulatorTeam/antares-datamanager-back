@@ -52,7 +52,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     private static final String GENERATING_PMAX_DAILY_TS_DIR = "Generating Pmax daily ts";
     private static final String PUMPING_PMAX_DAILY_TS_DIR = "Pumping Pmax daily ts";
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processHydroCapacityMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveHydroCapacityMeTrajectoryInDb(trajectoryToUse, horizon);

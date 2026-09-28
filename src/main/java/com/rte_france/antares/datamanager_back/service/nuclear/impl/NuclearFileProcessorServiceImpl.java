@@ -60,7 +60,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearModulationFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
 
@@ -359,7 +359,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         }
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearLongTermFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
 
@@ -453,21 +453,21 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                 .build();
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsErpFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
         return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
                 antaresDataManagerProperties.getNuclearEprDirectory(), TrajectoryType.NUCLEAR_FR_TS_ERP);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsSmrFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
         return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
                 antaresDataManagerProperties.getNuclearSmrDirectory(), TrajectoryType.NUCLEAR_FR_TS_SMR);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTalonFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
         return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 

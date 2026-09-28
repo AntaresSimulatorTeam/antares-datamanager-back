@@ -47,7 +47,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     private static final String PARAM_HYDRO_ME_FILE = "param_hydro_ME.xlsx";
     private static final String HYDRO_ALLOCATION_ME_FILE = "hydroAllocation_ME.xlsx";
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processHydroParametersMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveHydroParametersMeTrajectoryInDb(trajectoryToUse, horizon, studyId);

@@ -57,7 +57,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     public static final String OTHERS_AREA = "OTHERS";
 
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processStStorageFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String areaParam, String technology) throws IOException {
         final String stsTrajectoryPrefix = STS_TRAJECTORY_PREFIX+ technology.toLowerCase() + "_";

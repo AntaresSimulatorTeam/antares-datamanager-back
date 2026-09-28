@@ -107,7 +107,7 @@ public class SettingsImportService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity importSettings(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
         // Get the trajectory settings directory from the configuration
         String settingsDirectory = antaresDataManagerProperties.getTrajectorySettingsDirectory();

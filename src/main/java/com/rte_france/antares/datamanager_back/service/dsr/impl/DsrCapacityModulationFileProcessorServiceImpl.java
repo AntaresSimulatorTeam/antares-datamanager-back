@@ -43,7 +43,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
     private static final String DSR_CAPACITY_MODULATION = "CM_";
     private static final String FILE_EXTENSION = ".xlsx";
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processDsrCapacityModulationFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         // Check trajectory file name prefix

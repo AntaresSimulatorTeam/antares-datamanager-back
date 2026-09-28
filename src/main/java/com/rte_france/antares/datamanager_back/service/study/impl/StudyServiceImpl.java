@@ -135,7 +135,7 @@ public class StudyServiceImpl implements StudyService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     public StudyDTO duplicateStudy(StudyDTO studyDTO) throws IOException {
         validateHorizon(studyDTO);
 

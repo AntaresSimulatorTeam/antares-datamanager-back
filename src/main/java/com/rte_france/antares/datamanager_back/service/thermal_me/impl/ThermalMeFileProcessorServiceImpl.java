@@ -78,7 +78,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
         }
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processThermalMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveThermalMeTrajectoryInDb(trajectoryToUse, horizon);

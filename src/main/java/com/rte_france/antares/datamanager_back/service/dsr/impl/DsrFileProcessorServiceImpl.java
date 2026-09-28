@@ -45,7 +45,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
             "price", "nb_units", "FO_rate", "FO_duration", "Modulation"};
 
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processDsrClusterFile(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area) throws IOException {
         // Check trajectory file name prefix

@@ -40,7 +40,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private final GroupClusterDescRepository groupClusterDescRepository;
     private final MeConstraintRepository meConstraintRepository;
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processConstraintMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveConstraintMeTrajectoryInDb(trajectoryToUse, horizon);
