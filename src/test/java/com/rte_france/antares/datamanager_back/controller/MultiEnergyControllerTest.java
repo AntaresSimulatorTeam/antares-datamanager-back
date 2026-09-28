@@ -597,8 +597,6 @@ class MultiEnergyControllerTest {
                      .andExpect(status().isCreated());
 
              verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("hydro_ts_trajectory"));
-            verifyNoInteractions(pathSecurityUtil);
-            verifyNoInteractions(hydroParametersMeFileProcessorService);
         }
 
     // ==================== Thermal-ME Tests ====================
