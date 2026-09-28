@@ -59,7 +59,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
      * @param path the path to the file to process
      */
     @ExecutionTime
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity processLinkFile(Path path, String horizon, Integer studyId) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>(); // Nouvelle instance locale
 

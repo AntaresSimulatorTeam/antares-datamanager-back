@@ -79,7 +79,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     private static final String ERROR_LOAD_FACTOR_EMPTY = "Load factor file {0} for group {1} is empty";
 
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processInstalledMiscFile(String trajectoryToUse, String horizon, Integer studyId, String areaParam, boolean isCivilYear) throws IOException {
         // prefix check

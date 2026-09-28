@@ -43,7 +43,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
 
     @SuppressWarnings("java:S2083")
     @ExecutionTime
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity processAreaFile(Path path, String horizon, TrajectoryType trajectoryType) throws IOException {
         String updatedHorizon = horizon;
 

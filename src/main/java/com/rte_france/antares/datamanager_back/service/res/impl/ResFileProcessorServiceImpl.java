@@ -68,7 +68,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     protected static final String FILE_NOT_FOUND = "File not found: ";
     protected static final String LITERAL_STRING = "%s/%s/%s";
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processInstalledResFile(
             String trajectoryToUse,
@@ -220,7 +220,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         }
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processTechnologyDistributionResFile(
             String trajectoryToUse,
@@ -285,7 +285,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
           return trajectoryRepository.save(trajectory);
      }
 
-     @Transactional
+     @Transactional(rollbackFor = {IOException.class})
      @Override
      public TrajectoryEntity processZonalDistributionResFile(
              String trajectoryToUse,

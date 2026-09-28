@@ -48,7 +48,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private static final int GROUP_MAX_LENGTH = 20;
     private static final String[] REQUIRED_FILES = {"lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processStStorageMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
 

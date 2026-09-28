@@ -155,37 +155,37 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public static final String SCENARIO_BUILDER_PREFIX = "scenario_builder_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveLoadTrajectoriesInDb(area, trajectoryToUse, horizon, studyId);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processLoadMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveLoadMeTrajectoriesInDb(trajectoryToUse, horizon, studyId);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processConstraintMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return constraintMeFileProcessorService.processConstraintMeFile(trajectoryToUse, horizon, studyId);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processEfficiencyMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return efficiencyMeFileProcessorService.processEfficiencyMeFile(trajectoryToUse, horizon, studyId);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processHydroCapacityMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processThermalMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return thermalMeFileProcessorService.processThermalMeFile(trajectoryToUse, horizon, studyId);
@@ -311,7 +311,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
         if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(CAPACITY_PREFIX)) {
             throw BusinessException.builder()
@@ -332,7 +332,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processThermalCommonParameterTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER, trajectoryToUse, "");
@@ -362,7 +362,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * @return the created and saved trajectory entity
      * @throws IOException if an issue occurs while accessing the trajectory file
      */
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processThermalSpecificParameterTrajectory(String trajectoryName, String horizon, String area, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, trajectoryName, "");
@@ -663,7 +663,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity linkTrajectoryToStudy(Integer trajectoryId, Integer studyId, TrajectoryType type) throws IOException {
         Set<WarningMessageEntity> warningMessageEntities = new HashSet<>();
 

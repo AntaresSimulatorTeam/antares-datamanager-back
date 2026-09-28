@@ -39,7 +39,7 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final EfficiencyMeRepository efficiencyMeRepository;
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processEfficiencyMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveEfficiencyMeTrajectoryInDb(trajectoryToUse, horizon);
