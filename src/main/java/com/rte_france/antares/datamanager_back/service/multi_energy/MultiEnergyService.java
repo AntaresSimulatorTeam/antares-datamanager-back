@@ -19,7 +19,7 @@ public interface MultiEnergyService {
      * @param trajectories the ME trajectories to process
      * @return the ME data map
      */
-    Map<String, Object> buildMultiEnergyMap(
+    Map<String, Object> buildMultiEnergyMapWithThermalClusterProps(
             StudyEntity study,
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
             TrajectoryEntity... trajectories);
@@ -35,6 +35,6 @@ public interface MultiEnergyService {
     default Map<String, Object> buildMultiEnergyMap(
             StudyEntity study,
             TrajectoryEntity... trajectories) {
-        return buildMultiEnergyMap(study, Collections.emptyMap(), trajectories);
+        return buildMultiEnergyMapWithThermalClusterProps(study, Collections.emptyMap(), trajectories);
     }
 }
