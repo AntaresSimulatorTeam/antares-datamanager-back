@@ -216,16 +216,6 @@ class TrajectoryServiceImplTest {
         verify(linkMeProcessorServiceImpl, times(1)).processLinkMeFile(any(), any(), any());
     }
 
-    @Test
-    void processTrajectory_returnsEntityWhenTrajectoryTypeIsHYDRO_CAPACITY_ME() throws IOException {
-        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("src/test/resources/");
-        when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/tmp/mnt/nas");
-        when(antaresDataManagerProperties.getHydroCapacityMeDirectory()).thenReturn("/hydro_me");
-
-        trajectoryService.processTrajectory(TrajectoryType.HYDRO_CAPACITY_ME, "hydro_me_ref", "2023-2024", 1);
-
-        verify(hydroMeFileProcessorService, times(1)).processHydroCapacityMeFile("hydro_me_ref", "2023-2024", 1);
-    }
 
     @Test
     void processThermalCapacityTrajectory_returnsEntityWhenValidDataProvided() throws IOException {

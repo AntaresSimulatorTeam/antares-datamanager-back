@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.*;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
@@ -538,7 +539,7 @@ public class Utils {
                     computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case HYDRO_PARAMETERS_ME -> computeHydroParametersMeChecksum(path, horizon);
-            case HYDRO_TIME_SERIES_ME -> calculateDirectoryChecksum(path);
+            case HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME -> calculateDirectoryChecksum(path);
             case DSR ->
                     computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";

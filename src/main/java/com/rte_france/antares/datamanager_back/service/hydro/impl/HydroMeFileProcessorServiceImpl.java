@@ -6,8 +6,10 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -37,11 +39,9 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
-    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final HydroCapacityMeRepository hydroCapacityMeRepository;
+    private final TrajectoryServiceImpl trajectoryService;
 
-
-    private static final String NODE_COLUMN = "Node";
     private static final String RESERVOIR_CAPACITY_COLUMN = "Reservoir Capacity [MWh]";
     private static final String GENERATING_PMAX_TIMESTEP_COLUMN = "Generating Pmax - timestep (daily/annual)";
     private static final String GENERATING_PMAX_COLUMN = "Generating Pmax [MW]";
@@ -59,6 +59,12 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         return saveHydroCapacityMeTrajectoryInDb(trajectoryToUse, horizon);
     }
 
+    @Transactional
+    @Override
+    public TrajectoryEntity processHydroWaterValuesMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        return saveHydroWaterValuesMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
+    }
+
     public TrajectoryEntity saveHydroCapacityMeTrajectoryInDb(String trajectoryToUse, String horizon) throws IOException {
 
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
@@ -69,7 +75,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
-        Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
+        Path trajectoryPath = trajectoryService.buildTrajectoryPath(trajectoryToUse,TrajectoryType.HYDRO_CAPACITY_ME);
         
         try (InputStream fis = Files.newInputStream(trajectoryPath);
              Workbook workbook = WorkbookFactory.create(fis)) {
@@ -81,7 +87,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
             if (existingTrajectoryOpt.isPresent()) {
                 TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
-                if (isSameFileWithSameContent(trajectoryPath, existingTrajectory)) {
+                if (isSameFileWithSameContent(trajectoryPath, existingTrajectory, TrajectoryType.HYDRO_CAPACITY_ME)) {
                     throw BusinessException.builder()
                             .message("File already processed with same content : {0}")
                             .errorMessageArguments(List.of(trajectoryToUse))
@@ -99,6 +105,82 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
             insertHydroCapacityMeData(workbook, horizon, trajectoryPath, savedTrajectory);
             return savedTrajectory;
+        }
+    }
+
+    public TrajectoryEntity saveHydroWaterValuesMeTrajectoryInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
+        String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
+                .map(UserInfoDto::getNni)
+                .orElseThrow(() ->
+                        BusinessException.builder()
+                                .message("User NNI could not be determined")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build());
+
+        Path trajectoryPath = trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.HYDRO_WATER_VALUES_ME);
+
+        validateHydroWaterValuesMeDirectory(trajectoryPath, trajectoryToUse, studyId);
+
+        Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
+                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.HYDRO_WATER_VALUES_ME.name());
+
+        if (existingTrajectoryOpt.isPresent()) {
+            TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
+            if (isSameFileWithSameContent(trajectoryPath, existingTrajectory, TrajectoryType.HYDRO_WATER_VALUES_ME)) {
+                throw BusinessException.builder()
+                        .message("Directory already processed with same content: {0}")
+                        .errorMessageArguments(List.of(trajectoryToUse))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            TrajectoryEntity newTrajectory = buildNewHydroWaterValuesMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+            newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
+            return trajectoryRepository.save(newTrajectory);
+        }
+
+        TrajectoryEntity newTrajectory = buildNewHydroWaterValuesMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+        return trajectoryRepository.save(newTrajectory);
+    }
+
+    private void validateHydroWaterValuesMeDirectory(Path trajectoryPath, String trajectoryName, Integer studyId) throws IOException {
+        if (!Files.isDirectory(trajectoryPath)) {
+            throw BusinessException.builder()
+                    .message("Trajectory must be a directory: {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Get all Excel files (*.xlsx) in the directory
+        List<String> excelFiles;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(trajectoryPath, "*.xlsx")) {
+            excelFiles = new ArrayList<>();
+            stream.forEach(path -> excelFiles.add(path.getFileName().toString()));
+        }
+
+         if(excelFiles.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No Excel files found in the directory: {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        // Get valid nodes from HYDRO_CAPACITY_ME associated to the study
+        List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId);
+
+        if (!validNodes.isEmpty()) {
+            // Check if at least one file name contains a valid node
+            boolean hasAtLeastOneValidFile = excelFiles.stream()
+                    .anyMatch(fileName -> validNodes.stream()
+                            .anyMatch(nodeName -> fileName.toLowerCase().contains(nodeName.toLowerCase())));
+
+            if (!hasAtLeastOneValidFile) {
+                throw BusinessException.builder()
+                        .message("No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Water Values trajectory {0}")
+                        .errorMessageArguments(List.of(trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
         }
     }
 
@@ -232,34 +314,6 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         }
     }
 
-    private Path buildTrajectoryPath(String trajectoryToUse) throws IOException {
-        String nasDir = antaresDataManagerProperties.getNasDirectory();
-        String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
-        String directoryByType = antaresDataManagerProperties.getHydroCapacityMeDirectory();
-
-        if (nasDir == null || trajFilePath == null || directoryByType == null) {
-            throw BusinessException.builder()
-                    .message("Antares path configuration is incomplete")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        Path baseDirectory = Path.of(nasDir)
-                .resolve(trajFilePath)
-                .resolve(directoryByType)
-                .normalize();
-
-        if (!baseDirectory.endsWith("/")) {
-            baseDirectory = baseDirectory.resolve("");
-        }
-
-        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse+".xlsx").normalize();
-        if (!trajectoryFilePath.startsWith(baseDirectory)) {
-            throw new IOException("Path is outside of the target directory");
-        }
-            return trajectoryFilePath;
-    }
-
     private void validateHydroCapacityMeExcelFile(Workbook workbook, String trajectoryName, String horizon) throws IOException {
         String horizonYear = String.valueOf(Integer.parseInt(horizon.split("-")[1]));
         if (workbook.getSheet(horizonYear) == null) {
@@ -302,8 +356,8 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         return sheet == null || sheet.getLastRowNum() <= 0;
     }
 
-    private boolean isSameFileWithSameContent(Path trajectoryPath, TrajectoryEntity existingTrajectory) throws IOException {
-        String newChecksum = computeChecksumByType(trajectoryPath, TrajectoryType.HYDRO_CAPACITY_ME, existingTrajectory.getHorizon(), null);
+    private boolean isSameFileWithSameContent(Path trajectoryPath, TrajectoryEntity existingTrajectory, TrajectoryType trajectoryType) throws IOException {
+        String newChecksum = computeChecksumByType(trajectoryPath, trajectoryType, existingTrajectory.getHorizon(), null);
         return newChecksum.equals(existingTrajectory.getChecksum());
     }
 
@@ -317,6 +371,20 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 .horizon(horizon)
                 .checksum(computeChecksumByType(trajectoryPath, TrajectoryType.HYDRO_CAPACITY_ME, horizon, null))
                 .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
+                .creationDate(LocalDateTime.now())
+                .build();
+    }
+
+    private TrajectoryEntity buildNewHydroWaterValuesMeTrajectory(String trajectoryToUse, String horizon, Path trajectoryPath, String userNni) throws IOException {
+        return TrajectoryEntity.builder()
+                .fileName(trajectoryToUse)
+                .fileSize(Files.size(trajectoryPath))
+                .createdBy(userNni)
+                .version(1)
+                .lastModificationContentDate(Files.getLastModifiedTime(trajectoryPath).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime())
+                .horizon(horizon)
+                .checksum(computeChecksumByType(trajectoryPath, TrajectoryType.HYDRO_WATER_VALUES_ME, horizon, null))
+                .type(TrajectoryType.HYDRO_WATER_VALUES_ME.name())
                 .creationDate(LocalDateTime.now())
                 .build();
     }

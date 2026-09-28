@@ -10,13 +10,6 @@ import java.util.List;
 
 @Repository
 public interface HydroCapacityMeRepository extends JpaRepository<HydroCapacityMeEntity, Integer> {
-    
-    @Query("SELECT DISTINCT h.node FROM HydroCapacityMe h " +
-           "WHERE h.trajectory.id IN (" +
-           "  SELECT t.id FROM Trajectory t " +
-           "  WHERE t.type = 'HYDRO_CAPACITY_ME' " +
-           ")")
-    List<String> findAllDistinctNodes();
 
     @Query("SELECT DISTINCT h.node FROM HydroCapacityMe h " +
            "WHERE h.trajectory.id IN (" +
