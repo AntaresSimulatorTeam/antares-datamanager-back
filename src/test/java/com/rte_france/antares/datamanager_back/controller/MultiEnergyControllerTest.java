@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.TrajectorySer
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,9 @@ class MultiEnergyControllerTest {
 
     @MockBean
     private HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
+
+    @MockBean
+    private ThermalMeFileProcessorService thermalMeFileProcessorService;
 
     @MockBean
     private PathSecurityUtil pathSecurityUtil;
@@ -593,5 +597,48 @@ class MultiEnergyControllerTest {
                      .andExpect(status().isCreated());
 
              verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("hydro_ts_trajectory"));
-         }
- }
+            verifyNoInteractions(pathSecurityUtil);
+            verifyNoInteractions(hydroParametersMeFileProcessorService);
+        }
+
+    // ==================== Thermal-ME Tests ====================
+
+    @Test
+    void uploadThermalMeTrajectory_returnsCreatedTrajectory() throws Exception {
+        when(thermalMeFileProcessorService.processThermalMeFile(any(), any(), any()))
+                .thenReturn(TrajectoryEntity.builder().build());
+
+        this.mockMvc.perform(post("/v1/trajectory/thermal-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "2023-2024")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+        verify(thermalMeFileProcessorService, times(1))
+                .processThermalMeFile(any(), any(), any());
+    }
+
+    @Test
+    void uploadThermalMeTrajectory_returnsBadRequestForInvalidHorizon() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/thermal-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void uploadThermalMeTrajectory_returnsBadRequestForMissingParams() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/thermal-me")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .param("trajectoryToUse", "testTrajectory")
+                        .param("studyId", "1")
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+}
