@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.HydroCapacityMeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,6 +43,9 @@ class HydroMeFileProcessorServiceImplTest {
 
     @Mock(lenient = true)
     private HydroCapacityMeRepository hydroCapacityMeRepository;
+
+    @Mock(lenient = true)
+    private TrajectoryServiceImpl trajectoryService;
 
     @InjectMocks
     private HydroMeFileProcessorServiceImpl hydroMeFileProcessorService;
@@ -82,6 +87,9 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_Success() throws IOException {
         createValidExcelFile(testExcelPath);
         
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
         TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
                 .id(1)
                 .fileName(testTrajectoryName)
@@ -109,6 +117,9 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_MissingHorizonSheet() throws IOException {
         createExcelFileWithoutHorizonSheet();
         
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
         BusinessException exception = assertThrows(BusinessException.class, 
                 () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
         
@@ -119,6 +130,9 @@ class HydroMeFileProcessorServiceImplTest {
     @Test
     void testProcessHydroCapacityMeFile_NodeColumnExceeds60Chars() throws IOException {
         createExcelFileWithLongNode();
+        
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
@@ -136,6 +150,9 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_InvalidTimestepValue() throws IOException {
         createExcelFileWithInvalidTimestep();
         
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
@@ -152,6 +169,9 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_NonNumericColumn() throws IOException {
         createExcelFileWithNonNumericValue();
         
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         
@@ -167,6 +187,9 @@ class HydroMeFileProcessorServiceImplTest {
     @Test
     void testProcessHydroCapacityMeFile_VersionIncrement() throws IOException {
         createValidExcelFile(testExcelPath);
+        
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -201,6 +224,9 @@ class HydroMeFileProcessorServiceImplTest {
     void testProcessHydroCapacityMeFile_MissingUserNni() throws IOException {
         createValidExcelFile(testExcelPath);
         
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
         when(userService.getCurrentUserDetails())
                 .thenReturn(null);
         
@@ -212,6 +238,12 @@ class HydroMeFileProcessorServiceImplTest {
 
     @Test
     void testProcessHydroCapacityMeFile_MissingConfiguration() throws IOException {
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenThrow(BusinessException.builder()
+                        .message("Antares path configuration is incomplete")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+        
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(null);
         
         BusinessException exception = assertThrows(BusinessException.class, 
@@ -372,6 +404,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
         
@@ -415,6 +449,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
         
@@ -458,6 +494,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithBothDailyTimestepsAtPath(testExcelPath);
         
@@ -504,6 +542,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
         
@@ -533,6 +573,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
         
@@ -562,6 +604,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
         
@@ -594,6 +638,8 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("trajectories");
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
         
         createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
         

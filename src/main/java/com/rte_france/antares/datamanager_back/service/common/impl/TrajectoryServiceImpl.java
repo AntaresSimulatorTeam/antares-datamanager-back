@@ -126,11 +126,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
-    private final HydroMeFileProcessorService hydroMeFileProcessorService;
-    
-    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
 
-    private final HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
+    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -177,12 +174,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     @Override
     public TrajectoryEntity processEfficiencyMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return efficiencyMeFileProcessorService.processEfficiencyMeFile(trajectoryToUse, horizon, studyId);
-    }
-
-    @Transactional(rollbackFor = {IOException.class})
-    @Override
-    public TrajectoryEntity processHydroCapacityMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
     }
 
     @Transactional(rollbackFor = {IOException.class})
@@ -295,8 +286,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
-            case HYDRO_CAPACITY_ME -> hydroMeFileProcessorService.processHydroCapacityMeFile(trajectoryToUse, horizon, studyId);
-            case HYDRO_TIME_SERIES_ME -> hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(trajectoryToUse, horizon, studyId);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };

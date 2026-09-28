@@ -129,4 +129,15 @@ public class MultiEnergyController {
         return new ResponseEntity<>(toTrajectoryDTO(hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
+
+    @Operation(summary = "import HYDRO Water Values ME trajectory to database")
+    @PostMapping("/hydro-water-values-me")
+    public ResponseEntity<TrajectoryDTO> uploadHydroWaterValuesMeTrajectory(
+            @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
+            @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
+            @RequestParam("studyId") Integer studyId) throws IOException {
+
+        return new ResponseEntity<>(toTrajectoryDTO(hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+    }
+
 }
