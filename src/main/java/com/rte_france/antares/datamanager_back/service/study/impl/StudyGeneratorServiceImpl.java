@@ -520,7 +520,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                                         String msg = String.format("Error while generating study %d: %s", studyId, body);
                                         //remove ({\"detail\":\"Internal Error:) and (\"}) from msg
                                         msg = msg.replaceAll("\\{\"detail\":\"Internal Error: ?", "")
-                                                .replaceAll("\"}", "")
+                                                .replace("\"}", "")
                                                 .trim();
                                         log.error(msg);
                                         return Mono.error(TechnicalException.builder().message(msg).build());
