@@ -59,7 +59,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         return saveHydroCapacityMeTrajectoryInDb(trajectoryToUse, horizon);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processHydroWaterValuesMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         return saveHydroWaterValuesMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
