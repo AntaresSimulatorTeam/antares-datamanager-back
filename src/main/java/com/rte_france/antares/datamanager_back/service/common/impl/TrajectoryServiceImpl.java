@@ -911,7 +911,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             )
             ) {
                 throw BusinessException.builder()
-                        .message("FILE_ALREADY_PROCESSED")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -959,7 +959,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (isSameTrajectory(trajectoryPath, existingTrajectory)) {
                 throw BusinessException.builder()
-                        .message("FILE_ALREADY_PROCESSED")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -2005,7 +2005,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("FILE_ALREADY_PROCESSED")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
