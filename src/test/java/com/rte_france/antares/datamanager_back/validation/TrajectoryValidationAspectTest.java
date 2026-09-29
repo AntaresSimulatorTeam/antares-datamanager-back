@@ -180,21 +180,27 @@ class TrajectoryValidationAspectTest {
     public static class TestController {
         
         public void methodWithValidTrajectoryName(@ValidTrajectoryName String trajectoryName) {
+            // Intentionally empty:  method used for testing
         }
 
         public void methodWithCustomMaxLength(@ValidTrajectoryName(maxLength = 50) String trajectoryName) {
+            // Intentionally empty:  method used for testing
         }
 
         public void methodWithMultipleParameters(@ValidTrajectoryName String trajectoryName, Integer someNumber) {
+            // Intentionally empty:  method used for testing
         }
 
         public void methodWithNonStringParameter(@ValidTrajectoryName Integer nonStringParam) {
+            // Intentionally empty:  method used for testing
         }
 
         public void methodWithoutAnnotation(String trajectoryName) {
+            // Intentionally empty:  method used for testing
         }
 
         public void methodWithMultipleAnnotatedParameters(@ValidTrajectoryName String trajectory1, @ValidTrajectoryName String trajectory2) {
+            // Intentionally empty:  method used for testing
         }
     }
 }
