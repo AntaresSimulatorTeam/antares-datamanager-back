@@ -162,6 +162,10 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         Boolean hasSeriesMe = getBooleanCell(row, SERIES_INDEX_ME);
         if (hasSeriesMe) {
             Path seriesPath = buildStsOptionalFilesPathMe(trajectoryFilePath);
+            if(!Files.exists(seriesPath) || !Files.isDirectory(seriesPath)) {
+                throw createValidationError("Missing ST_STORAGE ME Series trajectory directory {0}",
+                        List.of(seriesPath.getFileName().toString()));
+            }
             List<String> missingFiles = isOptionalStsFileMissingMe(seriesPath);
             if (!missingFiles.isEmpty()) {
                 throw createValidationError("Missing file(s) {0} in ST_STORAGE ME Series trajectory {1}",
@@ -360,7 +364,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         for (int idx = 8; idx <= 10; idx++) {
             Cell cell = row.getCell(idx);
             if (!isBooleanCell(cell)) {
-                throw createValidationError("Columns initial_level_optim and Series must be boolean in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
+                throw createValidationError("Columns initial_level_optim , Enabled and Series must be boolean in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
             }
         }
     }
