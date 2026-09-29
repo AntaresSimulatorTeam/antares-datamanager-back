@@ -1109,33 +1109,6 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         assertTrue(exception.getMessage().contains("bad payload"));
         assertFalse(exception.getMessage().contains("{\"detail\""));
-    }
-
-    @Test
-    void callGenerateStudyService_shouldCleanJsonErrorFormat() {
-        int studyId = 55;
-        String url = "http://localhost/generate_study/?study_id=55";
-
-        WebClient.RequestBodyUriSpec bodyUriSpec = mock(WebClient.RequestBodyUriSpec.class);
-        WebClient.RequestBodySpec bodySpec = mock(WebClient.RequestBodySpec.class);
-
-        when(antaresDataManagerProperties.getGeneratorHostUrl()).thenReturn("http://localhost");
-        when(webClient.post()).thenReturn(bodyUriSpec);
-        when(bodyUriSpec.uri(url)).thenReturn(bodySpec);
-        when(bodySpec.exchangeToMono(any())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            Function<ClientResponse, Mono<String>> handler = invocation.getArgument(0);
-            ClientResponse response = mock(ClientResponse.class);
-            when(response.statusCode()).thenReturn(HttpStatus.BAD_REQUEST);
-            when(response.bodyToMono(String.class)).thenReturn(Mono.just("{\"detail\":\"Internal Error: bad payload\"}"));
-            return handler.apply(response);
-        });
-
-        TechnicalException exception = assertThrows(TechnicalException.class,
-                () -> studyGeneratorService.callGenerateStudyService(studyId));
-
-        assertTrue(exception.getMessage().contains("bad payload"));
-        assertFalse(exception.getMessage().contains("{\"detail\""));
         assertFalse(exception.getMessage().contains("\"}"));
     }
 
