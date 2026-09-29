@@ -394,7 +394,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_gen";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -405,9 +405,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
+        createExcelFileWithDailyGeneratingTimestepAtPath(hydroTestExcelPath);
         
         Path generatingDailyTsDir = capaStoragePath.resolve("Generating Pmax daily ts");
         Files.createDirectories(generatingDailyTsDir);
@@ -439,7 +439,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_pump";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -450,9 +450,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
+        createExcelFileWithDailyPumpingTimestepAtPath(hydroTestExcelPath);
         
         Path pumpingDailyTsDir = capaStoragePath.resolve("Pumping Pmax daily ts");
         Files.createDirectories(pumpingDailyTsDir);
@@ -484,7 +484,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_both";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -495,9 +495,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithBothDailyTimestepsAtPath(testExcelPath);
+        createExcelFileWithBothDailyTimestepsAtPath(hydroTestExcelPath);
         
         Path generatingDailyTsDir = capaStoragePath.resolve("Generating Pmax daily ts");
         Path pumpingDailyTsDir = capaStoragePath.resolve("Pumping Pmax daily ts");
@@ -532,7 +532,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_miss_gen_dir";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -543,9 +543,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
+        createExcelFileWithDailyGeneratingTimestepAtPath(hydroTestExcelPath);
         
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
@@ -563,7 +563,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_miss_pump_dir";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -574,9 +574,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
+        createExcelFileWithDailyPumpingTimestepAtPath(hydroTestExcelPath);
         
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
@@ -594,7 +594,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_miss_gen_file";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -605,9 +605,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
+        createExcelFileWithDailyGeneratingTimestepAtPath(hydroTestExcelPath);
         
         Path generatingDailyTsDir = uniqueTempDir.resolve("Generating Pmax daily ts");
         Files.createDirectories(generatingDailyTsDir);
@@ -628,7 +628,7 @@ class HydroMeFileProcessorServiceImplTest {
         String testName = "test_hydro_miss_pump_file";
         Path capaStoragePath = uniqueTempDir.resolve("trajectories/ME/hydro_ME");
         Files.createDirectories(capaStoragePath);
-        Path testExcelPath = capaStoragePath.resolve(testName + ".xlsx");
+        Path hydroTestExcelPath = capaStoragePath.resolve(testName + ".xlsx");
         
         when(userService.getCurrentUserDetails())
                 .thenReturn(UserInfoDto.builder().nni("USER123").build());
@@ -639,9 +639,9 @@ class HydroMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
+                .thenReturn(hydroTestExcelPath);
         
-        createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
+        createExcelFileWithDailyPumpingTimestepAtPath(hydroTestExcelPath);
         
         Path pumpingDailyTsDir = capaStoragePath.resolve("Pumping Pmax daily ts");
         Files.createDirectories(pumpingDailyTsDir);

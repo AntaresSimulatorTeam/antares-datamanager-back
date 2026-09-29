@@ -231,10 +231,10 @@ class StudyGeneratorServiceImplTest {
         trajectoryEntityList.add(trajectoryEntityAdequacy);
 
         // Create StudyEntity with trajectories
-        StudyEntity studyEntity = StudyEntity.builder().name("studyTest").trajectories(trajectoryEntityList).build();
+        StudyEntity studyEntityWithTrajectories = StudyEntity.builder().name("studyTest").trajectories(trajectoryEntityList).build();
 
         // Mock studyRepository behavior
-        lenient().when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntity));
+        lenient().when(studyRepository.findById(anyInt())).thenReturn(Optional.of(studyEntityWithTrajectories));
         // Default STS assembler returns empty map to avoid NPE in tests not focused on STS
         lenient().when(stsPropertiesAssemblerService.assembleStsProperties(any())).thenReturn(Collections.emptyMap());
         //Default DSR assembler returns empty map to avoid NPE in tests not focused on DSR
@@ -262,7 +262,7 @@ class StudyGeneratorServiceImplTest {
 
         // Delegate links building to real implementation by default
         lenient().doAnswer(inv -> {
-            new LinksToJsonService().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1), studyEntity);
+            new LinksToJsonService().buildLinksDataMap(inv.getArgument(0), inv.getArgument(1), studyEntityWithTrajectories);
             return null;
         }).when(linksToJsonService).buildLinksDataMap(any(), any(), any());
 

@@ -867,86 +867,86 @@ class UtilsAdditionalTest {
 
     @Test
     void getFormulaAndValue_record_hasFormulaReturnsTrueWhenFormulaPresent() {
-        var record = new Utils.FormulaAndValue("=10+20", 30.0);
+        var formulaAndValue = new Utils.FormulaAndValue("=10+20", 30.0);
 
-        assertThat(record.hasFormula()).isTrue();
+        assertThat(formulaAndValue.hasFormula()).isTrue();
     }
 
     @Test
     void getFormulaAndValue_record_hasFormulaReturnsFalseWhenFormulaNull() {
-        var record = new Utils.FormulaAndValue(null, 30.0);
+        var formulaAndValue = new Utils.FormulaAndValue(null, 30.0);
 
-        assertThat(record.hasFormula()).isFalse();
+        assertThat(formulaAndValue.hasFormula()).isFalse();
     }
 
     @Test
     void getFormulaAndValue_record_hasValueReturnsTrueWhenValuePresent() {
-        var record = new Utils.FormulaAndValue("=10+20", 30.0);
+        var formulaAndValue = new Utils.FormulaAndValue("=10+20", 30.0);
 
-        assertThat(record.hasValue()).isTrue();
+        assertThat(formulaAndValue.hasValue()).isTrue();
     }
 
     @Test
     void getFormulaAndValue_record_hasValueReturnsFalseWhenValueNull() {
-        var record = new Utils.FormulaAndValue("=10+20", null);
+        var formulaAndValue = new Utils.FormulaAndValue("=10+20", null);
 
-        assertThat(record.hasValue()).isFalse();
+        assertThat(formulaAndValue.hasValue()).isFalse();
     }
 
     @Test
     void getFormulaAndValue_record_getNumericValueReturnsDoubleFromNumber() {
-        var record = new Utils.FormulaAndValue(null, 42.5);
+        var formulaAndValue = new Utils.FormulaAndValue(null, 42.5);
 
-        assertThat(record.getNumericValue()).isEqualTo(42.5);
+        assertThat(formulaAndValue.getNumericValue()).isEqualTo(42.5);
     }
 
     @Test
     void getFormulaAndValue_record_getNumericValueReturnsDoubleFromString() {
-        var record = new Utils.FormulaAndValue(null, "42.5");
+        var formulaAndValue = new Utils.FormulaAndValue(null, "42.5");
 
-        assertThat(record.getNumericValue()).isEqualTo(42.5);
+        assertThat(formulaAndValue.getNumericValue()).isEqualTo(42.5);
     }
 
     @Test
     void getFormulaAndValue_record_getNumericValueReturnsNullForInvalidString() {
-        var record = new Utils.FormulaAndValue(null, "not a number");
+        var formulaAndValue = new Utils.FormulaAndValue(null, "not a number");
 
-        assertThat(record.getNumericValue()).isNull();
+        assertThat(formulaAndValue.getNumericValue()).isNull();
     }
 
     @Test
     void getFormulaAndValue_record_getStringValueReturnsStringValue() {
-        var record = new Utils.FormulaAndValue(null, "test");
+        var formulaAndValue = new Utils.FormulaAndValue(null, "test");
 
-        assertThat(record.getStringValue()).isEqualTo("test");
+        assertThat(formulaAndValue.getStringValue()).isEqualTo("test");
     }
 
     @Test
     void getFormulaAndValue_record_getStringValueReturnsNullWhenValueNull() {
-        var record = new Utils.FormulaAndValue(null, null);
+        var formulaAndValue = new Utils.FormulaAndValue(null, null);
 
-        assertThat(record.getStringValue()).isNull();
+        assertThat(formulaAndValue.getStringValue()).isNull();
     }
 
     @Test
     void getFormulaAndValue_record_getBooleanValueReturnsTrueFromBoolean() {
-        var record = new Utils.FormulaAndValue(null, true);
+        var formulaAndValue = new Utils.FormulaAndValue(null, true);
 
-        assertThat(record.getBooleanValue()).isTrue();
+        assertThat(formulaAndValue.getBooleanValue()).isTrue();
     }
 
     @Test
     void getFormulaAndValue_record_getBooleanValueReturnsTrueFromString() {
-        var record = new Utils.FormulaAndValue(null, "true");
+        var formulaAndValue = new Utils.FormulaAndValue(null, "true");
 
-        assertThat(record.getBooleanValue()).isTrue();
+        assertThat(formulaAndValue.getBooleanValue()).isTrue();
     }
 
     @Test
     void getFormulaAndValue_record_getBooleanValueReturnsFalseFromString() {
-        var record = new Utils.FormulaAndValue(null, "false");
+        var formulaAndValue = new Utils.FormulaAndValue(null, "false");
 
-        assertThat(record.getBooleanValue()).isFalse();
+        assertThat(formulaAndValue.getBooleanValue()).isFalse();
     }
 }
 

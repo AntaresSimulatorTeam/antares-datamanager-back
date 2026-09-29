@@ -231,8 +231,8 @@ class DuplicationTrajectoryUtilsTest {
     @Test
     void processRemainingTrajectoryTypes_whenAllLoadTrajectoriesFail_shouldAddLOADToMissingTypes_once() throws Exception {
         // Given
-        TrajectoryServiceImpl trajectoryService = mock(TrajectoryServiceImpl.class);
-        LoadFileProcessorServiceImpl loadFileProcessorService = mock(LoadFileProcessorServiceImpl.class);
+        TrajectoryServiceImpl localTrajectoryService = mock(TrajectoryServiceImpl.class);
+        LoadFileProcessorServiceImpl localLoadFileProcessorService = mock(LoadFileProcessorServiceImpl.class);
 
         Integer studyId = 100;
 
@@ -264,14 +264,14 @@ class DuplicationTrajectoryUtilsTest {
                 thermalMod
         ));
 
-        List<String> missingTrajectoryTypes = new ArrayList<>();
+        List<String> localMissingTrajectoryTypes = new ArrayList<>();
 
         // La liste des zones "sans trajectoire sélectionnée" ne contient ni FR ni DE => les 2 LOAD échouent
-        when(loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId))
+        when(localLoadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId))
                 .thenReturn(List.of("ES", "IT"));
 
         // On laisse les liens OK (pas d'exception) pour les autres types
-        when(trajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any()))
+        when(localTrajectoryService.linkTrajectoryToStudy(anyInt(), anyInt(), any()))
                 .thenAnswer(inv -> {
                     TrajectoryEntity t = new TrajectoryEntity();
                     t.setId(inv.getArgument(0, Integer.class));
@@ -280,19 +280,19 @@ class DuplicationTrajectoryUtilsTest {
                 });
 
         // When
-        invokeProcessRemainingTrajectoryTypes(available, studyId, trajectoryService, loadFileProcessorService, missingTrajectoryTypes);
+        invokeProcessRemainingTrajectoryTypes(available, studyId, localTrajectoryService, localLoadFileProcessorService, localMissingTrajectoryTypes);
 
         // Then
-        assertThat(missingTrajectoryTypes)
+        assertThat(localMissingTrajectoryTypes)
                 .contains(TrajectoryType.LOAD.name());
 
         // important: LOAD ne doit être ajouté qu'une seule fois dans missingTrajectoryTypes (c'est la branche que tu vises)
-        assertThat(missingTrajectoryTypes.stream().filter(TrajectoryType.LOAD.name()::equals).count())
+        assertThat(localMissingTrajectoryTypes.stream().filter(TrajectoryType.LOAD.name()::equals).count())
                 .isEqualTo(1);
 
         // Et surtout: comme ça "return" avant linkTrajectoryToStudy pour LOAD, donc aucun link LOAD ne doit arriver
-        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(10), eq(studyId), eq(TrajectoryType.LOAD));
-        verify(trajectoryService, never()).linkTrajectoryToStudy(eq(11), eq(studyId), eq(TrajectoryType.LOAD));
+        verify(localTrajectoryService, never()).linkTrajectoryToStudy(eq(10), eq(studyId), eq(TrajectoryType.LOAD));
+        verify(localTrajectoryService, never()).linkTrajectoryToStudy(eq(11), eq(studyId), eq(TrajectoryType.LOAD));
     }
 
     private static TrajectoryEntity trajectory(TrajectoryType type, int id, String area) {

@@ -81,8 +81,8 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
         // Mock buildTrajectoryPath
         when(trajectoryService.buildTrajectoryPath(anyString(), eq(TrajectoryType.HYDRO_WATER_VALUES_ME)))
                 .thenAnswer(invocation -> {
-                    String trajectoryName = invocation.getArgument(0);
-                    return tempDir.resolve("trajectories/ME/hydro_ME/water_values").resolve(trajectoryName);
+                    String buildTrajectoryName = invocation.getArgument(0);
+                    return tempDir.resolve("trajectories/ME/hydro_ME/water_values").resolve(buildTrajectoryName);
                 });
 
         waterValuesDir = tempDir.resolve("trajectories/ME/hydro_ME/water_values/" + trajectoryName);

@@ -62,10 +62,10 @@ public class ResCoherenceCheckServiceTest {
     @Test
     void testValidationPassedWhenNoTrajectoryBeingImported() {
         // Arrange
-        Integer studyId = 1;
+        Integer testStudyId = 1;
 
         // Act & Assert - Should not throw exception when no trajectory being imported
-        assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(studyId, null));
+        assertDoesNotThrow(() -> resCoherenceCheckService.validateIPTDCoherence(testStudyId, null));
     }
 
     @Test
