@@ -53,6 +53,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private static final Set<String> REQUIRED_MODULATION_TYPES = Set.of(
             "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_weekly"
     );
+    private static final String FILE_ALREADY_PROCESSED = "File already processed with same content: {0}";
 
     private final TrajectoryRepository trajectoryRepository;
     private final NuclearModulationParameterRepository nuclearModulationParameterRepository;
@@ -117,7 +118,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content: {0}")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
@@ -408,7 +409,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content: {0}")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
@@ -514,7 +515,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content: {0}")
+                        .message(FILE_ALREADY_PROCESSED)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();

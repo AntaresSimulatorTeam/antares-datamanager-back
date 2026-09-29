@@ -52,6 +52,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private static final String GENERATING_PMAX_DAILY_TS_DIR = "Generating Pmax daily ts";
     private static final String PUMPING_PMAX_DAILY_TS_DIR = "Pumping Pmax daily ts";
+    private static final String DAILY = "daily";
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -221,10 +222,10 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 validateNumericColumn(row, 7, HOURS_PUMPING_PMAX_COLUMN, trajectory.getFileName());
 
                 // Track daily timesteps
-                if ("daily".equalsIgnoreCase(generatingTimestep)) {
+                if (DAILY.equalsIgnoreCase(generatingTimestep)) {
                     hasGeneratingDaily = true;
                 }
-                if ("daily".equalsIgnoreCase(pumpingTimestep)) {
+                if (DAILY.equalsIgnoreCase(pumpingTimestep)) {
                     hasPumpingDaily = true;
                 }
                 
@@ -344,7 +345,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private void validateTimestepValue(String value, String columnName, String trajectoryName) {
         if (value == null || value.trim().isEmpty()) return;
-        if (!("daily".equalsIgnoreCase(value) || "annual".equalsIgnoreCase(value))) {
+        if (!(DAILY.equalsIgnoreCase(value) || "annual".equalsIgnoreCase(value))) {
             throw BusinessException.builder()
                     .message("Column " + columnName + " must be 'annual' or 'daily' only in HYDRO_ME Capacity trajectory " + trajectoryName)
                     .httpStatus(HttpStatus.BAD_REQUEST)

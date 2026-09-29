@@ -33,6 +33,9 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFileProcessorService {
 
+    private static final String LIST_AREA_DESC = "listArea_desc";
+    private static final String LIST_CLUSTER_DESC = "listCluster_desc";
+
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
@@ -104,7 +107,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     }
 
     private void processListAreaDescSheet(Workbook workbook, TrajectoryEntity trajectory) {
-        Sheet sheet = workbook.getSheet("listArea_desc");
+        Sheet sheet = workbook.getSheet(LIST_AREA_DESC);
         if (sheet == null) return;
 
         Row headerRow = sheet.getRow(0);
@@ -144,7 +147,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     }
 
     private void processListClusterDescSheet(Workbook workbook, TrajectoryEntity trajectory) {
-        Sheet sheet = workbook.getSheet("listCluster_desc");
+        Sheet sheet = workbook.getSheet(LIST_CLUSTER_DESC);
         if (sheet == null) return;
 
         Row headerRow = sheet.getRow(0);
@@ -254,11 +257,11 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private void validateConstraintMeExcelFile(Workbook workbook, String trajectoryName, String horizon) throws IOException {
         List<String> missingTabs = new ArrayList<>();
         
-        if (workbook.getSheet("listArea_desc") == null) {
-            missingTabs.add("listArea_desc");
+        if (workbook.getSheet(LIST_AREA_DESC) == null) {
+            missingTabs.add(LIST_AREA_DESC);
         }
-        if (workbook.getSheet("listCluster_desc") == null) {
-            missingTabs.add("listCluster_desc");
+        if (workbook.getSheet(LIST_CLUSTER_DESC) == null) {
+            missingTabs.add(LIST_CLUSTER_DESC);
         }
         
         String horizonYearPlus1 = String.valueOf(Integer.parseInt(horizon.split("-")[1]));
@@ -280,7 +283,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     }
 
     private void validateListAreaDescTab(Workbook workbook, String trajectoryName) {
-        Sheet sheet = workbook.getSheet("listArea_desc");
+        Sheet sheet = workbook.getSheet(LIST_AREA_DESC);
         if (isSheetEmpty(sheet)) {
             throw BusinessException.builder()
                     .message("listArea_desc Tab can't be empty in CONSTRAINTS_ME trajectory {0}")
@@ -317,7 +320,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     }
 
     private void validateListClusterDescTab(Workbook workbook, String trajectoryName) {
-        Sheet sheet = workbook.getSheet("listCluster_desc");
+        Sheet sheet = workbook.getSheet(LIST_CLUSTER_DESC);
         if (isSheetEmpty(sheet)) {
             throw BusinessException.builder()
                     .message("listCluster_desc Tab can't be empty in CONSTRAINTS_ME trajectory {0}")

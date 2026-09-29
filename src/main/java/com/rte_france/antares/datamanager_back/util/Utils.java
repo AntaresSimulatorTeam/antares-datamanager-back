@@ -66,6 +66,10 @@ public class Utils {
     private static final String DSR_PREFIX = "cluster_DSR_";
     private static final String DSR_CAPACITY_MODULATION = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedMisc_";
+    private static final String REGEX = "^\\d{4}-\\d{4}$";
+    private static final String SHA_256 = "SHA-256";
+    private static final String ERROR_PROCESSING_FILE = "Error processing file: ";
+    private static final String XLSX_EXTENSION = ".xlsx";
 
     public static final String OTHERS_AREA = "OTHERS";
     public static final String ERROR_DIRECTORY_NULL = "Error processing file: directory path is null";
@@ -536,12 +540,12 @@ public class Utils {
             case THERMAL_TECHNICAL_MODULATION_PARAMETER, THERMAL_ECONOMIC_COST_PARAMETER, THERMAL_ECONOMIC_PARAMETER ->
                     "NA";
             case STS, AREA_ME, LINK_ME , STS_ME, EFFICIENCY_ME , HYDRO_CAPACITY_ME, THERMAL_CAPACITY_ME->
-                    computeSheetChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon);
+                    computeSheetChecksum(path.toString(), horizon.matches(REGEX) ? horizon.split("-")[1] : horizon);
             case CONSTRAINT_ME -> computeConstraintMeChecksum(path.toString(), horizon);
             case HYDRO_PARAMETERS_ME -> computeHydroParametersMeChecksum(path, horizon);
             case HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME -> calculateDirectoryChecksum(path);
             case DSR ->
-                    computeDsrChecksum(path.toString(), horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon, area);
+                    computeDsrChecksum(path.toString(), horizon.matches(REGEX) ? horizon.split("-")[1] : horizon, area);
             case MISC_CAPACITY -> "checksum_misc";
             case ADEQUACY_PATCH -> computeAdequacyPatchChecksum(path.toString());
             default -> computeSheetChecksum(path.toString(), horizon);
@@ -584,7 +588,7 @@ public class Utils {
                 sb.append(hashWholeSheet(listClusterDescSheet));
             }
 
-            String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
+            String horizonYear = horizon.matches(REGEX) ? horizon.split("-")[1] : horizon;
             Sheet horizonSheet = wb.getSheet(horizonYear);
             if (horizonSheet != null) {
                 sb.append(hashWholeSheet(horizonSheet));
@@ -595,7 +599,7 @@ public class Utils {
     }
 
     private static String computeHydroParametersMeChecksum(Path directoryPath, String horizon) throws IOException {
-        String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
+        String horizonYear = horizon.matches(REGEX) ? horizon.split("-")[1] : horizon;
         
         StringBuilder combinedHash = new StringBuilder();
         
@@ -1180,7 +1184,7 @@ public class Utils {
     // Méthode utilitaire pour calculer le checksum SHA-256
     public String calculateChecksum(String input) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SHA_256);
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
@@ -1222,7 +1226,7 @@ public class Utils {
         Path canonicalBaseDirectory = trustedDirectory.toRealPath();
 
         try (Stream<Path> paths = Files.walk(canonicalBaseDirectory)) {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SHA_256);
 
             List<Path> files = paths
                     .filter(Files::isRegularFile)
@@ -1253,7 +1257,7 @@ public class Utils {
             return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException e) {
             throw TechnicalException.builder()
-                    .message("Error processing file: " + e.getMessage())
+                    .message(ERROR_PROCESSING_FILE + e.getMessage())
                     .build();
         }
     }
@@ -1271,7 +1275,7 @@ public class Utils {
         Path canonicalBaseDirectory = getCanonicalDirectory(directory);
 
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SHA_256);
 
             List<String> fileNames = filesWithSheets.keySet().stream().sorted().toList();
 
@@ -1289,7 +1293,7 @@ public class Utils {
             return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException e) {
             throw TechnicalException.builder()
-                    .message("Error processing file: " + e.getMessage())
+                    .message(ERROR_PROCESSING_FILE + e.getMessage())
                     .build();
         }
     }
@@ -1389,7 +1393,7 @@ public class Utils {
         Path canonicalBaseDirectory = trustedDirectory.toRealPath();
 
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SHA_256);
 
             String[] requiredFiles = {
                     "Flowbased_nodes_links.xlsx",
@@ -1424,7 +1428,7 @@ public class Utils {
             return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException e) {
             throw TechnicalException.builder()
-                    .message("Error processing file: " + e.getMessage())
+                    .message(ERROR_PROCESSING_FILE + e.getMessage())
                     .build();
         }
     }
@@ -1549,9 +1553,9 @@ public class Utils {
                     .filter(path -> {
                         String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
                         if (technology != null && !technology.isEmpty()) {
-                            return name.startsWith(prefix) && name.contains(technology) && name.endsWith(".xlsx");
+                            return name.startsWith(prefix) && name.contains(technology) && name.endsWith(XLSX_EXTENSION);
                         } else {
-                            return name.startsWith(prefix) && name.endsWith(".xlsx");
+                            return name.startsWith(prefix) && name.endsWith(XLSX_EXTENSION);
                         }
                     })
                     .toList();
@@ -1747,7 +1751,7 @@ public class Utils {
 
     public void throwTechnicalException(IOException e) {
         throw TechnicalException.builder()
-                .message("Error processing file: " + e.getMessage())
+                .message(ERROR_PROCESSING_FILE + e.getMessage())
                 .build();
     }
 
@@ -1876,7 +1880,7 @@ public class Utils {
             baseDirectory = baseDirectory.resolve("");
         }
 
-        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse+".xlsx").normalize();
+        Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse+XLSX_EXTENSION).normalize();
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
             throw new IOException("Path is outside of the target directory");
         }
