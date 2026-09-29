@@ -3,6 +3,8 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @Entity
@@ -18,8 +20,8 @@ public class ThermalCostEntity extends ThermalBaseEntity {
     @Column(name = "id", nullable = false)
     private Integer id;
 
-    @Column(name = "cost")
-    private Double cost;
+    @Column(name = "cost", precision = 24, scale = 14, nullable = false)
+    private BigDecimal cost;
 
     @Column(name = "cost_year")
     private Integer year;

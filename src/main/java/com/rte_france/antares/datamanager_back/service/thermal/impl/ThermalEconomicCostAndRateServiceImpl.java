@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.ThermalCostsRate
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
+import com.rte_france.antares.datamanager_back.util.CastCellUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -71,7 +72,7 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                 if (fuel == null || fuel.isBlank()) continue;
                 ThermalCostTypeEntity type = findOrCreateThermalEconomicCostType(row, header);
 
-                Double costValue = castDouble(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
+                BigDecimal costValue = CastCellUtil.castBigDecimal(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
                 Integer yearValue = parseYear(horizon);
                 if (costValue != null) {
                     ThermalCostEntity cost = ThermalCostEntity.builder()

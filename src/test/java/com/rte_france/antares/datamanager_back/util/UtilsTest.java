@@ -601,8 +601,8 @@ class UtilsTest {
                         .modulation("Modulation")
                         .ratioNcvHcv(100d)
                         .thermalCostEntities(List.of(
-                                ThermalCostEntity.builder().cost(100d).year(2022).build(),
-                                ThermalCostEntity.builder().cost(200d).year(2023).build()
+                                ThermalCostEntity.builder().cost(BigDecimal.valueOf(100d)).year(2022).build(),
+                                ThermalCostEntity.builder().cost(BigDecimal.valueOf(200d)).year(2023).build()
                         ))
                         .build()
         );
@@ -644,7 +644,7 @@ class UtilsTest {
                         .country("FR")
                         .fuel("Gas")
                         .thermalCostEntities(List.of(
-                                ThermalCostEntity.builder().cost(100d).year(2022).build()
+                                ThermalCostEntity.builder().cost(BigDecimal.valueOf(100d)).year(2022).build()
                         ))
                         .build()
         );

@@ -144,7 +144,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
             assertNotNull(type.getThermalCostEntities());
             assertEquals(1, type.getThermalCostEntities().size());
             ThermalCostEntity cost = type.getThermalCostEntities().get(0);
-            assertEquals(110.0, cost.getCost());
+            assertEquals(BigDecimal.valueOf(110.0), cost.getCost());
             assertEquals(2022, cost.getYear());
         }
     }
@@ -240,7 +240,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
             assertEquals(1, type.getThermalCostEntities().size());
 
             ThermalCostEntity cost = type.getThermalCostEntities().get(0);
-            assertEquals(42.5, cost.getCost());
+            assertEquals(BigDecimal.valueOf(42.5), cost.getCost());
             assertEquals(2025, cost.getYear());
         }
     }
@@ -256,7 +256,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
                 .fuel("Gas")
                 .country("FR")
                 .thermalCostEntities(List.of(
-                        ThermalCostEntity.builder().cost(10.0).year(2021).build()
+                        ThermalCostEntity.builder().cost(BigDecimal.valueOf(10.0)).year(2021).build()
                 ))
                 .build();
 

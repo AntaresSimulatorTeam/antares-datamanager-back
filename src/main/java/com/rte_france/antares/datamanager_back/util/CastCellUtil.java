@@ -4,6 +4,8 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
+
 @Slf4j
 @UtilityClass
 public class CastCellUtil {
@@ -37,5 +39,27 @@ public class CastCellUtil {
                     .message("The value '" + o + "' in column '" + columnName + "' at row " + (rowNum+1) + " is not numeric")
                     .build();
         }
+    }
+    public BigDecimal castBigDecimal(Object value, String columnName, int rowNum) {
+        if (value == null || value instanceof String && ((String) value).isEmpty()) {
+            return null;
+        }
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Double) {
+            return BigDecimal.valueOf((Double) value);
+        }
+        if (value instanceof Number) {
+            return BigDecimal.valueOf(((Number) value).doubleValue());
+        }
+        if (value instanceof String) {
+            try {
+                return new BigDecimal((String) value);
+            } catch (NumberFormatException e) {
+                throw BusinessException.builder().message("Invalid BigDecimal value for column '" + columnName + "' at row " + rowNum + ": " + value).build();
+            }
+        }
+        throw BusinessException.builder().message("Invalid BigDecimal value for column '" + columnName + "' at row " + rowNum + ": " + value).build();
     }
 }

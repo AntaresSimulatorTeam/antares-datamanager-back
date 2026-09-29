@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -175,8 +176,8 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                     .foDuration(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 6), getHeaderText(header, 6), row.getRowNum())))
                     .poDuration(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 7), getHeaderText(header, 7), row.getRowNum())))
                     .poWinter(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 8), getHeaderText(header, 8), row.getRowNum())))
-                    .marginalCost(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 9), getHeaderText(header, 9), row.getRowNum())))
-                    .marketBid(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 10), getHeaderText(header, 10), row.getRowNum())))
+                    .marginalCost(specificParamValueMustBePositiveBigDecimal(areaName, clusterName, trajectoryName, castBigDecimal(getCellValue(row, 9), getHeaderText(header, 9), row.getRowNum())))
+                    .marketBid(specificParamValueMustBePositiveBigDecimal(areaName, clusterName, trajectoryName, castBigDecimal(getCellValue(row, 10), getHeaderText(header, 10), row.getRowNum())))
                     .mrSpecific(castInt(getCellValue(row, 11)))
                     .cmSpecific(castInt(getCellValue(row, 12)))
                     .npoMaxWinter(castInt(getCellValue(row, 13)))
@@ -214,6 +215,13 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
         if (value != null && Double.compare(value, 0.0) < 0) {
+            throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
+        }
+        return value;
+    }
+
+    private BigDecimal specificParamValueMustBePositiveBigDecimal(String areaName, String clusterName, String trajectoryName, BigDecimal value) {
+        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
             throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
         }
         return value;

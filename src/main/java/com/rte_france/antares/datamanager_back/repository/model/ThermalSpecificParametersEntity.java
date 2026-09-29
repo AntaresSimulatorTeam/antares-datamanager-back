@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.lang.Double;
+import java.math.BigDecimal;
 
 @Data
 @Builder(toBuilder = true)
@@ -47,11 +48,11 @@ public class ThermalSpecificParametersEntity extends ThermalBaseEntity {
     @Column(name = "po_winter")
     private Double poWinter;
 
-    @Column(name = "marginal_cost")
-    private Double marginalCost;
+    @Column(name = "marginal_cost", precision = 24, scale = 14)
+    private BigDecimal marginalCost;
 
-    @Column(name = "market_bid")
-    private Double marketBid;
+    @Column(name = "market_bid", precision = 24, scale = 14)
+    private BigDecimal marketBid;
 
     @Column(name = "mr_specific")
     private Integer mrSpecific;
