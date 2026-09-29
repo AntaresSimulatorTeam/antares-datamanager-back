@@ -34,7 +34,7 @@ import static com.rte_france.antares.datamanager_back.service.thermal.impl.Therm
 @RequiredArgsConstructor
 public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessorService {
 
-    private final static String FLOWBASED_NODES_LINKS = "Flowbased_nodes_links.xlsx";
+    private static final String FLOWBASED_NODES_LINKS = "Flowbased_nodes_links.xlsx";
 
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;

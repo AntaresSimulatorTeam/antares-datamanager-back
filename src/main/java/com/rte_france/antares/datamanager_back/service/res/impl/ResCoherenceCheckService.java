@@ -61,7 +61,7 @@ import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomain
 @RequiredArgsConstructor
 public class ResCoherenceCheckService {
 
-    private static final String STRING_FORMAT = "%s/%s/%s";
+    private static final String KEY_FORMAT = "%s/%s/%s";
 
     private final TrajectoryRepository trajectoryRepository;
     private final DefaultConfigService defaultConfigService;
@@ -304,7 +304,7 @@ public class ResCoherenceCheckService {
 
     private Set<String> extractIPKeysForIP(List<TrajectoryEntity> ipTrajectories, String area, Set<String> availableTechnologies, String importedTechnology) {
         return getResClusterCapacityEntityStream(ipTrajectories, area, availableTechnologies, importedTechnology)
-                .map(entity -> String.format("%s/%s/%s/%s", entity.getArea(), entity.getGroupe(), entity.getCluster() != null ? entity.getCluster() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                .map(entity -> entity.getArea() + "/" + entity.getGroupe() + "/" + (entity.getCluster() != null ? entity.getCluster() : "") + "/" + (entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
 
@@ -364,7 +364,7 @@ public class ResCoherenceCheckService {
      * Formate une clé avec les composants area/groupe/cluster.
      */
     private String formatKey(String area, String groupe, String cluster) {
-        return String.format(STRING_FORMAT, area != null ? area : "", groupe != null ? groupe : "", cluster != null ? cluster : "");
+        return String.format(KEY_FORMAT, area != null ? area : "", groupe != null ? groupe : "", cluster != null ? cluster : "");
     }
 
 
@@ -807,7 +807,7 @@ public class ResCoherenceCheckService {
 
                     // If importedTechnology is not null, match it and check if it's available
                     return importedTechnology.equals(entity.getGroupe()) && availableTechnologies.contains(entity.getGroupe());
-                })                .map(entity -> String.format("%s/%s/%s/%s/%s", entity.getArea(), entity.getGroupe(), entity.getCluster() != null ? entity.getCluster() : "", entity.getPecdZone() != null ? entity.getPecdZone() : "", entity.getPecdTechnology() != null ? entity.getPecdTechnology() : ""))
+                })                .map(entity -> entity.getArea() + "/" + entity.getGroupe() + "/" + (entity.getCluster() != null ? entity.getCluster() : "") + "/" + (entity.getPecdZone() != null ? entity.getPecdZone() : "") + "/" + (entity.getPecdTechnology() != null ? entity.getPecdTechnology() : ""))
                 .collect(Collectors.toSet());
     }
 
@@ -1006,7 +1006,7 @@ public class ResCoherenceCheckService {
         return dtTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null ? trajectory.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> (entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA)) && (importedTechnology == null || (importedTechnology != null && importedTechnology.equals(entity.getGroupe()) && availableTDTechnologies.contains(entity.getGroupe()))))
-                .map(entity -> String.format(STRING_FORMAT, entity.getArea(), entity.getGroupe(), entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                .map(entity -> String.format(KEY_FORMAT, entity.getArea(), entity.getGroupe(), entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
 
@@ -1018,7 +1018,7 @@ public class ResCoherenceCheckService {
         return dzTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResZonalDistributionCapacityEntities() != null ? trajectory.getResZonalDistributionCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA))
-                .map(entity -> String.format(STRING_FORMAT, entity.getArea(), entity.getGroupe() != null ? entity.getGroupe() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                .map(entity -> String.format(KEY_FORMAT, entity.getArea(), entity.getGroupe() != null ? entity.getGroupe() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
 
