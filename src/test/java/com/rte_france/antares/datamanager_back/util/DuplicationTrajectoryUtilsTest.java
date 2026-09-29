@@ -34,9 +34,7 @@ class DuplicationTrajectoryUtilsTest {
 
     private Method trajectoryToBeAttachedMethod;
     private TrajectoryEntity trajectory;
-    private Set<WarningMessageEntity> warningMessages;
     private List<String> missingTrajectoryTypes;
-    private final String createdBy = "testUser";
     private final Integer studyId = 123;
 
     @BeforeEach
@@ -56,7 +54,6 @@ class DuplicationTrajectoryUtilsTest {
         // Initialize test objects
         trajectory = new TrajectoryEntity();
         trajectory.setId(1);
-        warningMessages = new HashSet<>();
         missingTrajectoryTypes = new ArrayList<>();
     }
 

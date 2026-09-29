@@ -880,30 +880,6 @@ class HydroParametersMeFileProcessorServiceImplTest {
         workbook.close();
     }
 
-    private void createHydroAllocationMeFileWithAreaNotInDB() throws IOException {
-        var workbook = new XSSFWorkbook();
-        var sheet = workbook.createSheet(horizonYear);
-        var headerRow = sheet.createRow(0);
-        headerRow.createCell(0).setCellValue("load");
-        headerRow.createCell(1).setCellValue("node_1");
-        headerRow.createCell(2).setCellValue("node_2");
-
-        var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("area_1");
-        dataRow.createCell(1).setCellValue(0.5);
-        dataRow.createCell(2).setCellValue(0.3);
-
-        var dataRow2 = sheet.createRow(2);
-        dataRow2.createCell(0).setCellValue("area_2");
-        dataRow2.createCell(1).setCellValue(0.4);
-        dataRow2.createCell(2).setCellValue(0.2);
-
-        try (var fos = new FileOutputStream(tempDir.resolve("hydroAllocation_ME.xlsx").toFile())) {
-            workbook.write(fos);
-        }
-        workbook.close();
-    }
-
     private void createHydroAllocationMeFileWithThreeNodes() throws IOException {
         var workbook = new XSSFWorkbook();
         var sheet = workbook.createSheet(horizonYear);
@@ -955,26 +931,5 @@ class HydroParametersMeFileProcessorServiceImplTest {
             workbook.write(fos);
         }
         workbook.close();
-    }
-
-    private void setupValidAreaAndNodeMocks() {
-        // Mock AreaRepository to return valid area
-        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
-            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
-                .id(1)
-                .name("area_1")
-                .build();
-        when(areaRepository.findAll()).thenReturn(List.of(area));
-        
-        // Mock HydroParametersMeRepository to return valid nodes
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_2")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
     }
 }

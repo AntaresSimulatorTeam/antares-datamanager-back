@@ -149,7 +149,6 @@ public class SettingsImportService {
 
             // Build trajectory entity
             TrajectoryEntity trajectory = buildSettingsTrajectory(
-                    trajectoryToUse, 
                     filePath, 
                     horizon, 
                     area, 
@@ -237,7 +236,7 @@ public class SettingsImportService {
         return DigestUtils.sha256Hex(combined.toString());
     }
 
-    private TrajectoryEntity buildSettingsTrajectory(String trajectoryToUse, Path filePath, String horizon, String area, String checksum) throws IOException {
+    private TrajectoryEntity buildSettingsTrajectory(Path filePath, String horizon, String area, String checksum) throws IOException {
         String createdBy = getCurrentUser();
 
         // file name without extension

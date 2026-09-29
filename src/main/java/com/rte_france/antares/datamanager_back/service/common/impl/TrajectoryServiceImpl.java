@@ -1218,7 +1218,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .anyMatch(areaMeNames::contains);
 
         if (!hasMatchingArea) {
-            String missingAreasStr = String.join(", ", loadMeAreas);
             log.error("No area from AREA_ME trajectory is present in LOAD_ME trajectory");
             throw BusinessException.builder()
                     .message("No area from the AREAS_ME trajectory is present in LOAD_ME trajectory {0}")
@@ -1570,7 +1569,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // Validate each installed power trajectory against available load factors
         for (TrajectoryEntity installedPowerTraj : installedPowerTrajectories) {
-            validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, allLoadFactorTrajectories, trajectory.getHorizon());
+            validateInstalledPowerAgainstLoadFactors(installedPowerTraj, allLoadFactorTrajectories, trajectory.getHorizon());
         }
     }
 
@@ -1599,7 +1598,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * Checks that for each group/cluster in the load factor trajectory,
      * there are corresponding installed power trajectories.
      */
-    public void controlesMiscOnImportLoadFactor(Integer studyId, String area, String horizon) throws IOException {
+    public void controlesMiscOnImportLoadFactor(Integer studyId, String horizon) throws IOException {
         // Get all installed power trajectories for this study
         List<TrajectoryEntity> installedPowerTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
 
@@ -1612,7 +1611,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // Validate each installed power trajectory against available load factors (including the one being imported)
         for (TrajectoryEntity installedPowerTraj : installedPowerTrajectories) {
-            validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, allLoadFactorTrajectories, horizon);
+            validateInstalledPowerAgainstLoadFactors(installedPowerTraj, allLoadFactorTrajectories, horizon);
         }
     }
 
@@ -1912,7 +1911,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      * Validates installed power trajectory for the given installed power trajectory.
      */
     public void validateInstalledPowerAgainstLoadFactors(
-            Integer studyId,
             TrajectoryEntity installedPowerTraj,
             List<TrajectoryEntity> allLoadFactorTrajectories,
             String horizon) throws IOException {

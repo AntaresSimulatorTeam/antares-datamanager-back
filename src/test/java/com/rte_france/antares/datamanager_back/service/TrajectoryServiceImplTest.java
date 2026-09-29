@@ -3474,7 +3474,7 @@ class TrajectoryServiceImplTest {
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId))
                     .thenReturn(List.of());
 
-            trajectoryService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+            trajectoryService.controlesMiscOnImportLoadFactor(studyId, horizon);
 
             verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.MISC_CAPACITY.name(), studyId);
             verify(trajectoryRepository, never()).findByTypeAndStudyId(TrajectoryType.MISC_LOAD.name(), studyId);
@@ -3506,11 +3506,11 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of(loadFactorTraj));
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(any(), anyList(), any(String.class));
 
-            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+            spyService.controlesMiscOnImportLoadFactor(studyId, horizon);
 
-            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, List.of(loadFactorTraj), horizon);
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(installedPowerTraj, List.of(loadFactorTraj), horizon);
         }
 
         @Test
@@ -3543,13 +3543,13 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of(loadFactorTraj));
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(any(), anyList(), any(String.class));
 
-            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+            spyService.controlesMiscOnImportLoadFactor(studyId, horizon);
 
-            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj1, List.of(loadFactorTraj), horizon);
-            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj2, List.of(loadFactorTraj), horizon);
-            verify(spyService, times(2)).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(installedPowerTraj1, List.of(loadFactorTraj), horizon);
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(installedPowerTraj2, List.of(loadFactorTraj), horizon);
+            verify(spyService, times(2)).validateInstalledPowerAgainstLoadFactors(any(), anyList(), any(String.class));
         }
 
         @Test
@@ -3570,11 +3570,11 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of());
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(any(), anyList(), any(String.class));
 
-            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+            spyService.controlesMiscOnImportLoadFactor(studyId, horizon);
 
-            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(studyId, installedPowerTraj, List.of(), horizon);
+            verify(spyService, times(1)).validateInstalledPowerAgainstLoadFactors(installedPowerTraj, List.of(), horizon);
         }
 
         @Test
@@ -3595,10 +3595,10 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of());
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doThrow(new IOException("File not found")).when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
+            doThrow(new IOException("File not found")).when(spyService).validateInstalledPowerAgainstLoadFactors(any(), anyList(), any(String.class));
 
             assertThrows(IOException.class, () ->
-                spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon)
+                spyService.controlesMiscOnImportLoadFactor(studyId, horizon)
             );
         }
 
@@ -3626,11 +3626,11 @@ class TrajectoryServiceImplTest {
                     .thenReturn(List.of(loadFactorTraj));
 
             TrajectoryServiceImpl spyService = spy(trajectoryService);
-            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(anyInt(), any(), anyList(), any(String.class));
+            doNothing().when(spyService).validateInstalledPowerAgainstLoadFactors(any(), anyList(), any(String.class));
 
-            spyService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+            spyService.controlesMiscOnImportLoadFactor(studyId, horizon);
 
-            verify(spyService).validateInstalledPowerAgainstLoadFactors(eq(studyId), eq(installedPowerTraj), eq(List.of(loadFactorTraj)), eq(horizon));
+            verify(spyService).validateInstalledPowerAgainstLoadFactors(eq(installedPowerTraj), eq(List.of(loadFactorTraj)), eq(horizon));
         }
 
         @Test
@@ -4551,7 +4551,6 @@ class TrajectoryServiceImplTest {
         String nasDir = "/nas/data";
         String trajectoryPath = "trajectories";
         String scenarioBuilderDir = "settings/scenario_builder";
-        String expectedPath = "/nas/data/trajectories/settings/scenario_builder";
 
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir);
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajectoryPath);

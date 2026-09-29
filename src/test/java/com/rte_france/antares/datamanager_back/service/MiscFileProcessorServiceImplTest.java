@@ -308,7 +308,6 @@ class MiscFileProcessorServiceImplTest {
 
             assertThat(firstResult).isNotNull();
             assertThat(firstResult.getChecksum()).isNotNull();
-            String firstChecksum = firstResult.getChecksum();
 
             // Recréer le même fichier avec les mêmes données
             createInstalledWorkbook(Collections.singletonList(

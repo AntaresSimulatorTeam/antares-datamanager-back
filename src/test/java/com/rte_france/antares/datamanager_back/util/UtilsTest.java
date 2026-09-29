@@ -1775,7 +1775,7 @@ class UtilsTest {
                     .thenReturn(7);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2025-2030", TrajectoryType.DSR, "trajectory", 5,false);
+            int result = Utils.resolveYearColumnIndex(header, "2025-2030", TrajectoryType.DSR, "trajectory", 5);
 
             // Then
             assertThat(result).isEqualTo(7);
@@ -1799,7 +1799,7 @@ class UtilsTest {
 
             // When
             BusinessException ex = catchThrowableOfType(
-                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", TrajectoryType.DSR, "trajectory",5,false),
+                    () -> Utils.resolveYearColumnIndex(header, "2025-2030", TrajectoryType.DSR, "trajectory",5),
                     BusinessException.class
             );
 
@@ -1828,7 +1828,7 @@ class UtilsTest {
                     .thenReturn(4);
 
             // When
-            int result = Utils.resolveYearColumnIndex(header, "2020-2035", TrajectoryType.DSR, "trajectory", 5,false);
+            int result = Utils.resolveYearColumnIndex(header, "2020-2035", TrajectoryType.DSR, "trajectory", 5);
 
             // Then
             assertThat(result).isEqualTo(4);

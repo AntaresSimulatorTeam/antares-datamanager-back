@@ -239,15 +239,10 @@ class ThermalSpecificFileProcessorServiceImplTest {
     }
 
     private static XSSFWorkbook createValidWorkbook(int rows) {
-        return createValidWorkbook(rows, false, true);
-    }
-
-    private static XSSFWorkbook createValidWorkbook(int rows, boolean makeClusterEmpty, boolean mockClusterExists) {
         var wb = new XSSFWorkbook();
         var sheet = wb.createSheet(HORIZON);
 
         // Ensure rows 0..2 exist with headers at row 2
-        var hdr0 = sheet.createRow(0);
         var hdr = sheet.createRow(2);
         String[] headers = buildHeaders();
         for (int i = 0; i < headers.length; i++) {

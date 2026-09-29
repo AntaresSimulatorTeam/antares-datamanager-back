@@ -580,7 +580,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
             validateHeaderColumns(header, sheet, requiredColumns, trajectoryToUse, trajectoryType);
 
-            int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryType, trajectoryToUse, requiredColumns.length, isCivilYear);
+            int yearColIndex = resolveYearColumnIndex(header, horizon, trajectoryType, trajectoryToUse, requiredColumns.length);
 
             ResRowProcessingContext context = ResRowProcessingContext.builder().studyAreas(studyAreas).areaParam(areaParam).yearColIndex(yearColIndex).trajectoryToUse(trajectoryToUse).technology(technology).trajectoryType(trajectoryType).build();
 

@@ -365,7 +365,7 @@ class NuclearFileProcessorServiceImplTest {
 
     @Test
     void processNuclearModulationFile_successfulProcessing_firstVersion() throws IOException {
-        Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
+        createTestTrajectoryFolderWithAllFiles();
         
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
@@ -392,7 +392,7 @@ class NuclearFileProcessorServiceImplTest {
 
     @Test
     void processNuclearModulationFile_successfulProcessing_nextVersion() throws IOException {
-        Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
+        createTestTrajectoryFolderWithAllFiles();
         
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -489,7 +489,7 @@ class NuclearFileProcessorServiceImplTest {
         String[] areas = {"FR", "DE", "IT", "ES", "BE"};
         
         for (String testArea : areas) {
-            Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
+            createTestTrajectoryFolderWithAllFiles();
             
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                     trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
@@ -513,7 +513,7 @@ class NuclearFileProcessorServiceImplTest {
 
     @Test
     void processNuclearModulationFile_allModulationTypesAreExtracted() throws IOException {
-        Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
+        createTestTrajectoryFolderWithAllFiles();
         
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))

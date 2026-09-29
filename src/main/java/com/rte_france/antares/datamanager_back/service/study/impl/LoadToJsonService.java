@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 public class LoadToJsonService {
 
     private static final Pattern DEFAULT_LOAD_PATTERN = Pattern.compile("_(.*?)[_\\.]");
-    private static final Pattern LOAD_ME_PATTERN = Pattern.compile("load_([a-zA-Z0-9_]+)_[0-9]{4}-[0-9]{4}\\.csv", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LOAD_ME_PATTERN = Pattern.compile("load_([a-z0-9_]+)_[0-9]{4}-[0-9]{4}\\.csv", Pattern.CASE_INSENSITIVE);
 
     private final NasFileService nasFileService;
 

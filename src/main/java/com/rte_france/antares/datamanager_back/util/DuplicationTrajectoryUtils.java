@@ -131,26 +131,7 @@ public class DuplicationTrajectoryUtils {
         return new TrajectoryProcessingResult(missingTrajectoryTypes, missingTrajectoryKeys, areaTrajectory, warningMessages);
     }
 
-
-    private static TrajectoryEntity findAndLinkAreaTrajectory(
-            List<TrajectoryEntity> trajectories,
-            Integer studyId,
-            TrajectoryService trajectoryService) throws IOException {
-
-        TrajectoryEntity areaTrajectory = trajectories.stream()
-                .filter(t -> TrajectoryType.AREA.name().equals(t.getType()))
-                .findFirst()
-                .orElseThrow();
-
-        trajectoryService.linkTrajectoryToStudy(
-                areaTrajectory.getId(),
-                studyId,
-                TrajectoryType.AREA);
-
-        return areaTrajectory;
-    }
-
-    private static void processRemainingTrajectoryTypes(
+    static void processRemainingTrajectoryTypes(
             List<TrajectoryEntity> trajectories,
             Integer studyId,
             TrajectoryServiceImpl trajectoryService,

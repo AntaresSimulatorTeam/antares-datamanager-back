@@ -555,7 +555,13 @@ class DsrPropertiesAssemblerServiceImplTest {
     @Test
     void buildDsrKey_ShouldHandleNulls() {
         // Given
-        DsrClusterEntity cluster = DsrClusterEntity.builder().area(null).name(null).build();
+        DsrClusterEntity cluster = DsrClusterEntity.builder()
+                .area(null)
+                .name(null)
+                .toUse(true)
+                .capacity(BigDecimal.ONE)
+                .build();
+
         StudyEntity study = StudyEntity.builder()
                 .trajectories(Set.of(TrajectoryEntity.builder()
                         .type(TrajectoryType.DSR.name())
@@ -571,9 +577,6 @@ class DsrPropertiesAssemblerServiceImplTest {
         // But assembleDsrProperties filters by capacity != null and capacity != 0
         // So we can't test it directly through assembleDsrProperties if it's filtered.
         // Let's test it by making it pass the filter.
-        cluster.setToUse(true);
-        cluster.setCapacity(BigDecimal.ONE);
-        result = dsrPropertiesAssemblerService.assembleDsrProperties(study);
         assertTrue(result.containsKey("_"));
     }
 

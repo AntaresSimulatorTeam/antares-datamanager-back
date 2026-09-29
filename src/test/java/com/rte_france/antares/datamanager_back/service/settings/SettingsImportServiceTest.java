@@ -89,16 +89,6 @@ class SettingsImportServiceTest {
         Integer studyId = 1;
         String area = "FR";
 
-        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
-                .id(1)
-                .fileName(trajectoryToUse)
-                .type("TRAJECTORY_SETTINGS")
-                .horizon(horizon)
-                .area(area)
-                .version(1)
-                .checksum("same_checksum_value")
-                .build();
-
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/mnt/data");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getTrajectorySettingsDirectory()).thenReturn("parameters/general_data");
@@ -140,16 +130,6 @@ class SettingsImportServiceTest {
         Integer studyId = 1;
         String area = "FR";
 
-        TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
-                .id(1)
-                .fileName(trajectoryToUse)
-                .type("TRAJECTORY_SETTINGS")
-                .horizon(horizon)
-                .area(area)
-                .version(1)
-                .checksum("old_checksum_value")
-                .build();
-
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/mnt/data");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getTrajectorySettingsDirectory()).thenReturn("parameters/general_data");
@@ -188,11 +168,6 @@ class SettingsImportServiceTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn("/mnt/data");
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getTrajectorySettingsDirectory()).thenReturn("parameters/general_data");
-
-        // Expected path pattern:
-        // {NAS_DIR}/trajectories/parameters/general_data/{trajectoryToUse}/general_data_{trajectoryToUse}.xlsx
-        String expectedBasePath = "/mnt/data/trajectories";
-        String expectedTrajectoryFolder = "/mnt/data/trajectories/parameters/general_data/BP23_A_ref_200MC";
 
         // Verify the properties are correctly configured for path construction
         assertEquals("/mnt/data", antaresDataManagerProperties.getNasDirectory());

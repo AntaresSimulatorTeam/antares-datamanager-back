@@ -158,8 +158,6 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     .build();
         }
 
-        // Extract horizon year (e.g., "2030-2031" -> "2031")
-        String horizonYear = horizon.split("-")[1];
 
         // Array of modulation types to check
         String[] modulationTypes = {"daily", "hourly", "weekly"};
@@ -456,28 +454,28 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsErpFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+        return processNuclearTsFile(trajectoryToUse, horizon, area,
                 antaresDataManagerProperties.getNuclearEprDirectory(), TrajectoryType.NUCLEAR_FR_TS_ERP);
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsSmrFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+        return processNuclearTsFile(trajectoryToUse, horizon, area,
                 antaresDataManagerProperties.getNuclearSmrDirectory(), TrajectoryType.NUCLEAR_FR_TS_SMR);
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTalonFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+        return processNuclearTsFile(trajectoryToUse, horizon, area,
                 antaresDataManagerProperties.getNuclearTalonDirectory(), TrajectoryType.NUCLEAR_FR_TALON);
     }
 
     /**
      * Generic method to process nuclear time series (EPR/SMR) files
      */
-    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon, Integer studyId, 
+    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon,
             String area, String directoryPath, TrajectoryType trajectoryType) throws IOException {
         
         // If trajectoryToUse doesn't have an extension, add .xlsx

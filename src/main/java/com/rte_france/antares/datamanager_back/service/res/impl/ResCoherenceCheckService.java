@@ -181,10 +181,9 @@ public class ResCoherenceCheckService {
       * où area_specific peut être FR, BE, DE, etc. (n'importe quel defaultArea)
       * Utilisée pour IP (RES_CAPACITY) et LF (RES_LOAD).
       *
-      * @param areaParam         filtre sur l'area spécifique requise
       * @return true si les 4 combinaisons sont complètes, false sinon
       */
-     private boolean hasCompletedFourCombinations(List<TrajectoryEntity> trajectories, String areaParam, String importedTechnology) {
+     private boolean hasCompletedFourCombinations(List<TrajectoryEntity> trajectories, String importedTechnology) {
          // Vérifications communes
          boolean hasAreaWithoutTech = trajectories.stream().anyMatch(trajectory -> !trajectory.getArea().equals(OTHERS_AREA) && isBlankOrEmpty(trajectory.getTechnology()));
 
@@ -455,7 +454,7 @@ public class ResCoherenceCheckService {
              if (trajectoryBeingImported.getType().equals(expectedType)) {
                  allTrajectories.add(trajectoryBeingImported);
              }
-             boolean result = hasCompletedFourCombinations(allTrajectories, areaParam, technology);
+             boolean result = hasCompletedFourCombinations(allTrajectories, technology);
              log.info("Vérification 4 combinaisons {} (Area: {}): {}", trajectoryLabel, areaParam, result);
              return result;
          } else {

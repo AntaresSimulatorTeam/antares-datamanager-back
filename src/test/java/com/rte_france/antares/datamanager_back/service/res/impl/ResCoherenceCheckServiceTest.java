@@ -583,7 +583,7 @@ public class ResCoherenceCheckServiceTest {
           return trajectory;
       }
 
-      private TrajectoryEntity createDZTrajectory(String area, String technology, String pecdZone) {
+      private TrajectoryEntity createDZTrajectory(String area, String technology) {
           TrajectoryEntity trajectory = new TrajectoryEntity();
           trajectory.setId(4);
           trajectory.setType(TrajectoryType.RES_ZONAL_DISTRIBUTION.name());
@@ -591,16 +591,6 @@ public class ResCoherenceCheckServiceTest {
           trajectory.setTechnology(technology);
           trajectory.setFileName("test_dz");
           trajectory.setResZonalDistributionCapacityEntities(new ArrayList<>());
-          return trajectory;
-      }
-
-      private TrajectoryEntity createDZTrajectoryWithData(String area, String groupe, String pecdZone) {
-          TrajectoryEntity trajectory = createDZTrajectory(area, null, pecdZone);
-          ResZonalDistributionEntity entity = new ResZonalDistributionEntity();
-          entity.setArea(area);
-          entity.setGroupe(groupe);
-          entity.setPecdZone(pecdZone);
-          trajectory.getResZonalDistributionCapacityEntities().add(entity);
           return trajectory;
       }
 
@@ -703,8 +693,8 @@ public class ResCoherenceCheckServiceTest {
 
             // 2 DZ trajectories instead of 1
             List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
-            dzTrajectories.add(createDZTrajectory("FR", null, "zone1"));
-            dzTrajectories.add(createDZTrajectory("FR", null, "zone2"));
+            dzTrajectories.add(createDZTrajectory("FR", null));
+            dzTrajectories.add(createDZTrajectory("FR", null));
 
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
                     .thenReturn(dtTrajectories);
@@ -724,7 +714,7 @@ public class ResCoherenceCheckServiceTest {
             dtTrajectories.add(createTDTrajectory("FR", "wind")); // Only with tech
 
             List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
-            dzTrajectories.add(createDZTrajectory("FR", null, "zone"));
+            dzTrajectories.add(createDZTrajectory("FR", null));
 
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
                     .thenReturn(dtTrajectories);
@@ -747,7 +737,7 @@ public class ResCoherenceCheckServiceTest {
             dtTrajectories.add(dtWithTech);
 
             List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
-            dzTrajectories.add(createDZTrajectory("FR", null, "zone"));
+            dzTrajectories.add(createDZTrajectory("FR", null));
 
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
                     .thenReturn(dtTrajectories);
@@ -770,7 +760,7 @@ public class ResCoherenceCheckServiceTest {
 
             // DZ with no matching DT data
             List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
-            dzTrajectories.add(createDZTrajectory("BE", null, "zone")); // Different area
+            dzTrajectories.add(createDZTrajectory("BE", null)); // Different area
 
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
                     .thenReturn(dtTrajectories);
@@ -785,7 +775,7 @@ public class ResCoherenceCheckServiceTest {
         @DisplayName("should validate when DZ being imported with correct DT combinations")
         void shouldValidateWhenDZBeingImported() {
             // Arrange - DZ import: DZ must be exactly 1 after import and DT must have 2 combinations
-            TrajectoryEntity dzBeingImported = createDZTrajectory("FR", null, "zone");
+            TrajectoryEntity dzBeingImported = createDZTrajectory("FR", null);
 
             List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
             dtTrajectories.add(createTDTrajectory("FR", null));
@@ -806,14 +796,14 @@ public class ResCoherenceCheckServiceTest {
         @DisplayName("should fail when DZ import results in more than 1 DZ total")
         void shouldFailWhenDZImportResultsInMultipleDZ() {
             // Arrange - Trying to import 2nd DZ (already 1 exists)
-            TrajectoryEntity dzBeingImported = createDZTrajectory("FR", null, "zone2");
+            TrajectoryEntity dzBeingImported = createDZTrajectory("FR", null);
 
             List<TrajectoryEntity> dtTrajectories = new ArrayList<>();
             dtTrajectories.add(createTDTrajectory("FR", null));
             dtTrajectories.add(createTDTrajectory("FR", "wind"));
 
             List<TrajectoryEntity> dzTrajectories = new ArrayList<>();
-            dzTrajectories.add(createDZTrajectory("FR", null, "zone1")); // Already 1 DZ
+            dzTrajectories.add(createDZTrajectory("FR", null)); // Already 1 DZ
 
             when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION.name(), studyId))
                     .thenReturn(dtTrajectories);

@@ -114,7 +114,7 @@ class StStorageConstraintsMergeTest {
             // WHEN
         service.handleStsConstraints(Path.of("dummy"), "FR", "EV", "cluster1",
                     "trajectory.xlsx", "OTHERS", List.of("FR", "DE"),
-                    storage, horizon, studyId, new HashMap<>());
+                    storage, studyId, new HashMap<>());
 
             // THEN
             // Only existing FR param + new DE param should be present

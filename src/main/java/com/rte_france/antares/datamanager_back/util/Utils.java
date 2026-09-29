@@ -1668,7 +1668,7 @@ public class Utils {
         checkMissingColumns(sheet, requiredColumns, trajectoryToUse, trajectoryType);
     }
 
-    public int resolveYearColumnIndex(Row header, String horizon, TrajectoryType trajectoryType, String trajectoryToUse, int nbRequiredColumns, boolean isCivilYear) {
+    public int resolveYearColumnIndex(Row header, String horizon, TrajectoryType trajectoryType, String trajectoryToUse, int nbRequiredColumns) {
         String horizonYear = horizon.split("-")[1];
         int yearColIndex = getYearColIndex(nbRequiredColumns, getRealLastColumn(header), header, horizonYear, -1);
         if (yearColIndex == -1) {

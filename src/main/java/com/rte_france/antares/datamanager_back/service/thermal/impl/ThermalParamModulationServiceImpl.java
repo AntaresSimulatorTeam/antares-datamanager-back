@@ -343,6 +343,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
             try {
                 bw.close();
             } catch (IOException ignored) {
+                // Intentionally empty
             }
         });
     }

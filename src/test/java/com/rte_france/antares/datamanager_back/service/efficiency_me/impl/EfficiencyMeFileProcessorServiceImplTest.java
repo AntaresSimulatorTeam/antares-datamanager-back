@@ -74,7 +74,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         // Given
         String trajectoryName = "test_trajectory";
         String horizon = "2023-2024";
-        Path trajectoryFile = createTestExcelFile(trajectoryName, horizon);
+        createTestExcelFile(trajectoryName, horizon);
 
         TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -207,7 +207,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         // Given
         String trajectoryName = "test_trajectory";
         String horizon = "2023-2024";
-        createTestExcelFileWithoutHorizonSheet(trajectoryName, horizon);
+        createTestExcelFileWithoutHorizonSheet(trajectoryName);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 any(String.class), any(String.class), any(String.class)))
@@ -349,7 +349,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         return filePath;
     }
 
-    private Path createTestExcelFileWithoutHorizonSheet(String fileName, String horizon) throws IOException {
+    private Path createTestExcelFileWithoutHorizonSheet(String fileName) throws IOException {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("WrongSheetName");
         

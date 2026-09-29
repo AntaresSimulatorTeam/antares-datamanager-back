@@ -190,7 +190,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         TrajectoryEntity saved = trajectoryRepository.save(trajectory);
         
         // Validate load factor against installed power trajectories
-        trajectoryService.controlesMiscOnImportLoadFactor(studyId, area, horizon);
+        trajectoryService.controlesMiscOnImportLoadFactor(studyId, horizon);
         
         return saved;
 

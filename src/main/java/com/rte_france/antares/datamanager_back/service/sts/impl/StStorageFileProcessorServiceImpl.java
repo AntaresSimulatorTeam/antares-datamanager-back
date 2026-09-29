@@ -319,7 +319,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                     areaParam,
                     studyAreas,
                     stStorageEntity,
-                    horizon,
                     studyId,
                     constraintsParamsCache
             );
@@ -450,7 +449,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                      String areaParam,
                                      List<String> studyAreas,
                                      StStorageEntity storage,
-                                     String horizon,
                                      Integer studyId,
                                      Map<Path, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
 

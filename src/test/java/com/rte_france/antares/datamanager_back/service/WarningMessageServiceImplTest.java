@@ -119,10 +119,6 @@ class WarningMessageServiceImplTest {
         // Given
         Integer trajectoryId = 1;
         Integer studyId = 1;
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId)
-                .warningMessages(null)
-                .build();
 
         when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
                 .thenReturn(Collections.emptySet());
