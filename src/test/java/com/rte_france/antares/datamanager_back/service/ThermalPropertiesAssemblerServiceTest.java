@@ -485,7 +485,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
                 .area("FR")
-                .marginalCost(10.0)
+                .marginalCost(BigDecimal.valueOf(10.0))
                 .build();
         var specificTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
@@ -573,7 +573,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
                 .area("FR")
-                .marginalCost(10.0)
+                .marginalCost(BigDecimal.valueOf(10.0))
                 .build();
         var specificTrajectory = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
@@ -641,7 +641,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
                 .area("AT")
-                .marginalCost(10.0)
+                .marginalCost(BigDecimal.valueOf(10.0))
                 .build();
         var specificTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
@@ -769,7 +769,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
-                .marginalCost(30.0) // marginal_cost
+                .marginalCost(BigDecimal.valueOf(30.0)) // marginal_cost
                 .minStableGeneration(0.4)
                 .spinning(0.0)
                 .efficiency(0.4)
@@ -830,11 +830,11 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // Fuel costs for fallback marginal cost
         var gasCostType = ThermalCostTypeEntity.builder().fuel("GAS").country("FR").ratioNcvHcv(0.9).build();
-        var gasCost = ThermalCostEntity.builder().thermalType(gasCostType).cost(40.0).build();
+        var gasCost = ThermalCostEntity.builder().thermalType(gasCostType).cost(BigDecimal.valueOf(40.0)).build();
         gasCostType.setThermalCostEntities(List.of(gasCost));
 
         var co2CostType = ThermalCostTypeEntity.builder().fuel("CO2").country("FR").build();
-        var co2Cost = ThermalCostEntity.builder().thermalType(co2CostType).cost(25.0).build();
+        var co2Cost = ThermalCostEntity.builder().thermalType(co2CostType).cost(BigDecimal.valueOf(25.0)).build();
         co2CostType.setThermalCostEntities(List.of(co2Cost));
 
         var commonTraj = TrajectoryEntity.builder()
@@ -901,8 +901,8 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
-                .marketBid(105.0) // market_bid exists
-                .marginalCost(100.0)
+                .marketBid(BigDecimal.valueOf(105.0)) // market_bid exists
+                .marginalCost(BigDecimal.valueOf(100.0))
                 .spinning(0.0)
                 .efficiency(0.40)
                 .foDuration(0.0)
@@ -928,7 +928,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        assertThat(dto.getMarketBidCost()).isEqualTo(105.0);
+        assertThat(dto.getMarketBidCost()).isEqualByComparingTo(BigDecimal.valueOf(105.0));
     }
 
     @Test
@@ -948,7 +948,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
                 .marketBid(null) // market_bid missing
-                .marginalCost(100.0)
+                .marginalCost(BigDecimal.valueOf(100.0))
                 .spinning(0.0)
                 .efficiency(0.40)
                 .foDuration(0.0)
@@ -1008,7 +1008,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
-                .marginalCost(200.0)
+                .marginalCost(BigDecimal.valueOf(200.0))
                 .area("FR")
                 .build();
 
@@ -1025,7 +1025,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
 
         assertThat(dto.getCo2()).isEqualTo(0.72);
-        assertThat(dto.getMarginalCost()).isEqualTo(200);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(200));
         assertThat(dto.getMarketBidCost()).isNull(); // Because marginalCostSource is SPECIFIC_PARAM
     }
 
@@ -1077,7 +1077,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .area("FR")
                 .cluster("Gas1")
-                .marginalCost(10.0)
+                .marginalCost(BigDecimal.valueOf(10.0))
                 .build();
 
         var specificTrajectory = TrajectoryEntity.builder()
@@ -1120,7 +1120,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
-                .marginalCost(100.0) // specifically set marginal cost
+                .marginalCost(BigDecimal.valueOf(100.0)) // specifically set marginal cost
                 .efficiency(0.50)
                 .area("FR")
                 .build();
@@ -1140,7 +1140,7 @@ class ThermalPropertiesAssemblerServiceTest {
         assertFalse(resultMapFinal.isEmpty());
         ThermalClusterGenerationDto dtoFound = resultMapFinal.values().iterator().next();
         assertNotNull(dtoFound);
-        assertEquals(100.0, dtoFound.getMarginalCost());
+        assertThat(dtoFound.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(100.0));
         // om_cost should be 0.0 since common parameters are missing
         // market_bid_cost is null because marginalCostSource is SPECIFIC_PARAM
         assertNull(dtoFound.getMarketBidCost());

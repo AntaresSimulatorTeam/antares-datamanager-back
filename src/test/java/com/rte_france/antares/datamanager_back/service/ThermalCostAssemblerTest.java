@@ -65,7 +65,7 @@ class ThermalCostAssemblerTest {
 
         ThermalCostEntity costEntity = new ThermalCostEntity();
         costEntity.setThermalType(type);
-        costEntity.setCost(123.45);
+        costEntity.setCost(BigDecimal.valueOf(123.45));
 
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setThermalCosts(List.of(costEntity));
@@ -88,7 +88,7 @@ class ThermalCostAssemblerTest {
         co2Type.setFuel("CO2");
         ThermalCostEntity co2CostEntity = new ThermalCostEntity();
         co2CostEntity.setThermalType(co2Type);
-        co2CostEntity.setCost(50.0);
+        co2CostEntity.setCost(BigDecimal.valueOf(50.0));
         co2CostEntity.setTrajectory(trajectory);
 
         trajectory.setThermalCosts(List.of(costEntity, co2CostEntity));
@@ -96,7 +96,7 @@ class ThermalCostAssemblerTest {
 
         assertThat(dto.getMarginalCost()).isNotNull();
         //(fuelCost / efficiency) + (co2Cost * co2Value) + omCost;
-        assertThat(dto.getMarginalCost()).isEqualTo(1256.9);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(1256.9));
     }
 
     @Test
@@ -127,7 +127,7 @@ class ThermalCostAssemblerTest {
         enerContent.setTrajectory(economicTrajectory);
 
         ThermalSpecificParametersEntity specificParam = new ThermalSpecificParametersEntity();
-        specificParam.setMarginalCost(5.0);
+        specificParam.setMarginalCost(BigDecimal.valueOf(5.0));
         specificParam.setCluster("Cluster1");
 
 
@@ -181,7 +181,7 @@ class ThermalCostAssemblerTest {
         thermalCostAssembler.computeStartupAndMarginalCost(dto, List.of(commonParam2),
                 List.of(specificParam), List.of(), costTrajectory);
         // Expected marginal cost: 10.2333 / (100/100) + 2.0 * 0.037 + 0.5 = 10.2333 + 0.074 + 0.5 = 10.8073 -> rounded to 10.807
-        assertThat(dto.getMarginalCost()).isEqualTo(10.8133);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(10.8133));
 
         // 3. Test Startup Cost rounding
         // startup_fuel = 10.0, coefficient =1/3.6, efficiency = 1.0, marginal_cost = 10.807, startup_fix_cost = 20.1, nominalCapacity = 100.0
@@ -205,7 +205,7 @@ class ThermalCostAssemblerTest {
         // 10.807 - 0.5678 = 10.2392 -> rounded to 10.239
         commonParam2.setOmCost(0.5678);
         thermalCostAssembler.computeMarketBidCost(dto, List.of(commonParam2), List.of(specificParam));
-        assertThat(dto.getMarketBidCost()).isEqualTo(10.8133);
+        assertThat(dto.getMarketBidCost()).isEqualByComparingTo(BigDecimal.valueOf(10.8133));
     }
 
     @Test
@@ -227,7 +227,7 @@ class ThermalCostAssemblerTest {
 
         // then
         // marginalCost should be omCost (15.0) instead of 0.0
-        assertThat(dto.getMarginalCost()).isEqualTo(15.0);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(15.0));
         assertThat(dto.getMarginalCostSource()).isEqualTo(ThermalCostAssembler.MarginalCostResult.Source.FALLBACK_OM);
 
         // marginalCostAdjustment = marginalCost - omCost = 15.0 - 15.0 = 0.0
@@ -242,13 +242,13 @@ class ThermalCostAssemblerTest {
         fuelType.setFuel("gas");
         ThermalCostEntity fuelCostEntity = new ThermalCostEntity();
         fuelCostEntity.setThermalType(fuelType);
-        fuelCostEntity.setCost(10.2333);
+        fuelCostEntity.setCost(BigDecimal.valueOf(10.2333));
 
         ThermalCostTypeEntity co2Type = new ThermalCostTypeEntity();
         co2Type.setFuel("CO2");
         ThermalCostEntity co2CostEntity = new ThermalCostEntity();
         co2CostEntity.setThermalType(co2Type);
-        co2CostEntity.setCost(2.0);
+        co2CostEntity.setCost(BigDecimal.valueOf(2.0));
 
         TrajectoryEntity costTrajectory = new TrajectoryEntity();
         costTrajectory.setThermalCosts(List.of(fuelCostEntity, co2CostEntity));
@@ -287,7 +287,7 @@ class ThermalCostAssemblerTest {
         commonParam.setStartUpFuel(2.0);
 
         ThermalSpecificParametersEntity specificParam = new ThermalSpecificParametersEntity();
-        specificParam.setMarginalCost(10.0);
+        specificParam.setMarginalCost(BigDecimal.valueOf(10.0));
         specificParam.setCluster("Cluster1");
 
         // when
@@ -325,7 +325,7 @@ class ThermalCostAssemblerTest {
 
         ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(100.0).nominalCapacity(100.0).build();
         ThermalSpecificParametersEntity specificParam = new ThermalSpecificParametersEntity();
-        specificParam.setMarginalCost(60.0);
+        specificParam.setMarginalCost(BigDecimal.valueOf(60.0));
         specificParam.setCluster("GAS NEW DK6");
 
         ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
@@ -367,11 +367,11 @@ class ThermalCostAssemblerTest {
 
         ThermalSpecificParametersEntity spec1 = new ThermalSpecificParametersEntity();
         spec1.setCluster("Cluster1");
-        spec1.setMarginalCost(10.0);
+        spec1.setMarginalCost(BigDecimal.valueOf(10.0));
 
         ThermalSpecificParametersEntity spec2 = new ThermalSpecificParametersEntity();
         spec2.setCluster("Cluster2");
-        spec2.setMarginalCost(20.0);
+        spec2.setMarginalCost(BigDecimal.valueOf(20.0));
 
         ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
         dto.setNominalCapacity(100.0);
@@ -381,7 +381,7 @@ class ThermalCostAssemblerTest {
 
         // then
         // Should pick spec1 because the commonParam.name is Cluster1
-        assertThat(dto.getMarginalCost()).isEqualTo(10);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(10));
 
         // when
         refCommon.setName("Cluster2");
@@ -390,7 +390,7 @@ class ThermalCostAssemblerTest {
 
         // then
         // Should pick spec2 because the commonParam.name is Cluster2
-        assertThat(dto.getMarginalCost()).isEqualTo(20);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(20));
     }
 
     @Test
@@ -408,7 +408,7 @@ class ThermalCostAssemblerTest {
 
         ThermalSpecificParametersEntity spec1 = new ThermalSpecificParametersEntity();
         spec1.setCluster("Cluster1");
-        spec1.setMarginalCost(10.0);
+        spec1.setMarginalCost(BigDecimal.valueOf(10.0));
 
         ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(100.0).nominalCapacity(200.0).build();
 
@@ -454,11 +454,11 @@ class ThermalCostAssemblerTest {
         // Fuel and CO2 costs used to compute marginal cost
         ThermalCostEntity fuelCost = new ThermalCostEntity();
         fuelCost.setThermalType(ThermalCostTypeEntity.builder().fuel(fuel).build());
-        fuelCost.setCost(38.26095);
+        fuelCost.setCost(BigDecimal.valueOf(38.26095));
 
         ThermalCostEntity co2Cost = new ThermalCostEntity();
         co2Cost.setThermalType(ThermalCostTypeEntity.builder().fuel("CO2").build());
-        co2Cost.setCost(100.0);
+        co2Cost.setCost(BigDecimal.valueOf(100.0));
 
         TrajectoryEntity costTrajectory = new TrajectoryEntity();
         costTrajectory.setThermalCosts(List.of(fuelCost, co2Cost));
@@ -488,9 +488,9 @@ class ThermalCostAssemblerTest {
 
         // Then
         assertThat(dto.getCo2()).isEqualTo(1.37);
-        assertThat(dto.getMarginalCost()).isEqualTo(393.673);
+        assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(393.673));
         assertThat(dto.getStartupCost()).isEqualTo(1466876.6);
-        assertThat(dto.getMarketBidCost()).isEqualTo(393.673);
+        assertThat(dto.getMarketBidCost()).isEqualByComparingTo(BigDecimal.valueOf(393.673));
     }
 
     @Test
@@ -533,7 +533,7 @@ class ThermalCostAssemblerTest {
         co2Type.setFuel("CO2");
         ThermalCostEntity co2CostEntity = new ThermalCostEntity();
         co2CostEntity.setThermalType(co2Type);
-        co2CostEntity.setCost(50.0);
+        co2CostEntity.setCost(BigDecimal.valueOf(50.0));
 
         trajectory.setThermalCosts(List.of(co2CostEntity));
         co2CostEntity.setTrajectory(trajectory);

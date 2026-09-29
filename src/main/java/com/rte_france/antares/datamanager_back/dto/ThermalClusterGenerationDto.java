@@ -100,7 +100,7 @@ public class ThermalClusterGenerationDto {
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("marginal_cost")
-    private Double marginalCost;
+    private BigDecimal marginalCost;
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("spread_cost")
@@ -116,7 +116,7 @@ public class ThermalClusterGenerationDto {
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("market_bid_cost")
-    private Double marketBidCost;
+    private BigDecimal marketBidCost;
 
     @JsonView(ThermalClusterViews.Properties.class)
     @JsonProperty("co2")

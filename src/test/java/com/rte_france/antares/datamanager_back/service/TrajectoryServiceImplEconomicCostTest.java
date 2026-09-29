@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.*;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -75,7 +76,7 @@ class TrajectoryServiceImplEconomicCostTest {
         List<ThermalCostTypeEntity> costs = List.of(
                 ThermalCostTypeEntity.builder()
                         .fuel("Gas").country("FR")
-                        .thermalCostEntities(List.of(ThermalCostEntity.builder().year(2025).cost(12.3).build()))
+                        .thermalCostEntities(List.of(ThermalCostEntity.builder().year(2025).cost(BigDecimal.valueOf(12.3)).build()))
                         .build()
         );
         List<ThermalCostsRateEntity> rates = List.of(

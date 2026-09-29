@@ -99,11 +99,11 @@ public class ThermalCostAssembler {
                 dto.setCo2(round((co2EmissionFuel.doubleValue() / 1000.0) / efficiency / rationNcvHcv,2));
             }
         }, () -> {
-            Double co2Cost = findCo2Cost(trajectory);
+            BigDecimal co2Cost = findCo2Cost(trajectory);
             if (co2Cost != null) {
                 double rationNcvHcv = (ratioNcvHcv != null && ratioNcvHcv != 0.0) ? ratioNcvHcv : 1.0;
                 // Using CO2 cost from thermal_cost as a fallback if economic co2 is not found
-                dto.setCo2(round((co2Cost / 1000.0) / efficiency / rationNcvHcv,2));
+                dto.setCo2(round((co2Cost.doubleValue() / 1000.0) / efficiency / rationNcvHcv,2));
             }
         });
 
@@ -217,7 +217,7 @@ public class ThermalCostAssembler {
                 specificParam, thermalCostEntity, fuel, commonParam, dto
         );
 
-        Double marginalCost = marginalCostResult.value();
+        BigDecimal marginalCost = marginalCostResult.value();
         MarginalCostResult.Source source = marginalCostResult.source();
         log.info("Marginal cost calculation for fuel {} and common param {}: source={}, value={}", fuel, commonParam, source, marginalCost);
         dto.setMarginalCostSource(source);
@@ -310,20 +310,22 @@ public class ThermalCostAssembler {
     }
 
     private static double getMarginalCostAdjustment(ThermalCommonParameterEntity commonParam, MarginalCostResult marginalCostValue) {
-        double marginalCostAdjustment;
+        BigDecimal marginalCostAdjustment;
 
         if (marginalCostValue.source() != MarginalCostResult.Source.SPECIFIC_PARAM) {
             // If not SPECIFIC_PARAM, apply OM cost adjustment
-            double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
-            marginalCostAdjustment = marginalCostValue.value - omCost;
+            BigDecimal omCost = (commonParam != null && commonParam.getOmCost() != null) 
+                ? BigDecimal.valueOf(commonParam.getOmCost()) 
+                : BigDecimal.ZERO;
+            marginalCostAdjustment = marginalCostValue.value().subtract(omCost);
         } else {
             // Use the marginal cost value directly for SPECIFIC_PARAM
-            marginalCostAdjustment = marginalCostValue.value;
+            marginalCostAdjustment = marginalCostValue.value();
         }
-        return marginalCostAdjustment;
+        return marginalCostAdjustment.doubleValue();
     }
 
-    public record MarginalCostResult(Double value, Source source) {
+    public record MarginalCostResult(BigDecimal value, Source source) {
 
         public enum Source {
             SPECIFIC_PARAM,
@@ -345,7 +347,7 @@ public class ThermalCostAssembler {
             );
         }
 
-        Double marginalCostWithOm = computeFallbackMarginalCostWithOm(
+        BigDecimal marginalCostWithOm = computeFallbackMarginalCostWithOm(
                 economicCostTrajectories, fuel, commonParam, dto
         );
 
@@ -355,30 +357,57 @@ public class ThermalCostAssembler {
         );
     }
 
-    private Double computeFallbackMarginalCostWithOm(
+    private BigDecimal computeFallbackMarginalCostWithOm(
             ThermalCostEntity economicCostTrajectories,
             String fuel,
             ThermalCommonParameterEntity commonParam,
             ThermalClusterGenerationDto dto
     ) {
-        double omCost = (commonParam != null && commonParam.getOmCost() != null) ? commonParam.getOmCost() : 0.0;
+        BigDecimal omCost = (commonParam != null && commonParam.getOmCost() != null) 
+            ? BigDecimal.valueOf(commonParam.getOmCost()) 
+            : BigDecimal.ZERO;
         if (economicCostTrajectories == null)
             return omCost;
         TrajectoryEntity trajectory = economicCostTrajectories.getTrajectory();
         if (trajectory == null)
             return omCost;
-        Double fuelCost = findFuelCost(trajectory, fuel);
-        Double co2Cost = findCo2Cost(trajectory);
+        BigDecimal fuelCost = findFuelCost(trajectory, fuel);
+        BigDecimal co2Cost = findCo2Cost(trajectory);
         Double efficiency = dto.getEfficiency();
         if (efficiency != null && efficiency > 1.0)
             efficiency = efficiency / 100.0;
 
         if (fuelCost != null && co2Cost != null && efficiency != null && efficiency != 0.0) {
-            Double co2Value = dto.getCo2() != null ? dto.getCo2() : 0.0;
+            BigDecimal co2Value = dto.getCo2() != null ? BigDecimal.valueOf(dto.getCo2()) : BigDecimal.ZERO;
+            BigDecimal efficiencyBD = BigDecimal.valueOf(efficiency);
             // Formula: fuel / efficiency + CO2 cost * CO2 (calculated in computeCo2) + om_cost
-            return (fuelCost / efficiency) + (co2Cost * co2Value) + omCost;
+            return fuelCost.divide(efficiencyBD, 14, RoundingMode.HALF_UP)
+                    .add(co2Cost.multiply(co2Value))
+                    .add(omCost);
         }
         return omCost;
+    }
+
+    private BigDecimal findFuelCost(TrajectoryEntity trajectory, String fuel) {
+        if (trajectory == null || trajectory.getThermalCosts() == null) return null;
+        for (ThermalCostEntity costEntity : trajectory.getThermalCosts()) {
+            ThermalCostTypeEntity type = costEntity.getThermalType();
+            if (type != null && type.getFuel() != null && type.getFuel().equalsIgnoreCase(fuel) && costEntity.getCost() != null) {
+                return costEntity.getCost();
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal findCo2Cost(TrajectoryEntity trajectory) {
+        if (trajectory == null || trajectory.getThermalCosts() == null) return null;
+        for (ThermalCostEntity costEntity : trajectory.getThermalCosts()) {
+            ThermalCostTypeEntity type = costEntity.getThermalType();
+            if (type != null && CO2.equalsIgnoreCase(type.getFuel()) && costEntity.getCost() != null) {
+                return costEntity.getCost();
+            }
+        }
+        return null;
     }
 
     /**
@@ -393,7 +422,7 @@ public class ThermalCostAssembler {
     public void computeMarketBidCost(ThermalClusterGenerationDto dto, List<ThermalCommonParameterEntity> commonParams,
                                      List<ThermalSpecificParametersEntity> specificParams) {
 
-        Double marketBid = null;
+        BigDecimal marketBid = null;
 
         if (!commonParams.isEmpty()) {
             ThermalCommonParameterEntity firstCommon = commonParams.getFirst();
@@ -414,25 +443,4 @@ public class ThermalCostAssembler {
         }
     }
 
-    private Double findFuelCost(TrajectoryEntity trajectory, String fuel) {
-        if (trajectory == null || trajectory.getThermalCosts() == null) return null;
-        for (ThermalCostEntity costEntity : trajectory.getThermalCosts()) {
-            ThermalCostTypeEntity type = costEntity.getThermalType();
-            if (type != null && type.getFuel() != null && type.getFuel().equalsIgnoreCase(fuel) && costEntity.getCost() != null) {
-                return costEntity.getCost();
-            }
-        }
-        return null;
-    }
-
-    private Double findCo2Cost(TrajectoryEntity trajectory) {
-        if (trajectory == null || trajectory.getThermalCosts() == null) return null;
-        for (ThermalCostEntity costEntity : trajectory.getThermalCosts()) {
-            ThermalCostTypeEntity type = costEntity.getThermalType();
-            if (type != null && CO2.equalsIgnoreCase(type.getFuel()) && costEntity.getCost() != null) {
-                return costEntity.getCost();
-            }
-        }
-        return null;
-    }
 }
