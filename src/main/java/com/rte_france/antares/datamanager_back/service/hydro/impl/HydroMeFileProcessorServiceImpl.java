@@ -39,6 +39,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final HydroCapacityMeRepository hydroCapacityMeRepository;
     private final TrajectoryServiceImpl trajectoryService;
 
@@ -74,8 +75,11 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                                 .message("User NNI could not be determined")
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
-
-        Path trajectoryPath = trajectoryService.buildTrajectoryPath(trajectoryToUse,TrajectoryType.HYDRO_CAPACITY_ME);
+        
+        String nasDir = antaresDataManagerProperties.getNasDirectory();
+        String trajFilePath = antaresDataManagerProperties.getTrajectoryFilePath();
+        String directoryByType = antaresDataManagerProperties.getHydroCapacityMeDirectory();
+        Path trajectoryPath = buildTrajectoryPath(nasDir, trajFilePath, directoryByType, trajectoryToUse);
         
         try (InputStream fis = Files.newInputStream(trajectoryPath);
              Workbook workbook = WorkbookFactory.create(fis)) {
