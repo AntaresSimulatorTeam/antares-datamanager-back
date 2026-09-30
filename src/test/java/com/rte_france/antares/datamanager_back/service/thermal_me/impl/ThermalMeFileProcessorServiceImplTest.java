@@ -234,7 +234,7 @@ class ThermalMeFileProcessorServiceImplTest {
     }
 
     @Test
-    @DisplayName("saveThermalMeTrajectoryInDb - should increment version when file already exists with different content")
+    @DisplayName("saveThermalMeTrajectoryInDb - should increment version and build entities when file already exists with different content")
     void saveThermalMeTrajectoryInDb_createNewVersionWhenContentDifferent_success() throws IOException {
         String trajectoryName = "test_trajectory";
         String horizon = "2024-2025";
@@ -253,6 +253,10 @@ class ThermalMeFileProcessorServiceImplTest {
 
         assertNotNull(result);
         assertEquals(2, result.getVersion());
+        assertNotNull(result.getThermalMeEntities());
+        assertEquals(1, result.getThermalMeEntities().size());
+        assertEquals("FR", result.getThermalMeEntities().get(0).getNode());
+        assertEquals(result, result.getThermalMeEntities().get(0).getTrajectory());
         verify(trajectoryRepository, times(1)).save(argThat(t -> t.getVersion() == 2));
     }
 
