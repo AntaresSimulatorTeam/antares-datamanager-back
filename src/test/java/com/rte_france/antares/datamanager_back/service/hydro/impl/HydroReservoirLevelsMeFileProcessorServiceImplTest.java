@@ -278,7 +278,7 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
             BusinessException exception = assertThrows(BusinessException.class, () ->
                     hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(testTrajectoryName, testHorizon, studyId));
 
-            assertEquals("Directory already processed with same content: {0}", exception.getMessage());
+            assertEquals("File already processed with same content: {0}", exception.getMessage());
             assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
             assertThat(exception.getErrorMessageArguments()).containsExactly(testTrajectoryName);
         }
