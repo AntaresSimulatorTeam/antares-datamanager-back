@@ -69,7 +69,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (isSameFileWithSameContent(trajectoryPath, existingTrajectory)) {
                 throw BusinessException.builder()
-                        .message("Directory already processed with same content: {0}")
+                        .message("File already processed with same content: {0}")
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -109,7 +109,9 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
         }
 
         // Get valid nodes from HYDRO_CAPACITY_ME associated to the study
-        List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId).stream().map(node -> node+"_"+RESERVOIR_LEVELS_FILE).collect(Collectors.toList());
+        List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId)
+                .stream().map(node -> node+"_"+RESERVOIR_LEVELS_FILE)
+                .collect(Collectors.toList());
         if (!validNodes.isEmpty()) {
             // Check if at least one node directory exists in validNodes
             boolean hasAtLeastOneValidNode = nodeFiles.stream()

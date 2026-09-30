@@ -164,18 +164,24 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                 }
 
                 // Validate numeric columns: D (inter.daily.breakdown), E (inter.monthly.breakdown), F (initialize.reservoir.date), I (pumping.efficiency)
+                validateNumericColumn(row, 1, "inter.monthly.correlation", trajectoryName);
+                validateNumericColumn(row, 2, "inter.daily.breakdown", trajectoryName);
                 validateNumericColumn(row, 3, "inter.daily.modulation", trajectoryName);
                 validateNumericColumn(row, 4, "inter.monthly.breakdown", trajectoryName);
                 validateNumericColumn(row, 5, "initialize.reservoir.date", trajectoryName);
+                validateNumericColumn(row, 6, "leeway.low", trajectoryName);
+                validateNumericColumn(row, 7, "leeway.up", trajectoryName);
                 validateNumericColumn(row, 8, "pumping.efficiency", trajectoryName);
 
                 // Validate boolean columns
-                validateBooleanColumn(row, 6, "reservoir management", trajectoryName);
-                validateBooleanColumn(row, 7, "follow.load", trajectoryName);
-                validateBooleanColumn(row, 8, "use.heuristic", trajectoryName);
-                validateBooleanColumn(row, 9, "use.water", trajectoryName);
-                validateBooleanColumn(row, 10, "hard.bounds", trajectoryName);
-                validateBooleanColumn(row, 11, "power.to.level", trajectoryName);
+                //reservoir management	follow.load	use.heuristic	use.water	hard.bounds	use.leeway	power.to.level
+                validateBooleanColumn(row, 9, "reservoir management", trajectoryName);
+                validateBooleanColumn(row, 10, "follow.load", trajectoryName);
+                validateBooleanColumn(row, 11, "use.heuristic", trajectoryName);
+                validateBooleanColumn(row, 12, "use.water", trajectoryName);
+                validateBooleanColumn(row, 13, "hard.bounds", trajectoryName);
+                validateBooleanColumn(row, 14, "use.leeway", trajectoryName);
+                validateBooleanColumn(row, 15, "power.to.level", trajectoryName);
 
                 // Build entity and add to list for batch insert
                 HydroParametersMeEntity entity = HydroParametersMeEntity.builder()
@@ -339,7 +345,15 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
     private void validateNumericColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
         Cell cell = row.getCell(cellIndex);
-        if (cell != null && cell.getCellType() != CellType.BLANK) {
+        if(cell == null || cell.getStringCellValue().isEmpty())
+        {
+            throw BusinessException.builder()
+                    .message("Column {0} must not be null or empty  in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        if (cell.getCellType() != CellType.BLANK) {
             if (!isNumeric(cell)) {
                 throw BusinessException.builder()
                         .message("Column {0} must be numeric in HYDRO_ME Param Hydro trajectory {1}")
@@ -352,7 +366,15 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
     private void validateBooleanColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
         Cell cell = row.getCell(cellIndex);
-        if (cell != null && cell.getCellType() != CellType.BLANK) {
+        if(cell == null || cell.getStringCellValue().isEmpty())
+        {
+            throw BusinessException.builder()
+                    .message("Column {0} must not be null or empty  in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        if (cell.getCellType() != CellType.BLANK) {
             String value = getCellStringValue(cell).toLowerCase().trim();
             if (!value.isEmpty() && !value.matches("^(true|false|0|1|yes|no)$")) {
                 throw BusinessException.builder()

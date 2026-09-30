@@ -706,41 +706,8 @@ class HydroParametersMeFileProcessorServiceImplTest {
             headerRow.createCell(i).setCellValue(headers[i]);
         }
 
-        var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("node_1");
-        dataRow.createCell(1).setCellValue(0.5);
-        dataRow.createCell(2).setCellValue(0.6);
-        dataRow.createCell(3).setCellValue(0.7);
-        dataRow.createCell(4).setCellValue(0.8);
-        dataRow.createCell(5).setCellValue(10);
-        dataRow.createCell(6).setCellValue(0.2);
-        dataRow.createCell(7).setCellValue(0.3);
-        dataRow.createCell(8).setCellValue(0.9);
-        dataRow.createCell(9).setCellValue(true);
-        dataRow.createCell(10).setCellValue(false);
-        dataRow.createCell(11).setCellValue(true);
-        dataRow.createCell(12).setCellValue(false);
-        dataRow.createCell(13).setCellValue(true);
-        dataRow.createCell(14).setCellValue(false);
-        dataRow.createCell(15).setCellValue(true);
-
-        var dataRow2 = sheet.createRow(2);
-        dataRow2.createCell(0).setCellValue("node_2");
-        dataRow2.createCell(1).setCellValue(0.5);
-        dataRow2.createCell(2).setCellValue(0.6);
-        dataRow2.createCell(3).setCellValue(0.7);
-        dataRow2.createCell(4).setCellValue(0.8);
-        dataRow2.createCell(5).setCellValue(10);
-        dataRow2.createCell(6).setCellValue(0.2);
-        dataRow2.createCell(7).setCellValue(0.3);
-        dataRow2.createCell(8).setCellValue(0.9);
-        dataRow2.createCell(9).setCellValue(true);
-        dataRow2.createCell(10).setCellValue(false);
-        dataRow2.createCell(11).setCellValue(true);
-        dataRow2.createCell(12).setCellValue(false);
-        dataRow2.createCell(13).setCellValue(true);
-        dataRow2.createCell(14).setCellValue(false);
-        dataRow2.createCell(15).setCellValue(true);
+        fillValidParamRow(sheet.createRow(1), "node_1");
+        fillValidParamRow(sheet.createRow(2), "node_2");
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
@@ -762,29 +729,32 @@ class HydroParametersMeFileProcessorServiceImplTest {
 
         // Create 3 data rows for node_1, node_2, node_3
         for (int row = 1; row <= 3; row++) {
-            var dataRow = sheet.createRow(row);
-            dataRow.createCell(0).setCellValue("node_" + row);
-            dataRow.createCell(1).setCellValue(0.5);
-            dataRow.createCell(2).setCellValue(0.6);
-            dataRow.createCell(3).setCellValue(0.7);
-            dataRow.createCell(4).setCellValue(0.8);
-            dataRow.createCell(5).setCellValue(10);
-            dataRow.createCell(6).setCellValue(0.2);
-            dataRow.createCell(7).setCellValue(0.3);
-            dataRow.createCell(8).setCellValue(0.9);
-            dataRow.createCell(9).setCellValue(true);
-            dataRow.createCell(10).setCellValue(false);
-            dataRow.createCell(11).setCellValue(true);
-            dataRow.createCell(12).setCellValue(false);
-            dataRow.createCell(13).setCellValue(true);
-            dataRow.createCell(14).setCellValue(false);
-            dataRow.createCell(15).setCellValue(true);
+            fillValidParamRow(sheet.createRow(row), "node_" + row);
         }
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
         }
         workbook.close();
+    }
+
+    private void fillValidParamRow(org.apache.poi.ss.usermodel.Row dataRow, String nodeName) {
+        dataRow.createCell(0).setCellValue(nodeName);
+        dataRow.createCell(1).setCellValue("0.5");
+        dataRow.createCell(2).setCellValue("0.6");
+        dataRow.createCell(3).setCellValue("0.7");
+        dataRow.createCell(4).setCellValue("0.8");
+        dataRow.createCell(5).setCellValue("10");
+        dataRow.createCell(6).setCellValue("0.2");
+        dataRow.createCell(7).setCellValue("0.3");
+        dataRow.createCell(8).setCellValue("0.9");
+        dataRow.createCell(9).setCellValue("true");
+        dataRow.createCell(10).setCellValue("false");
+        dataRow.createCell(11).setCellValue("true");
+        dataRow.createCell(12).setCellValue("false");
+        dataRow.createCell(13).setCellValue("true");
+        dataRow.createCell(14).setCellValue("false");
+        dataRow.createCell(15).setCellValue("true");
     }
 
     private void createParamHydroMeFileWithHorizon(String sheetName) throws IOException {
@@ -836,8 +806,8 @@ class HydroParametersMeFileProcessorServiceImplTest {
         headerRow.createCell(0).setCellValue("Node");
         headerRow.createCell(3).setCellValue("inter.daily.breakdown");
         var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("node_1");
-        dataRow.createCell(3).setCellValue("not_a_number");
+        fillValidParamRow(dataRow, "node_1");
+        dataRow.getCell(3).setCellValue("not_a_number");
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
@@ -852,8 +822,8 @@ class HydroParametersMeFileProcessorServiceImplTest {
         headerRow.createCell(0).setCellValue("Node");
         headerRow.createCell(9).setCellValue("reservoir management");
         var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("node_1");
-        dataRow.createCell(9).setCellValue("maybe");
+        fillValidParamRow(dataRow, "node_1");
+        dataRow.getCell(9).setCellValue("maybe");
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
