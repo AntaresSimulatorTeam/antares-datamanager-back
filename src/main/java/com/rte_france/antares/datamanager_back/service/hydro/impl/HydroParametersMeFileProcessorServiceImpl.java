@@ -98,26 +98,26 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-            
+
             TrajectoryEntity newTrajectory = buildNewHydroParametersMeTrajectory(trajectoryToUse, horizon, trajectoryDir, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-            
+
             // Parse and insert data in single pass for each file
             parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, savedTrajectory.getId());
             parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
-            
+
             return savedTrajectory;
         }
 
         // New trajectory
         TrajectoryEntity newTrajectory = buildNewHydroParametersMeTrajectory(trajectoryToUse, horizon, trajectoryDir, userNni);
         TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-        
+
         // Parse and insert data in single pass for each file
         parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, savedTrajectory.getId());
         parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
-        
+
         return savedTrajectory;
     }
 
@@ -203,7 +203,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .useLeeway(getBooleanCellValue(row.getCell(14)))
                         .powerToLevel(getBooleanCellValue(row.getCell(15)))
                         .build();
-                
+
                 entitiesToInsert.add(entity);
             }
         }
