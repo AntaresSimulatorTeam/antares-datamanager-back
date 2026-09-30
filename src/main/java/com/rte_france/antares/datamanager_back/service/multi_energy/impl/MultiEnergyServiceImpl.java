@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
@@ -35,6 +36,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     private static final String AREA_ME = "area_me";
     private static final String LINKS_ME = "links_me";
     private static final String STS_ME = "sts_me";
+    private static final String HYDRO_ME = "hydro_me";
     private static final String PROPERTIES = "properties";
     private static final String BINDING_CONSTRAINTS_ME = "binding_constraints_me";
     private static final String UI = "ui";
@@ -66,6 +68,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     private final LoadToJsonService loadToJsonService;
     private final StsToJsonService stsToJsonService;
     private final ThermalToJsonService thermalToJsonService;
+    private final HydroMeToJsonService hydroMeToJsonService;
 
     private record P2gBindingConstraint(String node, BigDecimal efficiency) {
     }
@@ -199,6 +202,12 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         TrajectoryEntity constraintMeTrajectory =
                 trajectoriesByType.get(TrajectoryType.CONSTRAINT_ME);
 
+        TrajectoryEntity hydroCapacityMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.HYDRO_CAPACITY_ME);
+
+        TrajectoryEntity hydroParametersMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.HYDRO_PARAMETERS_ME);
+
         Map<String, Object> meMap = new LinkedHashMap<>();
 
         Map<String, Object> areasMap = buildAreasMap(study, areaMeTrajectory, stsMeTrajectory);
@@ -209,6 +218,13 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         Map<String, Object> linksMap = buildLinksMeMap(linkMeTrajectory);
         if (!linksMap.isEmpty()) {
             meMap.put(LINKS_ME, linksMap);
+        }
+
+        Map<String, Object> hydroMeMap = hydroMeToJsonService != null
+                ? hydroMeToJsonService.buildHydroMeMap(hydroCapacityMeTrajectory, hydroParametersMeTrajectory)
+                : Collections.emptyMap();
+        if (hydroMeMap != null && !hydroMeMap.isEmpty()) {
+            meMap.put(HYDRO_ME, hydroMeMap);
         }
 
         Map<String, Object> bindingConstraintsMeMap =

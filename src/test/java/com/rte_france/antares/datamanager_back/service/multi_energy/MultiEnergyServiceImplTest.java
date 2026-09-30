@@ -18,6 +18,7 @@ import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettings
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
@@ -54,6 +55,9 @@ class MultiEnergyServiceImplTest {
 
     @Mock
     private ThermalToJsonService thermalToJsonService;
+
+    @Mock
+    private HydroMeToJsonService hydroMeToJsonService;
 
 
     @InjectMocks
@@ -339,7 +343,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnNoLoadFiles() {
         // Given
-        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService);
+        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService, hydroMeToJsonService);
         AreaConfigEntity config = AreaConfigEntity.builder()
                 .area(AreaEntity.builder().name("AREA1").build())
                 .build();
@@ -1071,5 +1075,53 @@ class MultiEnergyServiceImplTest {
         assertThat(result).isNotNull().containsKey("area_me");
         verify(stsPropertiesAssemblerService, times(1)).assembleStsMeProperties(studyEntity, stsMeTrajectory);
         verify(stsToJsonService, times(3)).stsMeMapGenerator(any(), any());
+    }
+
+    @Test
+    void buildMultiEnergyMap_withHydroCapacityMeTrajectory_shouldAddHydroMe() {
+        // Given
+        TrajectoryEntity hydroCapacityMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
+                .fileName("hydro_capacity_me")
+                .build();
+        Map<String, Object> hydroMe = Map.of("node", Map.of("properties", Map.of("reservoir_capacity", 5376)));
+        when(hydroMeToJsonService.buildHydroMeMap(hydroCapacityMeTrajectory, null)).thenReturn(hydroMe);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, hydroCapacityMeTrajectory);
+
+        // Then
+        assertThat(result).containsEntry("hydro_me", hydroMe);
+    }
+
+    @Test
+    void buildMultiEnergyMap_withoutHydroCapacityMeData_shouldNotAddHydroMe() {
+        // Given
+        when(hydroMeToJsonService.buildHydroMeMap(any(), any())).thenReturn(Collections.emptyMap());
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, linkMeTrajectory);
+
+        // Then
+        assertThat(result).doesNotContainKey("hydro_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withHydroParametersMeTrajectory_shouldPassItToHydroMeService() {
+        // Given
+        TrajectoryEntity hydroCapacityMeTrajectory = TrajectoryEntity.builder()
+                .id(10).type(TrajectoryType.HYDRO_CAPACITY_ME.name()).fileName("hydro_capacity_me").build();
+        TrajectoryEntity hydroParametersMeTrajectory = TrajectoryEntity.builder()
+                .id(11).type(TrajectoryType.HYDRO_PARAMETERS_ME.name()).fileName("hydro_parameters_me").build();
+        Map<String, Object> hydroMe = Map.of("node", Map.of("allocation", Map.of("BE", 1)));
+        when(hydroMeToJsonService.buildHydroMeMap(hydroCapacityMeTrajectory, hydroParametersMeTrajectory)).thenReturn(hydroMe);
+
+        // When
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(
+                studyEntity, hydroCapacityMeTrajectory, hydroParametersMeTrajectory);
+
+        // Then
+        assertThat(result).containsEntry("hydro_me", hydroMe);
     }
 }
