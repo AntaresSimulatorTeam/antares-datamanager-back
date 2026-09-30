@@ -102,6 +102,9 @@ class StudyGeneratorServiceImplTest {
     private MultiEnergyService multiEnergyService;
 
     @Mock
+    private com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonService hydroMeToJsonService;
+
+    @Mock
     private AdequacySettingsToJsonService adequacySettingsToJsonService;
 
     @Mock
@@ -302,7 +305,7 @@ class StudyGeneratorServiceImplTest {
                     trajs.add(null);
                 }
             }
-return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService)
+return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService, hydroMeToJsonService)
                     .buildMultiEnergyMapWithThermalClusterProps(
                             study, inv.getArgument(1), trajs.toArray(new TrajectoryEntity[0]));
         }).when(multiEnergyService).buildMultiEnergyMapWithThermalClusterProps(

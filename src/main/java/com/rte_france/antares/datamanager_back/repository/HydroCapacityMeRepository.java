@@ -17,5 +17,7 @@ public interface HydroCapacityMeRepository extends JpaRepository<HydroCapacityMe
            "  WHERE st.id.scenarioId = :studyId AND st.trajectory.type = 'HYDRO_CAPACITY_ME'" +
            ")")
     List<String> findDistinctNodesByStudyId(@Param("studyId") Integer studyId);
+
+    List<HydroCapacityMeEntity> findByTrajectoryIdOrderByNodeAsc(Integer trajectoryId);
 }
 
