@@ -1,10 +1,12 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
-import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.dto.*;
+import com.rte_france.antares.datamanager_back.mapper.ThermalMeMapper;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -19,30 +21,13 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ThermalPropertiesAssemblerService {
+public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesAssemblerService {
 
     private final ThermalGroupMappingService thermalGroupMappingService;
 
     private final ThermalParamModulationService thermalParamModulationService;
 
     private final ThermalCostAssembler thermalCostAssembler;
-
-    public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof AreaClusterRefKey that)) return false;
-            String thisName = this.thermalClusterRef != null ? this.thermalClusterRef.getName() : null;
-            String thatName = that.thermalClusterRef != null ? that.thermalClusterRef.getName() : null;
-            return Objects.equals(this.area, that.area) && Objects.equals(thisName, thatName);
-        }
-
-        @Override
-        public int hashCode() {
-            String name = this.thermalClusterRef != null ? this.thermalClusterRef.getName() : null;
-            return Objects.hash(area, name);
-        }
-    }
 
     /**
      * Builds thermal properties by {@code (area, cluster_ref)} from the given trajectories.
@@ -150,6 +135,18 @@ public class ThermalPropertiesAssemblerService {
         }
 
         return thermalClusterGenerationOutput;
+    }
+    
+    public Map<String, ThermalMEClusterGenerationDto> assembleThermalMeProperties(TrajectoryEntity trajectoryEntity) {
+        List<ThermalMeEntity> thermalMeEntities = trajectoryEntity.getThermalMeEntities();
+
+        return thermalMeEntities.stream()
+                .collect(Collectors.toMap(
+                        entity -> entity.getNode().toUpperCase() + "_" + entity.getClusterName().toUpperCase(),
+                        ThermalMeMapper::mapToThermalMeGenerationDTO,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ));
     }
 
     public static List<String> extractModulationParamTsFilesByAreaClusterRefKey(List<String> splitedTsFileNameList, AreaClusterRefKey areaClusterRefKey) {
