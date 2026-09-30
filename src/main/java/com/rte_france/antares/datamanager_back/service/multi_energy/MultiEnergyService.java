@@ -3,7 +3,7 @@ package com.rte_france.antares.datamanager_back.service.multi_energy;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 
 import java.util.Collections;
 import java.util.Map;
