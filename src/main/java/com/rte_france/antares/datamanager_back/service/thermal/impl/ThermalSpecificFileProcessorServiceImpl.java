@@ -109,11 +109,14 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private boolean shouldSkipSpecificRow(String rowAreaUpper, boolean isOthers, String selectedAreaUpper, Set<String> studyAreasSet) {
         if (rowAreaUpper == null || rowAreaUpper.isBlank()) {
+            log.info("Row area is null or blank");
             return true;
         }
         if (!isOthers && !rowAreaUpper.equals(selectedAreaUpper)) {
+            log.info("Row area does not match selected area");
             return true;
         }
+        log.info("Row area is valid");
         return !studyAreasSet.contains(rowAreaUpper);
     }
 
