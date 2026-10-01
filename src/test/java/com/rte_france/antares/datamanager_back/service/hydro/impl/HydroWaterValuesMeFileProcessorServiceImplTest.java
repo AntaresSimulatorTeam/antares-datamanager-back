@@ -18,7 +18,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -495,6 +499,70 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
     }
 
     private void createExcelFile(Path filePath) throws IOException {
-        Files.createFile(filePath);
+        createExcelFileWithSheet(filePath, "2030"); // Default sheet name based on horizon "2029-2030"
+    }
+
+    private void createExcelFileWithSheet(Path filePath, String sheetName) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            workbook.createSheet(sheetName);
+            try (OutputStream out = Files.newOutputStream(filePath)) {
+                workbook.write(out);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Should throw exception when Excel file is missing required sheet")
+    void testProcessHydroWaterValuesMeDirectory_MissingRequiredSheet() throws IOException {
+        // Arrange - Create Excel file without the required sheet "2030"
+        createExcelFileWithSheet(waterValuesDir.resolve("waterValues_node1.xlsx"), "2031");
+
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(List.of("node1"));
+
+        // Act & Assert
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(
+                        trajectoryName, horizon, studyId));
+
+        assertTrue(exception.getMessage().contains("does not contain required sheet"), 
+                "Exception message should contain 'does not contain required sheet'. Got: " + exception.getMessage());
+        assertTrue(exception.getMessage().contains("2030"), 
+                "Exception message should contain '2030'. Got: " + exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should successfully process when all Excel files have required sheet")
+    void testProcessHydroWaterValuesMeDirectory_AllFilesHaveRequiredSheet() throws IOException {
+        // Arrange - Create Excel files with the required sheet "2030"
+        createExcelFileWithSheet(waterValuesDir.resolve("waterValues_node1.xlsx"), "2030");
+        createExcelFileWithSheet(waterValuesDir.resolve("waterValues_node2.xlsx"), "2030");
+
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(List.of("node1", "node2"));
+
+        TrajectoryEntity expectedTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryName)
+                .horizon(horizon)
+                .type(TrajectoryType.HYDRO_WATER_VALUES_ME.name())
+                .version(1)
+                .build();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.HYDRO_WATER_VALUES_ME.name()))
+                .thenReturn(Optional.empty());
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(expectedTrajectory);
+
+        // Act
+        TrajectoryEntity result = hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(
+                trajectoryName, horizon, studyId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(trajectoryName, result.getFileName());
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
     }
 }

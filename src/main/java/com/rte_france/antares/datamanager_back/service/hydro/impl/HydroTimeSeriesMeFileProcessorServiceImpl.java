@@ -15,7 +15,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,7 +62,7 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
 
         Path trajectoryPath = buildTrajectoryPath(trajectoryToUse);
 
-        validateHydroTimeSeriesMeDirectory(trajectoryPath, trajectoryToUse, studyId);
+        validateHydroTimeSeriesMeDirectory(trajectoryPath, trajectoryToUse, studyId, horizon);
 
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.HYDRO_TIME_SERIES_ME.name());
@@ -80,7 +85,7 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
         return trajectoryRepository.save(newTrajectory);
     }
 
-    private void validateHydroTimeSeriesMeDirectory(Path trajectoryPath, String trajectoryName, Integer studyId) throws IOException {
+    private void validateHydroTimeSeriesMeDirectory(Path trajectoryPath, String trajectoryName, Integer studyId, String horizon) throws IOException {
         if (!Files.isDirectory(trajectoryPath)) {
             throw BusinessException.builder()
                     .message("Trajectory must be a directory: {0}")
@@ -125,13 +130,22 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
 
                 // Only validate files if node exists in HYDRO_CAPACITY_ME
                 if (validNodes.contains(nodeName)) {
-                    validateNodeDirectory(nodeDir, nodeName, trajectoryName);
+                    validateNodeDirectory(nodeDir, nodeName, trajectoryName, horizon);
                 }
+            }
+        } else {
+            // Validate each node directory that exists in validNodes
+            for (Path nodeDir : nodeDirectories) {
+                String nodeName = nodeDir.getFileName().toString();
+
+                // Only validate files if node exists in HYDRO_CAPACITY_ME
+                    validateNodeDirectory(nodeDir, nodeName, trajectoryName, horizon);
+
             }
         }
     }
 
-    private void validateNodeDirectory(Path nodeDir, String nodeName, String trajectoryName) throws IOException {
+    private void validateNodeDirectory(Path nodeDir, String nodeName, String trajectoryName, String horizon) throws IOException {
         // Check if mod.xlsx exists
         Path modFile = nodeDir.resolve(MOD_FILE);
         if (!Files.exists(modFile) || !Files.isRegularFile(modFile)) {
@@ -150,6 +164,29 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
                     .errorMessageArguments(List.of(nodeName, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
+        }
+
+        // Extract the second part of horizon (e.g., "2030" from "2029-2030")
+        String secondPartOfHorizon = horizon.split("-")[1];
+
+        // Validate that mod.xlsx contains required sheet
+        validateExcelFileHasSheet(modFile, secondPartOfHorizon, MOD_FILE, nodeName, trajectoryName);
+
+        // Validate that ror.xlsx contains required sheet
+        validateExcelFileHasSheet(rorFile, secondPartOfHorizon, ROR_FILE, nodeName, trajectoryName);
+    }
+
+    private void validateExcelFileHasSheet(Path excelFile, String requiredSheet, String fileName, String nodeName, String trajectoryName) throws IOException {
+        try (InputStream inputStream = Files.newInputStream(excelFile);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            Sheet sheet = workbook.getSheet(requiredSheet);
+            if (sheet == null) {
+                throw BusinessException.builder()
+                        .message(String.format("Excel file %s in node %s does not contain required sheet: %s (trajectory: %s)",
+                                fileName, nodeName, requiredSheet, trajectoryName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
         }
     }
 
