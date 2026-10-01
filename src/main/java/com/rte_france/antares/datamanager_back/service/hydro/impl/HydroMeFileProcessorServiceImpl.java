@@ -123,7 +123,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
         Path trajectoryPath = trajectoryService.buildTrajectoryPath(trajectoryToUse, TrajectoryType.HYDRO_WATER_VALUES_ME);
 
-        validateHydroWaterValuesMeDirectory(trajectoryPath, trajectoryToUse, studyId);
+        validateHydroWaterValuesMeDirectory(trajectoryPath, trajectoryToUse, studyId, horizon);
 
         Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                 .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.HYDRO_WATER_VALUES_ME.name());
@@ -132,7 +132,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (isSameFileWithSameContent(trajectoryPath, existingTrajectory, TrajectoryType.HYDRO_WATER_VALUES_ME)) {
                 throw BusinessException.builder()
-                        .message("Directory already processed with same content: {0}")
+                        .message("File already processed with same content: {0}")
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -146,7 +146,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         return trajectoryRepository.save(newTrajectory);
     }
 
-    private void validateHydroWaterValuesMeDirectory(Path trajectoryPath, String trajectoryName, Integer studyId) throws IOException {
+    private void validateHydroWaterValuesMeDirectory(Path trajectoryPath, String trajectoryName, Integer studyId , String horizon) throws IOException {
         if (!Files.isDirectory(trajectoryPath)) {
             throw BusinessException.builder()
                     .message("Trajectory must be a directory: {0}")
@@ -156,20 +156,37 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         }
 
         // Get all Excel files (*.xlsx) in the directory
-        List<String> excelFiles;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(trajectoryPath, "*.xlsx")) {
-            excelFiles = new ArrayList<>();
-            stream.forEach(path -> excelFiles.add(path.getFileName().toString()));
+        List<Path> excelFilePaths;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(trajectoryPath, "waterValues_*.xlsx")) {
+            excelFilePaths = new ArrayList<>();
+            stream.forEach(excelFilePaths::add);
         }
-
-         if(excelFiles.isEmpty()) {
+         if(excelFilePaths.isEmpty()) {
             throw BusinessException.builder()
                     .message("No Excel files found in the directory: {0}")
                     .errorMessageArguments(List.of(trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        // Get valid nodes from HYDRO_CAPACITY_ME associated to the study
+        List<String> excelFiles = new ArrayList<>();
+        String secondPartOfHorizon = horizon.split("-")[1];
+
+        // Validate that each Excel file contains a sheet named with secondPartOfHorizon
+        for (Path excelFilePath : excelFilePaths) {
+            try (InputStream inputStream = Files.newInputStream(excelFilePath);
+                 Workbook workbook = WorkbookFactory.create(inputStream)) {
+                Sheet requiredSheet = workbook.getSheet(secondPartOfHorizon);
+                if (requiredSheet == null) {
+                    throw BusinessException.builder()
+                            .message(String.format("Excel file %s does not contain required sheet: %s", 
+                                    excelFilePath.getFileName().toString(), secondPartOfHorizon))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                excelFiles.add(excelFilePath.getFileName().toString());
+            }
+        }
+
         List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId);
 
         if (!validNodes.isEmpty()) {

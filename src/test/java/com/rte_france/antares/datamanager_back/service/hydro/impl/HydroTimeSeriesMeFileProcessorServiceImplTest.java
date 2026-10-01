@@ -19,11 +19,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -81,16 +85,19 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
         trajectoryPath = timeseriesPath.resolve(testTrajectoryName);
         Files.createDirectories(trajectoryPath);
         
-        // Create node directories with required files
+        // Extract the second part of horizon (e.g., "2021" from "2020-2021")
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        
+        // Create node directories with required files containing the horizon sheet
         Path node1Dir = trajectoryPath.resolve("node1");
         Files.createDirectories(node1Dir);
-        Files.createFile(node1Dir.resolve("mod.xlsx"));
-        Files.createFile(node1Dir.resolve("ror.xlsx"));
+        createExcelFileWithSheet(node1Dir.resolve("mod.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(node1Dir.resolve("ror.xlsx"), secondPartOfHorizon);
         
         Path node2Dir = trajectoryPath.resolve("node2");
         Files.createDirectories(node2Dir);
-        Files.createFile(node2Dir.resolve("mod.xlsx"));
-        Files.createFile(node2Dir.resolve("ror.xlsx"));
+        createExcelFileWithSheet(node2Dir.resolve("mod.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(node2Dir.resolve("ror.xlsx"), secondPartOfHorizon);
     }
 
     @Test
@@ -157,10 +164,11 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
                 .thenReturn(Arrays.asList("node1", "node2"));
 
         // Add a node3 that doesn't exist in HYDRO_CAPACITY_ME
+        String secondPartOfHorizon = testHorizon.split("-")[1];
         Path node3Dir = trajectoryPath.resolve("node3");
         Files.createDirectories(node3Dir);
-        Files.createFile(node3Dir.resolve("mod.xlsx"));
-        Files.createFile(node3Dir.resolve("ror.xlsx"));
+        createExcelFileWithSheet(node3Dir.resolve("mod.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(node3Dir.resolve("ror.xlsx"), secondPartOfHorizon);
 
         TrajectoryEntity savedTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -191,15 +199,16 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
                 .thenReturn(Arrays.asList("valid_node1", "valid_node2"));
 
         // All node directories don't exist in HYDRO_CAPACITY_ME
+        String secondPartOfHorizon = testHorizon.split("-")[1];
         Path invalidNode1 = trajectoryPath.resolve("invalid_node1");
         Files.createDirectories(invalidNode1);
-        Files.createFile(invalidNode1.resolve("mod.xlsx"));
-        Files.createFile(invalidNode1.resolve("ror.xlsx"));
+        createExcelFileWithSheet(invalidNode1.resolve("mod.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(invalidNode1.resolve("ror.xlsx"), secondPartOfHorizon);
 
         Path invalidNode2 = trajectoryPath.resolve("invalid_node2");
         Files.createDirectories(invalidNode2);
-        Files.createFile(invalidNode2.resolve("mod.xlsx"));
-        Files.createFile(invalidNode2.resolve("ror.xlsx"));
+        createExcelFileWithSheet(invalidNode2.resolve("mod.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(invalidNode2.resolve("ror.xlsx"), secondPartOfHorizon);
 
         // Delete the original node1 and node2
         Files.walk(trajectoryPath.resolve("node1"))
@@ -234,9 +243,10 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
                 .thenReturn(Arrays.asList("node1", "node2", "node_incomplete"));
 
         // Create node_incomplete with only ror.xlsx (missing mod.xlsx)
+        String secondPartOfHorizon = testHorizon.split("-")[1];
         Path incompleteNode = trajectoryPath.resolve("node_incomplete");
         Files.createDirectories(incompleteNode);
-        Files.createFile(incompleteNode.resolve("ror.xlsx"));
+        createExcelFileWithSheet(incompleteNode.resolve("ror.xlsx"), secondPartOfHorizon);
 
         assertThrows(BusinessException.class, () ->
                 hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
@@ -249,9 +259,10 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
                 .thenReturn(Arrays.asList("node1", "node2", "node_incomplete2"));
 
         // Create node_incomplete2 with only mod.xlsx (missing ror.xlsx)
+        String secondPartOfHorizon = testHorizon.split("-")[1];
         Path incompleteNode2 = trajectoryPath.resolve("node_incomplete2");
         Files.createDirectories(incompleteNode2);
-        Files.createFile(incompleteNode2.resolve("mod.xlsx"));
+        createExcelFileWithSheet(incompleteNode2.resolve("mod.xlsx"), secondPartOfHorizon);
 
         assertThrows(BusinessException.class, () ->
                 hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
@@ -365,6 +376,82 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
             verify(trajectoryRepository).save(any(TrajectoryEntity.class));
         }
     }
-}
 
+    @Test
+    @DisplayName("Should throw exception when mod.xlsx is missing required sheet")
+    void testProcessWithMissingRequiredSheetInModFile() throws IOException {
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(Arrays.asList("node1", "node2"));
+
+        // Create node with mod.xlsx missing the required sheet
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        Path node1Dir = trajectoryPath.resolve("node1");
+        createExcelFileWithSheet(node1Dir.resolve("mod.xlsx"), "2020"); // Wrong sheet name
+        createExcelFileWithSheet(node1Dir.resolve("ror.xlsx"), secondPartOfHorizon); // Correct sheet
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
+
+        assertTrue(exception.getMessage().contains("does not contain required sheet"));
+        assertTrue(exception.getMessage().contains("2021"));
+        assertTrue(exception.getMessage().contains("mod.xlsx"));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when ror.xlsx is missing required sheet")
+    void testProcessWithMissingRequiredSheetInRorFile() throws IOException {
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(Arrays.asList("node1", "node2"));
+
+        // Create node with ror.xlsx missing the required sheet
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        Path node1Dir = trajectoryPath.resolve("node1");
+        createExcelFileWithSheet(node1Dir.resolve("mod.xlsx"), secondPartOfHorizon); // Correct sheet
+        createExcelFileWithSheet(node1Dir.resolve("ror.xlsx"), "2020"); // Wrong sheet name
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
+
+        assertTrue(exception.getMessage().contains("does not contain required sheet"));
+        assertTrue(exception.getMessage().contains("2021"));
+        assertTrue(exception.getMessage().contains("ror.xlsx"));
+    }
+
+    @Test
+    @DisplayName("Should successfully process when all sheets are present with correct names")
+    void testProcessWithAllRequiredSheets() throws IOException {
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(Arrays.asList("node1", "node2"));
+
+        TrajectoryEntity savedTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(testTrajectoryName)
+                .type(TrajectoryType.HYDRO_TIME_SERIES_ME.name())
+                .horizon(testHorizon)
+                .build();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                testTrajectoryName, testHorizon, TrajectoryType.HYDRO_TIME_SERIES_ME.name()))
+                .thenReturn(Optional.empty());
+
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(savedTrajectory);
+
+        TrajectoryEntity result = hydroTimeSeriesMeFileProcessorService
+                .processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId);
+
+        assertNotNull(result);
+        assertEquals(testTrajectoryName, result.getFileName());
+        verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+    }
+
+    private void createExcelFileWithSheet(Path filePath, String sheetName) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            workbook.createSheet(sheetName);
+            try (OutputStream out = Files.newOutputStream(filePath)) {
+                workbook.write(out);
+            }
+        }
+    }
+}
 

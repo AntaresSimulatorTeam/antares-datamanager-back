@@ -345,44 +345,72 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
     private void validateNumericColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
         Cell cell = row.getCell(cellIndex);
-        if(cell == null || cell.getStringCellValue().isEmpty())
-        {
+        
+        // Check if cell is null or empty
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
             throw BusinessException.builder()
-                    .message("Column {0} must not be null or empty  in HYDRO_ME Param Hydro trajectory {1}")
+                    .message("Column {0} must not be null or empty in HYDRO_ME Param Hydro trajectory {1}")
                     .errorMessageArguments(List.of(columnName, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        if (cell.getCellType() != CellType.BLANK) {
-            if (!isNumeric(cell)) {
-                throw BusinessException.builder()
-                        .message("Column {0} must be numeric in HYDRO_ME Param Hydro trajectory {1}")
-                        .errorMessageArguments(List.of(columnName, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+        
+        String cellValue = getCellStringValue(cell).trim();
+        if (cellValue.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Column {0} must not be null or empty in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        // Check if cell is numeric
+        if (!isNumeric(cell)) {
+            throw BusinessException.builder()
+                    .message("Column {0} must be numeric in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
     private void validateBooleanColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
         Cell cell = row.getCell(cellIndex);
-        if(cell == null || cell.getStringCellValue().isEmpty())
-        {
+        
+        // Check if cell is null or empty (BLANK)
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
             throw BusinessException.builder()
-                    .message("Column {0} must not be null or empty  in HYDRO_ME Param Hydro trajectory {1}")
+                    .message("Column {0} must not be null or empty in HYDRO_ME Param Hydro trajectory {1}")
                     .errorMessageArguments(List.of(columnName, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        if (cell.getCellType() != CellType.BLANK) {
-            String value = getCellStringValue(cell).toLowerCase().trim();
-            if (!value.isEmpty() && !value.matches("^(true|false|0|1|yes|no)$")) {
-                throw BusinessException.builder()
-                        .message("Column {0} must be boolean in HYDRO_ME Param Hydro trajectory {1}")
-                        .errorMessageArguments(List.of(columnName, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+        
+        String rawValue = getCellStringValue(cell);
+        
+        // Check if cell contains an empty string (not just whitespace)
+        if (rawValue.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Column {0} must not be null or empty in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        String value = rawValue.toLowerCase().trim();
+        
+        // Accept whitespace-only values (trimmed empty) - they are treated as optional
+        if (value.isEmpty()) {
+            return;
+        }
+        
+        // Validate boolean value
+        if (!value.matches("^(true|false|0|1|yes|no)$")) {
+            throw BusinessException.builder()
+                    .message("Column {0} must be boolean in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
