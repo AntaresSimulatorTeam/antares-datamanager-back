@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.HydroParametersM
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -22,7 +23,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -68,7 +70,6 @@ class HydroMeToJsonServiceTest {
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
 
-    @InjectMocks
     private HydroMeToJsonService hydroMeToJsonService;
 
     @TempDir
@@ -86,6 +87,10 @@ class HydroMeToJsonServiceTest {
 
     @BeforeEach
     void setUp() throws IOException {
+        hydroMeToJsonService = new HydroMeToJsonService(
+                hydroCapacityMeRepository, hydroParametersMeRepository, hydroAllocationMeRepository,
+                nasFileService, timeSeriesReader, antaresDataManagerProperties,
+                new PathSecurityUtil(antaresDataManagerProperties));
         Path capaStorage = nasDir.resolve("INPUT").resolve("ME/hydro_ME/capa_storage");
         generatingTsFile = createFile(capaStorage.resolve("Generating Pmax daily ts").resolve("hydro_capacity_me_traj.xlsx"));
         pumpingTsFile = createFile(capaStorage.resolve("Pumping Pmax daily ts").resolve("hydro_capacity_me_traj.xlsx"));
@@ -116,6 +121,101 @@ class HydroMeToJsonServiceTest {
             values[i] = i;
         }
         return new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn(column, values)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"reservoir_levels", "timeseries", "water_values"})
+    void buildHydroMeMap_trajectoryDirectorySymlinkOutsideNas_shouldReject(
+            String directory, @TempDir Path outsideNas) throws IOException {
+        Path base = nasDir.resolve("INPUT/ME/hydro_ME").resolve(directory);
+        Files.createDirectories(base);
+        Files.createSymbolicLink(base.resolve("unsafe_trajectory"), outsideNas);
+        assertUnsafeHydroTrajectoryRejected(directory);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"reservoir_levels", "ror", "mod", "water_values", "node_directory"})
+    void buildHydroMeMap_listedSymlinkOutsideNas_shouldReject(
+            String target, @TempDir Path outsideNas) throws IOException {
+        String directory = switch (target) {
+            case "reservoir_levels", "water_values" -> target;
+            default -> "timeseries";
+        };
+        Path trajectoryDirectory = nasDir.resolve("INPUT/ME/hydro_ME")
+                .resolve(directory).resolve("unsafe_trajectory");
+        Files.createDirectories(trajectoryDirectory);
+        if (target.equals("node_directory")) {
+            Files.createSymbolicLink(trajectoryDirectory.resolve("node_a"), outsideNas);
+        } else {
+            String filename = switch (target) {
+                case "reservoir_levels" -> "node_a_reservoir_levels.xlsx";
+                case "water_values" -> "node_a_water_values.xlsx";
+                default -> target + ".xlsx";
+            };
+            Path parent = directory.equals("timeseries")
+                    ? trajectoryDirectory.resolve("node_a") : trajectoryDirectory;
+            Files.createDirectories(parent);
+            Path externalFile = Files.createFile(outsideNas.resolve(filename));
+            Files.createSymbolicLink(parent.resolve(filename), externalFile);
+        }
+        assertUnsafeHydroTrajectoryRejected(directory);
+    }
+
+    private void assertUnsafeHydroTrajectoryRejected(String directory) {
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(List.of(
+                HydroCapacityMeEntity.builder().node("node_a").build()));
+        TrajectoryEntity unsafeTrajectory = TrajectoryEntity.builder()
+                .fileName("unsafe_trajectory").checksum("checksum").horizon("2026-2027").build();
+
+        assertThatThrownBy(() -> hydroMeToJsonService.buildHydroMeMap(
+                trajectory, null,
+                directory.equals("reservoir_levels") ? unsafeTrajectory : null,
+                directory.equals("timeseries") ? unsafeTrajectory : null,
+                directory.equals("water_values") ? unsafeTrajectory : null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Resolved path is outside of the allowed directory");
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"generating", "pumping"})
+    void buildHydroMeMap_dailyFileSymlinkOutsideNas_shouldRejectBeforeReading(
+            String kind, @TempDir Path outsideNas) throws IOException {
+        Path tsFile = kind.equals("generating") ? generatingTsFile : pumpingTsFile;
+        Path externalFile = Files.createFile(outsideNas.resolve("external.xlsx"));
+        Files.delete(tsFile);
+        Files.createSymbolicLink(tsFile, externalFile);
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(List.of(
+                HydroCapacityMeEntity.builder().node("node_a")
+                        .generatingPmaxTimestep(kind.equals("generating") ? "daily" : "annual")
+                        .pumpingPmaxTimestep(kind.equals("pumping") ? "daily" : "annual")
+                        .build()));
+
+        assertThatThrownBy(() -> hydroMeToJsonService.buildHydroMeMap(trajectory))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Resolved path is outside of the allowed directory");
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"generating", "pumping"})
+    void buildHydroMeMap_dailyDirectorySymlinkOutsideNas_shouldRejectBeforeReading(
+            String kind, @TempDir Path outsideNas) throws IOException {
+        Path tsFile = kind.equals("generating") ? generatingTsFile : pumpingTsFile;
+        Files.createFile(outsideNas.resolve(tsFile.getFileName()));
+        Files.delete(tsFile);
+        Files.delete(tsFile.getParent());
+        Files.createSymbolicLink(tsFile.getParent(), outsideNas);
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(List.of(
+                HydroCapacityMeEntity.builder().node("node_a")
+                        .generatingPmaxTimestep(kind.equals("generating") ? "daily" : "annual")
+                        .pumpingPmaxTimestep(kind.equals("pumping") ? "daily" : "annual")
+                        .build()));
+
+        assertThatThrownBy(() -> hydroMeToJsonService.buildHydroMeMap(trajectory))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Resolved path is outside of the allowed directory");
+        verifyNoInteractions(timeSeriesReader, nasFileService);
     }
 
     private Path createReservoirLevelsFile(String trajectoryName, String[] headers) throws IOException {
@@ -177,6 +277,32 @@ class HydroMeToJsonServiceTest {
             }
         }
         return file;
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"waterValues_node10.xlsx", "node10_water_values.xlsx"})
+    void buildHydroMeMap_waterValuesOverlappingNodes_shouldAttachOnlyExactNode(String filename) throws IOException {
+        Path file = createWaterValuesFile("water_trajectory", "node10");
+        file = Files.move(file, file.resolveSibling(filename));
+        when(timeSeriesReader.readFromXlsx(file, "2027", false))
+                .thenReturn(matrixOf("Column0", 2));
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(List.of(
+                HydroCapacityMeEntity.builder().node("AT").build(),
+                HydroCapacityMeEntity.builder().node("node1").build(),
+                HydroCapacityMeEntity.builder().node("node10").build()));
+        TrajectoryEntity waterTrajectory = TrajectoryEntity.builder()
+                .fileName("water_trajectory").horizon("2026-2027").checksum("watercheck").build();
+
+        Map<String, Object> result =
+                hydroMeToJsonService.buildHydroMeMap(trajectory, null, null, null, waterTrajectory);
+
+        Map<String, Object> properties = Collections.singletonMap("reservoir_capacity", null);
+        assertThat(result.get("AT")).isEqualTo(Map.of("properties", properties));
+        assertThat(result.get("node1")).isEqualTo(Map.of("properties", properties));
+        assertThat(result.get("node10")).isEqualTo(Map.of(
+                "properties", properties, "water_values_ts", "node10_watercheck.arrow"));
+        verify(nasFileService).saveMatrixToNasWithName(
+                any(), eq("node10_watercheck.arrow"), eq("output/hydro_ME"));
     }
 
     @Test

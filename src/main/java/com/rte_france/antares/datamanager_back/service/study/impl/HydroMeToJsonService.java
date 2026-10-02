@@ -11,6 +11,8 @@ import com.rte_france.antares.datamanager_back.repository.model.HydroCapacityMeE
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import com.rte_france.antares.datamanager_back.util.HydroWaterValuesFileUtil;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -87,6 +89,7 @@ public class HydroMeToJsonService {
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final PathSecurityUtil pathSecurityUtil;
 
     public Map<String, Object> buildHydroMeMap(TrajectoryEntity hydroCapacityMeTrajectory) {
         return buildHydroMeMap(hydroCapacityMeTrajectory, null);
@@ -196,18 +199,8 @@ public class HydroMeToJsonService {
             return Collections.emptyMap();
         }
 
-        Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory(),
-                antaresDataManagerProperties.getTrajectoryFilePath(),
-                antaresDataManagerProperties.getHydroReservoirLevelsMeDirectory())
-                .toAbsolutePath().normalize();
-        Path trajectoryDirectory = baseDirectory.resolve(trajectory.getFileName()).normalize();
-        if (!trajectoryDirectory.startsWith(baseDirectory)) {
-            throw BusinessException.builder()
-                    .message("Invalid HYDRO_ME Reservoir Levels trajectory directory {0}")
-                    .errorMessageArguments(List.of(trajectory.getFileName()))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        Path trajectoryDirectory = resolveHydroTrajectoryDirectory(
+                antaresDataManagerProperties.getHydroReservoirLevelsMeDirectory(), trajectory.getFileName());
         if (!Files.isDirectory(trajectoryDirectory)) {
             throw BusinessException.builder()
                     .message("Missing HYDRO_ME Reservoir Levels trajectory directory {0}")
@@ -223,9 +216,10 @@ public class HydroMeToJsonService {
 
         try (var files = Files.list(trajectoryDirectory)) {
             List<Path> reservoirFiles = files
-                    .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT)
                             .endsWith(RESERVOIR_LEVELS_FILE_SUFFIX))
+                    .map(path -> pathSecurityUtil.resolveSafePath(trajectoryDirectory, path.getFileName().toString()))
+                    .filter(Files::isRegularFile)
                     .sorted()
                     .toList();
             if (reservoirFiles.isEmpty()) {
@@ -273,18 +267,8 @@ public class HydroMeToJsonService {
                     .build();
         }
 
-        Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory(),
-                antaresDataManagerProperties.getTrajectoryFilePath(),
-                antaresDataManagerProperties.getHydroTimeSeriesMeDirectory())
-                .toAbsolutePath().normalize();
-        Path trajectoryDirectory = baseDirectory.resolve(trajectory.getFileName()).normalize();
-        if (!trajectoryDirectory.startsWith(baseDirectory)) {
-            throw BusinessException.builder()
-                    .message("Invalid HYDRO_TIME_SERIES_ME trajectory directory {0}")
-                    .errorMessageArguments(List.of(trajectory.getFileName()))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        Path trajectoryDirectory = resolveHydroTrajectoryDirectory(
+                antaresDataManagerProperties.getHydroTimeSeriesMeDirectory(), trajectory.getFileName());
         if (!Files.isDirectory(trajectoryDirectory)) {
             throw BusinessException.builder()
                     .message("Missing HYDRO_TIME_SERIES_ME trajectory directory {0}")
@@ -295,8 +279,10 @@ public class HydroMeToJsonService {
 
         try (var directories = Files.list(trajectoryDirectory)) {
             List<Path> nodeDirectories = directories
-                    .filter(Files::isDirectory)
                     .filter(directory -> nodeNames.containsKey(normalize(directory.getFileName().toString())))
+                    .map(directory -> pathSecurityUtil.resolveSafePath(
+                            trajectoryDirectory, directory.getFileName().toString()))
+                    .filter(Files::isDirectory)
                     .sorted()
                     .toList();
             if (nodeDirectories.isEmpty()) {
@@ -309,11 +295,13 @@ public class HydroMeToJsonService {
             Map<String, Map<String, String>> result = new LinkedHashMap<>();
             for (Path nodeDirectory : nodeDirectories) {
                 String node = nodeDirectory.getFileName().toString();
+                Path rorFile = pathSecurityUtil.resolveSafePath(nodeDirectory, "ror.xlsx");
+                Path modFile = pathSecurityUtil.resolveSafePath(nodeDirectory, "mod.xlsx");
                 Map<String, String> nodeSeries = new LinkedHashMap<>();
                 nodeSeries.put(ROR, readAndSaveHydroTimeSeries(
-                        nodeDirectory.resolve("ror.xlsx"), node, ROR, trajectory));
+                        rorFile, node, ROR, trajectory));
                 nodeSeries.put(MOD, readAndSaveHydroTimeSeries(
-                        nodeDirectory.resolve("mod.xlsx"), node, MOD, trajectory));
+                        modFile, node, MOD, trajectory));
                 result.put(normalize(node), nodeSeries);
             }
             return result;
@@ -378,18 +366,8 @@ public class HydroMeToJsonService {
                     .build();
         }
 
-        Path baseDirectory = Path.of(antaresDataManagerProperties.getNasDirectory(),
-                antaresDataManagerProperties.getTrajectoryFilePath(),
-                antaresDataManagerProperties.getHydroWaterValuesMeDirectory())
-                .toAbsolutePath().normalize();
-        Path trajectoryDirectory = baseDirectory.resolve(trajectory.getFileName()).normalize();
-        if (!trajectoryDirectory.startsWith(baseDirectory)) {
-            throw BusinessException.builder()
-                    .message("Invalid HYDRO_WATER_VALUES_ME trajectory directory {0}")
-                    .errorMessageArguments(List.of(trajectory.getFileName()))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        Path trajectoryDirectory = resolveHydroTrajectoryDirectory(
+                antaresDataManagerProperties.getHydroWaterValuesMeDirectory(), trajectory.getFileName());
         if (!Files.isDirectory(trajectoryDirectory)) {
             throw BusinessException.builder()
                     .message("Missing HYDRO_WATER_VALUES_ME trajectory directory {0}")
@@ -400,15 +378,16 @@ public class HydroMeToJsonService {
 
         try (var files = Files.list(trajectoryDirectory)) {
             List<Path> xlsxFiles = files
-                    .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(EXCEL_EXTENSION))
+                    .map(path -> pathSecurityUtil.resolveSafePath(trajectoryDirectory, path.getFileName().toString()))
+                    .filter(Files::isRegularFile)
                     .sorted()
                     .toList();
             Map<String, String> valuesByNode = new LinkedHashMap<>();
             for (Path xlsxFile : xlsxFiles) {
                 String fileName = xlsxFile.getFileName().toString().toLowerCase(Locale.ROOT);
                 List<Map.Entry<String, String>> matchingNodes = nodeNames.entrySet().stream()
-                        .filter(entry -> fileName.contains(entry.getValue().toLowerCase(Locale.ROOT)))
+                        .filter(entry -> HydroWaterValuesFileUtil.matchesNode(fileName, entry.getValue()))
                         .toList();
                 if (matchingNodes.size() > 1) {
                     throw BusinessException.builder()
@@ -467,6 +446,13 @@ public class HydroMeToJsonService {
                     .cause(e)
                     .build();
         }
+    }
+
+    private Path resolveHydroTrajectoryDirectory(String directory, String trajectoryName) {
+        Path baseDirectory = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory()),
+                antaresDataManagerProperties.getTrajectoryFilePath(), directory);
+        return pathSecurityUtil.resolveSafePath(baseDirectory, trajectoryName);
     }
 
     private static void validateReservoirLevelsHeaders(TimeSeriesMatrix matrix, Path file) {
@@ -607,12 +593,13 @@ public class HydroMeToJsonService {
             return Collections.emptyMap();
         }
 
-        Path tsFile = Path.of(antaresDataManagerProperties.getNasDirectory(),
-                        antaresDataManagerProperties.getTrajectoryFilePath(),
-                        antaresDataManagerProperties.getHydroCapacityMeDirectory(),
-                        kind.tsDirectory,
-                        trajectory.getFileName() + EXCEL_EXTENSION)
-                .normalize();
+        Path tsDirectory = pathSecurityUtil.resolveSafePath(
+                properties -> Path.of(properties.getNasDirectory()),
+                antaresDataManagerProperties.getTrajectoryFilePath(),
+                antaresDataManagerProperties.getHydroCapacityMeDirectory(),
+                kind.tsDirectory);
+        Path tsFile = pathSecurityUtil.resolveSafePath(
+                tsDirectory, trajectory.getFileName() + EXCEL_EXTENSION);
         if (!Files.isRegularFile(tsFile)) {
             String nodeName = nodesToRead.values().iterator().next();
             throw BusinessException.builder()
