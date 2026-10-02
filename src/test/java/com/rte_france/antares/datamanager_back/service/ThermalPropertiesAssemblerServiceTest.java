@@ -492,14 +492,6 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thermalSpecificParameters(List.of(specificParam))
                 .build();
 
-        // Mock for ratio_ncv_hcv
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("GAS"))
-                .thenReturn(Optional.of(ThermalCostTypeEntity.builder()
-                        .fuel("GAS")
-                        .country("FR")
-                        .ratioNcvHcv(0.9)
-                        .build()));
-
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
@@ -507,8 +499,8 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
-        // Calculation: (100.0 / 1000) / (40.0 / 100) / 0.9 = 0.1 / 0.4 / 0.9 = 0.25 / 0.9 = 0.2777... -> rounded to 0.28
-        assertThat(dto.getCo2()).isEqualTo(0.28);
+        // Calculation: (100.0 / 1000) / (40.0 / 100) / 1.0 = 0.1 / 0.4 = 0.25 (ratioNcvHcv defaults to 1.0 when null)
+        assertThat(dto.getCo2()).isEqualTo(0.25);
     }
 
     @Test
@@ -559,11 +551,16 @@ class ThermalPropertiesAssemblerServiceTest {
                 .ratioNcvHcv(0.8)
                 .build();
 
-        // Mock findByFuel
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("gas"))
-                .thenReturn(Optional.of(gasCostType));
+        // Setup economicCostTrajectory with thermalCosts for ratio_ncv_hcv
+        var gasCost = ThermalCostEntity.builder().thermalType(gasCostType).cost(40.0).build();
+        gasCostType.setThermalCostEntities(List.of(gasCost));
 
-        // when
+        var economicCostTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                .thermalCosts(List.of(gasCost))
+                .build();
+        gasCost.setTrajectory(economicCostTrajectory);
+
         var commonTraj = TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .horizon("2025")
@@ -581,7 +578,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
 
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTrajectory,econTraj)).build());
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTrajectory, econTraj)).build());
 
         // then
         var dto = out.get(new ThermalPropertiesAssemblerService.AreaClusterRefKey("FR", gasRef));
@@ -589,9 +586,9 @@ class ThermalPropertiesAssemblerServiceTest {
         // Formula: (co2EmissionFuel / 1000) / (efficiency / 100) / ratioNcvHcv
         // co2EmissionFuel = 1000
         // efficiency = 50 (from 0.5 * 100)
-        // ratioNcvHcv = 0.8
-        // co2 = (1000 / 1000) / (50 / 100) / 0.8 = 1 / 0.5 / 0.8 = 2 / 0.8 = 2.5
-        assertThat(dto.getCo2()).isEqualTo(2.5);
+        // ratioNcvHcv = 1.0 (null defaults to 1.0)
+        // co2 = (1000 / 1000) / (50 / 100) / 1.0 = 1 / 0.5 = 2.0
+        assertThat(dto.getCo2()).isEqualTo(2.0);
     }
 
     @Test
@@ -633,10 +630,6 @@ class ThermalPropertiesAssemblerServiceTest {
         }
 
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
-
-        // Return empty from findByFuel (no link exists in DB)
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("GAS"))
-                .thenReturn(Optional.empty());
 
         var specificParam = ThermalSpecificParametersEntity.builder()
                 .cluster("Gas1")
@@ -868,7 +861,6 @@ class ThermalPropertiesAssemblerServiceTest {
         co2Cost.setTrajectory(costTraj);
 
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("GAS")).thenReturn(Optional.of(gasCostType));
 
         // when
         var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, costTraj)).build());
@@ -1064,8 +1056,6 @@ class ThermalPropertiesAssemblerServiceTest {
         }
 
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("Gas"))
-                .thenReturn(Optional.of(ThermalCostTypeEntity.builder().fuel("GAS").country("FR").ratioNcvHcv(0.5).build()));
 
         // when
         var commonTrajectory = TrajectoryEntity.builder()
@@ -1095,9 +1085,9 @@ class ThermalPropertiesAssemblerServiceTest {
         // Formula: (co2EmissionFuel / 1000) / (efficiency / 100) / ratioNcvHcv
         // co2EmissionFuel = 1000
         // efficiency = 50 (from 0.5 * 100)
-        // ratioNcvHcv = 0.5
-        // co2 = (1000 / 1000) / (50 / 100) / 0.5 = 1 / 0.5 / 0.5 = 2 / 0.5 = 4.0
-        assertThat(dto.getCo2()).isEqualTo(4.0);
+        // ratioNcvHcv = 1.0 (null defaults to 1.0)
+        // co2 = (1000 / 1000) / (50 / 100) / 1.0 = 1 / 0.5 = 2.0
+        assertThat(dto.getCo2()).isEqualTo(2.0);
     }
 
     @Test

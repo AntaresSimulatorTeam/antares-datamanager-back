@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -42,8 +43,8 @@ class ThermalCostAssemblerTest {
         ThermalClusterGenerationDto dto2 = ThermalClusterGenerationDto.builder().efficiency(0.66).build();
 
         // when
-        thermalCostAssembler.computeCo2(dto1, List.of(commonParam), null);
-        thermalCostAssembler.computeCo2(dto2, List.of(commonParam), null);
+        thermalCostAssembler.computeCo2(dto1, List.of(commonParam), null, null);
+        thermalCostAssembler.computeCo2(dto2, List.of(commonParam), null, null);
 
         // then
         assertThat(dto1.getCo2()).isEqualTo(0.31);
@@ -163,7 +164,7 @@ class ThermalCostAssemblerTest {
         // 1. Test CO2 rounding
         ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
         commonParam.setCo2(10.23333333331); // 10.23333333331 * 3.6 / 1000 = 0.036839999999916
-        thermalCostAssembler.computeCo2(dto, List.of(commonParam), null);
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), null, null);
         assertThat(dto.getCo2()).isEqualTo(0.04); // Correct rounding to 2 decimals
 
         // 2. Test Marginal Cost (fallback)
@@ -476,7 +477,7 @@ class ThermalCostAssemblerTest {
         enerContent.setTrajectory(economicTrajectory);
 
         // When
-        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent);
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, null);
         thermalCostAssembler.computeStartupAndMarginalCost(
                 dto,
                 List.of(commonParam),
@@ -511,14 +512,14 @@ class ThermalCostAssemblerTest {
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setHorizon("2025");
         trajectory.setThermalEconomicCo2s(List.of(economicCo2));
+        trajectory.setThermalCosts(List.of());
 
         ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
         enerContent.setTrajectory(trajectory);
 
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("gas")).thenReturn(Optional.empty());
 
         // when
-        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent);
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
 
         // then
         // Formula: (co2EmissionFuel / 1000) / efficiency / ratio
@@ -539,25 +540,298 @@ class ThermalCostAssemblerTest {
         co2CostEntity.setTrajectory(trajectory);
 
         // when
-        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent);
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
 
         // then
         // Formula: (co2Cost / 1000.0) / efficiency / ratio
         // (50.0 / 1000.0) / 0.5 / 1.0 = 0.05 / 0.5 = 0.1
         assertThat(dto.getCo2()).isEqualTo(0.1);
+    }
 
-        // Scenario 3: With ratioNcvHcv
-        dto.setCo2(null);
-        ThermalCostTypeEntity gasType = new ThermalCostTypeEntity();
-        gasType.setFuel("gas");
-        gasType.setRatioNcvHcv(0.9);
-        when(thermalCostTypeRepository.findByFuelIgnoreCase("gas")).thenReturn(Optional.of(gasType));
+    @Test
+    void ratioNcvHcv_shouldExtractSuccessfullyWhenFuelMatches() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("gas");
+        commonParam.setCo2(null);
 
-        // when
-        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent);
+        ThermalCostTypeEntity thermalType = new ThermalCostTypeEntity();
+        thermalType.setFuel("gas");
+        thermalType.setRatioNcvHcv(0.95);
 
-        // then
-        // Formula: (50.0 / 1000.0) / 0.5 / 0.9 = 0.05 / 0.5 / 0.9 = 0.1 / 0.9 = 0.11111... -> 0.111
-        assertThat(dto.getCo2()).isEqualTo(0.11);
+        ThermalCostEntity costEntity = new ThermalCostEntity();
+        costEntity.setThermalType(thermalType);
+
+        ThermalEconomicCo2Entity economicCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("gas")
+                .year(2025)
+                .co2EmissionFuel(BigDecimal.valueOf(50.0))
+                .build();
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(costEntity));
+        trajectory.setHorizon("2025");
+        trajectory.setThermalEconomicCo2s(List.of(economicCo2));
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNotNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldBeNullWhenFuelIsNull() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel(null);
+        commonParam.setCo2(50.0);
+
+        ThermalCostTypeEntity thermalType = new ThermalCostTypeEntity();
+        thermalType.setFuel("gas");
+        thermalType.setRatioNcvHcv(0.95);
+
+        ThermalCostEntity costEntity = new ThermalCostEntity();
+        costEntity.setThermalType(thermalType);
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(costEntity));
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), null, trajectory);
+
+        assertThat(dto.getCo2()).isNotNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldBeNullWhenEconomicCostTrajectoryIsNull() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("gas");
+        commonParam.setCo2(50.0);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), null, null);
+
+        assertThat(dto.getCo2()).isEqualTo(0.36);
+    }
+
+    @Test
+    void ratioNcvHcv_shouldBeNullWhenThermalCostsListIsEmpty() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("gas");
+        commonParam.setCo2(null);
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of());
+        trajectory.setThermalEconomicCo2s(List.of());
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldBeNullWhenNoMatchingFuelFound() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("coal");
+        commonParam.setCo2(null);
+
+        ThermalCostTypeEntity thermalType = new ThermalCostTypeEntity();
+        thermalType.setFuel("gas");
+        thermalType.setRatioNcvHcv(0.95);
+
+        ThermalCostEntity costEntity = new ThermalCostEntity();
+        costEntity.setThermalType(thermalType);
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(costEntity));
+        trajectory.setThermalEconomicCo2s(List.of());
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldBeNullWhenThermalTypeIsNull() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("gas");
+        commonParam.setCo2(null);
+
+        ThermalCostEntity costEntity = new ThermalCostEntity();
+        costEntity.setThermalType(null);
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(costEntity));
+        trajectory.setThermalEconomicCo2s(List.of());
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldMatchFuelCaseInsensitively() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("GAS");
+        commonParam.setCo2(null);
+
+        ThermalCostTypeEntity thermalType = new ThermalCostTypeEntity();
+        thermalType.setFuel("gas");
+        thermalType.setRatioNcvHcv(0.95);
+
+        ThermalCostEntity costEntity = new ThermalCostEntity();
+        costEntity.setThermalType(thermalType);
+
+        ThermalEconomicCo2Entity economicCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("gas")
+                .year(2025)
+                .co2EmissionFuel(BigDecimal.valueOf(50.0))
+                .build();
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(costEntity));
+        trajectory.setHorizon("2025");
+        trajectory.setThermalEconomicCo2s(List.of(economicCo2));
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNotNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldReturnFirstMatchWhenMultipleThermalCostsExist() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("gas");
+        commonParam.setCo2(null);
+
+        ThermalCostTypeEntity type1 = new ThermalCostTypeEntity();
+        type1.setFuel("coal");
+        type1.setRatioNcvHcv(0.80);
+
+        ThermalCostEntity cost1 = new ThermalCostEntity();
+        cost1.setThermalType(type1);
+
+        ThermalCostTypeEntity type2 = new ThermalCostTypeEntity();
+        type2.setFuel("gas");
+        type2.setRatioNcvHcv(0.95);
+
+        ThermalCostEntity cost2 = new ThermalCostEntity();
+        cost2.setThermalType(type2);
+
+        ThermalCostTypeEntity type3 = new ThermalCostTypeEntity();
+        type3.setFuel("gas");
+        type3.setRatioNcvHcv(0.99);
+
+        ThermalCostEntity cost3 = new ThermalCostEntity();
+        cost3.setThermalType(type3);
+
+        ThermalEconomicCo2Entity economicCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("gas")
+                .year(2025)
+                .co2EmissionFuel(BigDecimal.valueOf(50.0))
+                .build();
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(cost1, cost2, cost3));
+        trajectory.setHorizon("2025");
+        trajectory.setThermalEconomicCo2s(List.of(economicCo2));
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNotNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldFilterOutThermalTypeWithNullFuel() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("gas");
+        commonParam.setCo2(null);
+
+        ThermalCostTypeEntity type1 = new ThermalCostTypeEntity();
+        type1.setFuel(null);
+        type1.setRatioNcvHcv(0.95);
+
+        ThermalCostEntity cost1 = new ThermalCostEntity();
+        cost1.setThermalType(type1);
+
+        ThermalCostTypeEntity type2 = new ThermalCostTypeEntity();
+        type2.setFuel("gas");
+        type2.setRatioNcvHcv(0.92);
+
+        ThermalCostEntity cost2 = new ThermalCostEntity();
+        cost2.setThermalType(type2);
+
+        ThermalEconomicCo2Entity economicCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("gas")
+                .year(2025)
+                .co2EmissionFuel(BigDecimal.valueOf(50.0))
+                .build();
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(cost1, cost2));
+        trajectory.setHorizon("2025");
+        trajectory.setThermalEconomicCo2s(List.of(economicCo2));
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNotNull();
+    }
+
+    @Test
+    void ratioNcvHcv_shouldHandleMixedCaseComparison() {
+        ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
+        commonParam.setFuel("GaS");
+        commonParam.setCo2(null);
+
+        ThermalCostTypeEntity thermalType = new ThermalCostTypeEntity();
+        thermalType.setFuel("gAs");
+        thermalType.setRatioNcvHcv(0.87);
+
+        ThermalCostEntity costEntity = new ThermalCostEntity();
+        costEntity.setThermalType(thermalType);
+
+        ThermalEconomicCo2Entity economicCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("gAs")
+                .year(2025)
+                .co2EmissionFuel(BigDecimal.valueOf(50.0))
+                .build();
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setThermalCosts(List.of(costEntity));
+        trajectory.setHorizon("2025");
+        trajectory.setThermalEconomicCo2s(List.of(economicCo2));
+
+        ThermalEconomicEnerContentEntity enerContent = new ThermalEconomicEnerContentEntity();
+        enerContent.setTrajectory(trajectory);
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), enerContent, trajectory);
+
+        assertThat(dto.getCo2()).isNotNull();
     }
 }

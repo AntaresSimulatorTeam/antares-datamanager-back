@@ -241,7 +241,7 @@ public class ThermalPropertiesAssemblerService {
                                                                      List<ThermalCommonParameterEntity> commonParams) {
         ThermalClusterGenerationDto dto = thermalClusterGenerationDtoBuilder.build();
 
-        thermalCostAssembler.computeCo2(dto, commonParams, economicTrajectory);
+        thermalCostAssembler.computeCo2(dto, commonParams, economicTrajectory, economicCostTrajectory);
 
         thermalCostAssembler.computeStartupAndMarginalCost(dto, commonParams, specificParams,
                 thermalClusterCapacities, economicCostTrajectory);
