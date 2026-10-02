@@ -17,7 +17,6 @@ public class ThermalMEClusterGenerationDto {
 
     public static class ThermalClusterViews {
         public interface Properties {}
-        public interface Data {}
         public interface Modulation {}
     }
 
@@ -49,37 +48,37 @@ public class ThermalMEClusterGenerationDto {
     @JsonProperty("group")
     private String group;
 
-    @JsonView(ThermalClusterViews.Data.class)
-    @JsonProperty("marginal_cost_timestep")
-    private String marginalCostTimestep;
-
-    @JsonView(ThermalClusterViews.Data.class)
+    @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("marginal_cost_modulation")
     private Integer marginalCostModulation;
 
-    @JsonView(ThermalClusterViews.Data.class)
-    @JsonProperty("market_bid_cost_timestep")
-    private String marketBidCostTimestep;
+    @JsonView(ThermalClusterViews.Modulation.class)
+    @JsonProperty("marginal_cost_modulation_file")
+    private String marginalCostModulationFile;
 
-    @JsonView(ThermalClusterViews.Data.class)
+    @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("market_bid_cost_modulation")
     private Integer marketBidCostModulation;
 
-    @JsonView(ThermalClusterViews.Data.class)
-    @JsonProperty("mr_timestep")
-    private String mrTimestep;
-
-    @JsonView(ThermalClusterViews.Data.class)
+    @JsonView(ThermalClusterViews.Modulation.class)
+    @JsonProperty("market_bid_cost_modulation_file")
+    private String marketBidCostModulationFile;
+    
+    @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("mr_modulation")
     private Integer mrModulation;
 
-    @JsonView(ThermalClusterViews.Data.class)
-    @JsonProperty("cm_timestep")
-    private String cmTimestep;
+    @JsonView(ThermalClusterViews.Modulation.class)
+    @JsonProperty("mr_modulation_file")
+    private String mrModulationFile;
 
-    @JsonView(ThermalClusterViews.Data.class)
+    @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("cm_modulation")
     private Integer cmModulation;
+
+    @JsonView(ThermalClusterViews.Modulation.class)
+    @JsonProperty("cm_modulation_file")
+    private String cmModulationFile;
     
     @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("modulation")
