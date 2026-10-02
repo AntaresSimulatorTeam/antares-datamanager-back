@@ -348,9 +348,11 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private void validateTimestepValue(String value, String columnName, String trajectoryName) {
         if (value == null || value.trim().isEmpty()) return;
-        if (!("daily".equalsIgnoreCase(value) || "annual".equalsIgnoreCase(value))) {
+        if (!("daily".equalsIgnoreCase(value)
+                || "hourly".equalsIgnoreCase(value)
+                || "annual".equalsIgnoreCase(value))) {
             throw BusinessException.builder()
-                    .message("Column " + columnName + " must be 'annual' or 'daily' only in HYDRO_ME Capacity trajectory " + trajectoryName)
+                    .message("Column " + columnName + " must be 'daily', 'hourly' or 'annual' only in HYDRO_ME Capacity trajectory " + trajectoryName)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

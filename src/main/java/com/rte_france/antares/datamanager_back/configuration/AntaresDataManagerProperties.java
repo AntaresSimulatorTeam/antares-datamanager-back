@@ -133,6 +133,9 @@ public class AntaresDataManagerProperties {
     @Value("${antares.datamanager.hydro.water.values.me.directory}")
     public String hydroWaterValuesMeDirectory;
 
+    @Value("${antares.datamanager.hydro.me.output.directory}")
+    public String hydroMeOutputDirectory;
+
     @Value("${antares.datamanager.nuclear.modulation.directory}")
     public String nuclearModulationDirectory;
 
