@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
+import com.rte_france.antares.datamanager_back.util.HydroWaterValuesFileUtil;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
@@ -173,10 +174,10 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId);
 
         if (!validNodes.isEmpty()) {
-            // Check if at least one file name contains a valid node
+            // Match the node portion, not the fixed Water Values filename text.
             boolean hasAtLeastOneValidFile = excelFiles.stream()
                     .anyMatch(fileName -> validNodes.stream()
-                            .anyMatch(nodeName -> fileName.toLowerCase().contains(nodeName.toLowerCase())));
+                            .anyMatch(nodeName -> HydroWaterValuesFileUtil.matchesNode(fileName, nodeName)));
 
             if (!hasAtLeastOneValidFile) {
                 throw BusinessException.builder()
