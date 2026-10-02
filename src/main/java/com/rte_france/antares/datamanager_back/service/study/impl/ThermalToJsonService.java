@@ -98,7 +98,7 @@ public class ThermalToJsonService {
             .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalMEClusterGenerationDto.ThermalClusterViews.Properties.class));
 
     private static final ObjectMapper DATA_MAPPER_ME = new ObjectMapper()
-            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalMEClusterGenerationDto.ThermalClusterViews.Data.class));
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalMEClusterGenerationDto.ThermalClusterViews.Modulation.class));
 
     // ex: v_me_h2_long_euest : [v_me_h2_long_euest_import_canalisation]
     public Map<String, Object> thermalsMeMapGenerator(String areaName, Map<String, ThermalMEClusterGenerationDto> clusterProps) {
@@ -122,9 +122,6 @@ public class ThermalToJsonService {
                     Map<String, Object> clusterData = new LinkedHashMap<>();
                     clusterData.put(PROPERTIES, propertiesMap);
                     clusterData.put(MODULATION, dataMap);
-                    
-                    // ajouter "modulation"
-                    //clusterData.put(SERIES_TS, dto.getStsTsList() != null ? dto.getStsTsList() : Collections.emptyList());
 
                     thermalMeClusterName.put(clusterName, clusterData);
                     log.info("Thermal ME cluster added {} for area {} (enabled={})", clusterName, areaName, dto.getEnabled());

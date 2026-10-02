@@ -10,12 +10,14 @@ import java.util.Optional;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ThermalMeMapper {
 
-    public static ThermalMEClusterGenerationDto mapToThermalMeGenerationDTO(ThermalMeEntity entity) {
-        boolean isMarginalCostAnnual = "annual".equalsIgnoreCase(entity.getMarginalCostTimestep());
-        boolean isMarketBidCostAnnual = "annual".equalsIgnoreCase(entity.getMarketBidCostTimestep());
-        boolean isCapacityAnnual = "annual".equalsIgnoreCase(entity.getCmTimestep());
-        boolean isMinGenAnnual = "annual".equalsIgnoreCase(entity.getMrTimestep());
+    private static final String TIMESTEP_ANNUAL = "annual";
 
+    public static ThermalMEClusterGenerationDto mapToThermalMeGenerationDTO(ThermalMeEntity entity) {
+        boolean isMarginalCostAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getMarginalCostTimestep());
+        boolean isMarketBidCostAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getMarketBidCostTimestep());
+        boolean isCapacityAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getCmTimestep());
+        boolean isMinGenAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getMrTimestep());
+        
         return ThermalMEClusterGenerationDto.builder()
                 .enabled(Optional.ofNullable(entity.getEnabled()).orElse(false))
                 .group(entity.getGroupName())
@@ -26,8 +28,8 @@ public class ThermalMeMapper {
                 .marketBidCost(Optional.ofNullable(entity.getMarketBidCost()).map(Number::doubleValue).orElse(0.0))
                 .marginalCostModulation(isMarginalCostAnnual ? Optional.ofNullable(entity.getMarginalCostModulation()).map(Number::intValue).orElse(null) : null)
                 .marketBidCostModulation(isMarketBidCostAnnual ? Optional.ofNullable(entity.getMarketBidCostModulation()).map(Number::intValue).orElse(null) : null)
-                .mrModulation(isCapacityAnnual ? Optional.ofNullable(entity.getMrModulation()).map(Number::intValue).orElse(null) : null)
-                .cmModulation(isMinGenAnnual ? Optional.ofNullable(entity.getCmModulation()).map(Number::intValue).orElse(null) : null)
+                .cmModulation(isCapacityAnnual ? Optional.ofNullable(entity.getCmModulation()).map(Number::intValue).orElse(null) : null)
+                .mrModulation(isMinGenAnnual ? Optional.ofNullable(entity.getMrModulation()).map(Number::intValue).orElse(null) : null)
                 .build();
     }
 }
