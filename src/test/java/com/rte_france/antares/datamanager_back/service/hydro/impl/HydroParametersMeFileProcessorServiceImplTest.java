@@ -214,7 +214,153 @@ class HydroParametersMeFileProcessorServiceImplTest {
         assertTrue(exception.getMessage().contains("numeric"));
     }
 
+    @Test
+    @DisplayName("Should throw exception when numeric column cell is missing (null)")
+    void testNumericColumnNullCell() throws IOException {
+        createParamHydroMeFileWithCellOverride(5, null);
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        assertEquals(List.of("initialize.reservoir.date", trajectoryName), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Should throw exception when numeric column cell is an empty string")
+    void testNumericColumnEmptyCell() throws IOException {
+        createParamHydroMeFileWithCellOverride(1, "");
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        assertEquals(List.of("inter.monthly.correlation", trajectoryName), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Should throw exception when last numeric column (pumping.efficiency) is not numeric")
+    void testNumericColumnNonNumericLastColumn() throws IOException {
+        createParamHydroMeFileWithCellOverride(8, "abc");
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("must be numeric"));
+        assertEquals(List.of("pumping.efficiency", trajectoryName), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Should accept numeric columns with negative and integer string values")
+    void testNumericColumnAcceptsValidNumericStrings() throws IOException {
+        createParamHydroMeFileWithCellOverride(6, "-1");
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+        mockValidAreasAndNodes();
+
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        verify(hydroParametersMeRepository, times(1)).saveAll(anyList());
+    }
+
     // ==================== Boolean Column Validation Tests ====================
+
+    @Test
+    @DisplayName("Should throw exception when boolean column cell is missing (null)")
+    void testBooleanColumnNullCell() throws IOException {
+        createParamHydroMeFileWithCellOverride(15, null);
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        assertEquals(List.of("power.to.level", trajectoryName), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Should throw exception when boolean column cell is an empty string")
+    void testBooleanColumnEmptyCell() throws IOException {
+        createParamHydroMeFileWithCellOverride(10, "");
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("must not be null or empty"));
+        assertEquals(List.of("follow.load", trajectoryName), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Should throw exception when boolean column contains a non-boolean numeric value")
+    void testBooleanColumnInvalidNumericValue() throws IOException {
+        createParamHydroMeFileWithCellOverride(12, "2");
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("must be boolean"));
+        assertEquals(List.of("use.water", trajectoryName), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Should accept whitespace-only boolean cell (trimmed value is empty)")
+    void testBooleanColumnWhitespaceOnlyIsAccepted() throws IOException {
+        createParamHydroMeFileWithCellOverride(13, "   ");
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+        mockValidAreasAndNodes();
+
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        verify(hydroParametersMeRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Should accept all boolean variants (TRUE, no, 1, 0, Yes, False) with surrounding spaces")
+    void testBooleanColumnAcceptsAllVariants() throws IOException {
+        var workbook = new XSSFWorkbook();
+        var sheet = workbook.createSheet(horizonYear);
+        sheet.createRow(0).createCell(0).setCellValue("Node");
+        var dataRow = sheet.createRow(1);
+        fillValidParamRow(dataRow, "node_1");
+        dataRow.getCell(9).setCellValue(" TRUE ");
+        dataRow.getCell(10).setCellValue("no");
+        dataRow.getCell(11).setCellValue("1");
+        dataRow.getCell(12).setCellValue("0");
+        dataRow.getCell(13).setCellValue("Yes");
+        dataRow.getCell(14).setCellValue("False");
+        try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
+            workbook.write(fos);
+        }
+        workbook.close();
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+        mockValidAreasAndNodes();
+
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        verify(hydroParametersMeRepository, times(1)).saveAll(anyList());
+    }
 
     @Test
     @DisplayName("Should throw exception when boolean column contains invalid value")
@@ -706,41 +852,8 @@ class HydroParametersMeFileProcessorServiceImplTest {
             headerRow.createCell(i).setCellValue(headers[i]);
         }
 
-        var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("node_1");
-        dataRow.createCell(1).setCellValue(0.5);
-        dataRow.createCell(2).setCellValue(0.6);
-        dataRow.createCell(3).setCellValue(0.7);
-        dataRow.createCell(4).setCellValue(0.8);
-        dataRow.createCell(5).setCellValue(10);
-        dataRow.createCell(6).setCellValue(0.2);
-        dataRow.createCell(7).setCellValue(0.3);
-        dataRow.createCell(8).setCellValue(0.9);
-        dataRow.createCell(9).setCellValue(true);
-        dataRow.createCell(10).setCellValue(false);
-        dataRow.createCell(11).setCellValue(true);
-        dataRow.createCell(12).setCellValue(false);
-        dataRow.createCell(13).setCellValue(true);
-        dataRow.createCell(14).setCellValue(false);
-        dataRow.createCell(15).setCellValue(true);
-
-        var dataRow2 = sheet.createRow(2);
-        dataRow2.createCell(0).setCellValue("node_2");
-        dataRow2.createCell(1).setCellValue(0.5);
-        dataRow2.createCell(2).setCellValue(0.6);
-        dataRow2.createCell(3).setCellValue(0.7);
-        dataRow2.createCell(4).setCellValue(0.8);
-        dataRow2.createCell(5).setCellValue(10);
-        dataRow2.createCell(6).setCellValue(0.2);
-        dataRow2.createCell(7).setCellValue(0.3);
-        dataRow2.createCell(8).setCellValue(0.9);
-        dataRow2.createCell(9).setCellValue(true);
-        dataRow2.createCell(10).setCellValue(false);
-        dataRow2.createCell(11).setCellValue(true);
-        dataRow2.createCell(12).setCellValue(false);
-        dataRow2.createCell(13).setCellValue(true);
-        dataRow2.createCell(14).setCellValue(false);
-        dataRow2.createCell(15).setCellValue(true);
+        fillValidParamRow(sheet.createRow(1), "node_1");
+        fillValidParamRow(sheet.createRow(2), "node_2");
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
@@ -762,29 +875,32 @@ class HydroParametersMeFileProcessorServiceImplTest {
 
         // Create 3 data rows for node_1, node_2, node_3
         for (int row = 1; row <= 3; row++) {
-            var dataRow = sheet.createRow(row);
-            dataRow.createCell(0).setCellValue("node_" + row);
-            dataRow.createCell(1).setCellValue(0.5);
-            dataRow.createCell(2).setCellValue(0.6);
-            dataRow.createCell(3).setCellValue(0.7);
-            dataRow.createCell(4).setCellValue(0.8);
-            dataRow.createCell(5).setCellValue(10);
-            dataRow.createCell(6).setCellValue(0.2);
-            dataRow.createCell(7).setCellValue(0.3);
-            dataRow.createCell(8).setCellValue(0.9);
-            dataRow.createCell(9).setCellValue(true);
-            dataRow.createCell(10).setCellValue(false);
-            dataRow.createCell(11).setCellValue(true);
-            dataRow.createCell(12).setCellValue(false);
-            dataRow.createCell(13).setCellValue(true);
-            dataRow.createCell(14).setCellValue(false);
-            dataRow.createCell(15).setCellValue(true);
+            fillValidParamRow(sheet.createRow(row), "node_" + row);
         }
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
         }
         workbook.close();
+    }
+
+    private void fillValidParamRow(org.apache.poi.ss.usermodel.Row dataRow, String nodeName) {
+        dataRow.createCell(0).setCellValue(nodeName);
+        dataRow.createCell(1).setCellValue("0.5");
+        dataRow.createCell(2).setCellValue("0.6");
+        dataRow.createCell(3).setCellValue("0.7");
+        dataRow.createCell(4).setCellValue("0.8");
+        dataRow.createCell(5).setCellValue("10");
+        dataRow.createCell(6).setCellValue("0.2");
+        dataRow.createCell(7).setCellValue("0.3");
+        dataRow.createCell(8).setCellValue("0.9");
+        dataRow.createCell(9).setCellValue("true");
+        dataRow.createCell(10).setCellValue("false");
+        dataRow.createCell(11).setCellValue("true");
+        dataRow.createCell(12).setCellValue("false");
+        dataRow.createCell(13).setCellValue("true");
+        dataRow.createCell(14).setCellValue("false");
+        dataRow.createCell(15).setCellValue("true");
     }
 
     private void createParamHydroMeFileWithHorizon(String sheetName) throws IOException {
@@ -836,13 +952,53 @@ class HydroParametersMeFileProcessorServiceImplTest {
         headerRow.createCell(0).setCellValue("Node");
         headerRow.createCell(3).setCellValue("inter.daily.breakdown");
         var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("node_1");
-        dataRow.createCell(3).setCellValue("not_a_number");
+        fillValidParamRow(dataRow, "node_1");
+        dataRow.getCell(3).setCellValue("not_a_number");
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
         }
         workbook.close();
+    }
+
+    /**
+     * Creates a param_hydro_ME.xlsx with a single valid row where the cell at {@code cellIndex}
+     * is overridden with {@code value}. A {@code null} value removes the cell entirely.
+     */
+    private void createParamHydroMeFileWithCellOverride(int cellIndex, String value) throws IOException {
+        var workbook = new XSSFWorkbook();
+        var sheet = workbook.createSheet(horizonYear);
+        sheet.createRow(0).createCell(0).setCellValue("Node");
+        var dataRow = sheet.createRow(1);
+        fillValidParamRow(dataRow, "node_1");
+        if (value == null) {
+            dataRow.removeCell(dataRow.getCell(cellIndex));
+        } else {
+            dataRow.getCell(cellIndex).setCellValue(value);
+        }
+
+        try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
+            workbook.write(fos);
+        }
+        workbook.close();
+    }
+
+    private void mockNewTrajectorySave() {
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
+            TrajectoryEntity entity = invocation.getArgument(0);
+            entity.setId(trajectoryId);
+            return entity;
+        });
+    }
+
+    private void mockValidAreasAndNodes() {
+        AreaEntity area = AreaEntity.builder().id(1).name("area_1").build();
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
+        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_1").build();
+        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_2").build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
     }
 
     private void createParamHydroMeFileWithInvalidBoolean() throws IOException {
@@ -852,8 +1008,8 @@ class HydroParametersMeFileProcessorServiceImplTest {
         headerRow.createCell(0).setCellValue("Node");
         headerRow.createCell(9).setCellValue("reservoir management");
         var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("node_1");
-        dataRow.createCell(9).setCellValue("maybe");
+        fillValidParamRow(dataRow, "node_1");
+        dataRow.getCell(9).setCellValue("maybe");
 
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);

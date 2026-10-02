@@ -138,16 +138,14 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
-                TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.THERMAL_CAPACITY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
-                newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
-                return trajectoryRepository.save(newTrajectory);
             }
+
             TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.THERMAL_CAPACITY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
-            Path baseDirectory = Path.of(nasDir)
-                    .resolve(trajFilePath)
-                    .resolve(directoryByType);
+            existingTrajectoryOpt.ifPresent(existing -> newTrajectory.setVersion(existing.getVersion() + 1));
+
+            Path baseDirectory = Path.of(nasDir, trajFilePath, directoryByType);
             buildEntities(sheet, newTrajectory, trajectoryToUse, baseDirectory);
-            return  trajectoryRepository.save(newTrajectory);
+            return trajectoryRepository.save(newTrajectory);
 
         } catch (IOException e) {
             throw TechnicalException.builder()
