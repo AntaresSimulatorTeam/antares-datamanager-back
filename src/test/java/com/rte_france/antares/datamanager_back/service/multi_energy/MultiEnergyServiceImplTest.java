@@ -1097,9 +1097,6 @@ class MultiEnergyServiceImplTest {
 
     @Test
     void buildMultiEnergyMap_withoutHydroCapacityMeData_shouldNotAddHydroMe() {
-        // Given
-        when(hydroMeToJsonService.buildHydroMeMap(any(), any())).thenReturn(Collections.emptyMap());
-
         // When
         Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, linkMeTrajectory);
 
@@ -1123,5 +1120,124 @@ class MultiEnergyServiceImplTest {
 
         // Then
         assertThat(result).containsEntry("hydro_me", hydroMe);
+    }
+
+    @Test
+    void buildMultiEnergyMap_withReservoirLevels_shouldAddReservoirTsBesideHydroNodes() {
+        TrajectoryEntity capacity = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name()).build();
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
+                .fileName("reservoir_levels").checksum("abc123").build();
+        Map<String, Object> node = Map.of(
+                "properties", Map.of("reservoir_capacity", 5376),
+                "reservoir_ts", "node_reservoir_levels_abc123.arrow");
+        when(hydroMeToJsonService.buildHydroMeMap(capacity, null, reservoirLevels, null, null))
+                .thenReturn(Map.of("node", node));
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, capacity, reservoirLevels);
+
+        assertThat(result).containsEntry("hydro_me", Map.of(
+                "node", node));
+    }
+
+    @Test
+    void buildMultiEnergyMap_withOnlyReservoirLevels_shouldNotAddHydroMe() {
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
+                .fileName("reservoir_levels").checksum("abc123").build();
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, reservoirLevels);
+
+        assertThat(result).doesNotContainKey("hydro_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withParametersAndReservoirLevelsButNoCapacity_shouldNotAddHydroMe() {
+        TrajectoryEntity parameters = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_PARAMETERS_ME.name()).build();
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
+                .fileName("reservoir_levels").checksum("abc123").build();
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, parameters, reservoirLevels);
+
+        assertThat(result).doesNotContainKey("hydro_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withHydroTimeSeries_shouldAttachTimeseriesToHydroNode() {
+        TrajectoryEntity capacity = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name()).build();
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
+                .fileName("reservoir_levels").checksum("abc123").build();
+        TrajectoryEntity timeSeries = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TIME_SERIES_ME.name())
+                .fileName("hydro_timeseries").checksum("def456").build();
+        Map<String, Object> node = Map.of(
+                "properties", Map.of("reservoir_capacity", 5376),
+                "reservoir_ts", "node_reservoir_levels_abc123.arrow",
+                "timeseries_ts", Map.of(
+                        "ror", "node_ror.def456.arrow",
+                        "mod", "node_mod.def456.arrow"));
+        when(hydroMeToJsonService.buildHydroMeMap(capacity, null, reservoirLevels, timeSeries, null))
+                .thenReturn(Map.of("node", node));
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(
+                studyEntity, capacity, reservoirLevels, timeSeries);
+
+        assertThat(result).containsEntry("hydro_me", Map.of("node", node));
+    }
+
+    @Test
+    void buildMultiEnergyMap_withOnlyHydroTimeSeries_shouldNotAddHydroMe() {
+        TrajectoryEntity timeSeries = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TIME_SERIES_ME.name())
+                .fileName("hydro_timeseries").checksum("def456").build();
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, timeSeries);
+
+        assertThat(result).doesNotContainKey("hydro_me");
+    }
+
+    @Test
+    void buildMultiEnergyMap_withWaterValues_shouldAddWaterValuesTsBesideHydroNodesAndOtherSeries() {
+        TrajectoryEntity capacity = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name()).build();
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
+                .fileName("reservoir_levels").checksum("abc123").build();
+        TrajectoryEntity timeSeries = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_TIME_SERIES_ME.name())
+                .fileName("hydro_timeseries").checksum("def456").build();
+        TrajectoryEntity waterValues = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_WATER_VALUES_ME.name())
+                .fileName("water_values").checksum("ghi789").build();
+        Map<String, Object> node = Map.of(
+                "properties", Map.of("reservoir_capacity", 5376),
+                "reservoir_ts", "node_reservoir_levels_abc123.arrow",
+                "timeseries_ts", Map.of(
+                        "ror", "node_ror.def456.arrow",
+                        "mod", "node_mod.def456.arrow"),
+                "water_values_ts", "node_ghi789.arrow");
+        when(hydroMeToJsonService.buildHydroMeMap(capacity, null, reservoirLevels, timeSeries, waterValues))
+                .thenReturn(Map.of("node", node));
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(
+                studyEntity, capacity, reservoirLevels, timeSeries, waterValues);
+
+        assertThat(result).containsEntry("hydro_me", Map.of("node", node));
+    }
+
+    @Test
+    void buildMultiEnergyMap_withOnlyWaterValues_shouldNotAddHydroMe() {
+        TrajectoryEntity waterValues = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_WATER_VALUES_ME.name())
+                .fileName("water_values").checksum("ghi789").build();
+
+        Map<String, Object> result = multiEnergyService.buildMultiEnergyMap(studyEntity, waterValues);
+
+        assertThat(result).doesNotContainKey("hydro_me");
     }
 }

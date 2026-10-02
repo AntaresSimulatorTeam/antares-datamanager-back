@@ -162,7 +162,30 @@ class HydroMeFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, 
                 () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
         
-        assertTrue(exception.getMessage().contains("must be 'annual' or 'daily' only"));
+        assertTrue(exception.getMessage().contains("must be 'daily', 'hourly' or 'annual' only"));
+    }
+
+    @Test
+    void testProcessHydroCapacityMeFile_HourlyTimestepWithDailySeries_shouldSucceed() throws IOException {
+        createValidExcelFile(testExcelPath, "daily", "hourly");
+        Path generatingDailyTsDir = testExcelPath.getParent()
+                .resolve("Generating Pmax daily ts");
+        Files.createDirectories(generatingDailyTsDir);
+        Files.createFile(generatingDailyTsDir.resolve(testTrajectoryName + ".xlsx"));
+
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        TrajectoryEntity result = hydroMeFileProcessorService.processHydroCapacityMeFile(
+                testTrajectoryName, testHorizon, 1);
+
+        assertNotNull(result);
+        assertEquals(testTrajectoryName, result.getFileName());
     }
 
     @Test
@@ -253,6 +276,11 @@ class HydroMeFileProcessorServiceImplTest {
     }
 
     private void createValidExcelFile(Path excelPath) throws IOException {
+        createValidExcelFile(excelPath, "annual", "annual");
+    }
+
+    private void createValidExcelFile(Path excelPath, String generatingTimestep, String pumpingTimestep)
+            throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             var sheet = workbook.createSheet("2021");
             
@@ -269,10 +297,10 @@ class HydroMeFileProcessorServiceImplTest {
             var dataRow = sheet.createRow(1);
             dataRow.createCell(0).setCellValue("AREA_1");
             dataRow.createCell(1).setCellValue(1000.0);
-            dataRow.createCell(2).setCellValue("annual");
+            dataRow.createCell(2).setCellValue(generatingTimestep);
             dataRow.createCell(3).setCellValue(500.0);
             dataRow.createCell(4).setCellValue(24.0);
-            dataRow.createCell(5).setCellValue("annual");
+            dataRow.createCell(5).setCellValue(pumpingTimestep);
             dataRow.createCell(6).setCellValue(300.0);
             dataRow.createCell(7).setCellValue(12.0);
             
