@@ -37,14 +37,18 @@ public class ThermalCostAssembler {
      * @param dto Object representing the thermal cluster generation data where the computed CO2 emissions will be set.
      * @param thermalCommonParameterEntity List of entities containing common thermal parameters.
      * @param economicTrajectory A trajectory entity that might contain relevant data for fallback calculations.
+     * @param economicCostTrajectory The economic cost trajectory to use for retrieving thermal cost type data.
      */
-    public void computeCo2(ThermalClusterGenerationDto dto, List<ThermalCommonParameterEntity> thermalCommonParameterEntity, ThermalEconomicEnerContentEntity economicTrajectory) {
+    public void computeCo2(ThermalClusterGenerationDto dto, List<ThermalCommonParameterEntity> thermalCommonParameterEntity, ThermalEconomicEnerContentEntity economicTrajectory, TrajectoryEntity economicCostTrajectory) {
         thermalCommonParameterEntity.forEach(commonParam -> {
             String fuel = commonParam.getFuel();
             Double ratioNcvHcv = null;
-            if (fuel != null) {
-                ratioNcvHcv = thermalCostTypeRepository.findByFuelIgnoreCase(fuel)
+            if (fuel != null && economicCostTrajectory != null) {
+                ratioNcvHcv = economicCostTrajectory.getThermalCosts().stream()
+                        .filter(tc -> tc.getThermalType() != null && fuel.equalsIgnoreCase(tc.getThermalType().getFuel()))
+                        .map(ThermalCostEntity::getThermalType)
                         .map(ThermalCostTypeEntity::getRatioNcvHcv)
+                        .findFirst()
                         .orElse(null);
             }
 
