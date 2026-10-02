@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -20,6 +22,7 @@ import org.springframework.core.io.UrlResource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -469,5 +472,158 @@ class NasFileServiceTest {
     when(timeSeriesWriter.getDefaultFileExtension()).thenReturn("arrow");
     assertThrows(NullPointerException.class,
             () -> nasFileService.saveMatrixBytesToNas("data".getBytes(), null, OUTPUT_DIRECTORY));
+  }
+
+  @Test
+  void loadFile_readableResourceWithoutExists_returnsResource() throws IOException {
+    Path file = tempDir.resolve("readable.txt");
+    var resource = mock(UrlResource.class);
+    when(resource.exists()).thenReturn(false);
+    when(resource.isReadable()).thenReturn(true);
+
+    try (var resources = mockStatic(UrlResource.class)) {
+      resources.when(() -> UrlResource.from(file.toUri())).thenReturn(resource);
+
+      assertSame(resource, nasFileService.loadFile("readable.txt"));
+    }
+  }
+
+  @Test
+  void saveFile_relativeOutputOutsideNas_rejectsBeforeWriting() {
+    String outputDir = "../outside-nas";
+
+    TechnicalException exception = assertThrows(TechnicalException.class,
+            () -> nasFileService.saveFile("file.txt", new byte[]{1}, outputDir));
+
+    assertTrue(exception.getMessage().startsWith("Path outside of the NAS directory:"));
+    assertFalse(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY)));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "../matrix.arrow", "subdir/matrix.arrow"})
+  void saveMatrixToNasWithName_invalidFilename_rejectsBeforeSerialization(String filename) {
+    TechnicalException exception = assertThrows(TechnicalException.class,
+            () -> nasFileService.saveMatrixToNasWithName(timeSeriesMatrix, filename, OUTPUT_DIRECTORY));
+
+    assertEquals("Invalid file name: " + filename, exception.getMessage());
+    verifyNoInteractions(timeSeriesWriter);
+    assertFalse(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY)));
+  }
+
+  @Test
+  void saveMatrixToNasWithName_nullArguments_rejectsBeforeSerialization() {
+    assertThrows(NullPointerException.class,
+            () -> nasFileService.saveMatrixToNasWithName(null, "matrix.arrow", OUTPUT_DIRECTORY));
+    assertThrows(NullPointerException.class,
+            () -> nasFileService.saveMatrixToNasWithName(timeSeriesMatrix, null, OUTPUT_DIRECTORY));
+    verifyNoInteractions(timeSeriesWriter);
+  }
+
+  @Test
+  void saveMatrixToNasWithName_overwritesFileAndRestrictsPermissions() throws IOException {
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenReturn(new byte[]{1, 2, 3}, new byte[]{4});
+    String filename = "matrix.arrow";
+
+    nasFileService.saveMatrixToNasWithName(timeSeriesMatrix, filename, OUTPUT_DIRECTORY);
+    nasFileService.saveMatrixToNasWithName(timeSeriesMatrix, filename, OUTPUT_DIRECTORY);
+
+    Path file = tempDir.resolve(OUTPUT_DIRECTORY).resolve(filename);
+    assertArrayEquals(new byte[]{4}, Files.readAllBytes(file));
+    assertEquals(PosixFilePermissions.fromString("rw-------"), Files.getPosixFilePermissions(file));
+  }
+
+  @Test
+  void saveMatrixToNasWithName_serializationFailure_propagatesWithoutWriting() throws IOException {
+    IOException cause = new IOException("serialization failed");
+    when(timeSeriesWriter.writeToByteArray(timeSeriesMatrix)).thenThrow(cause);
+
+    IOException exception = assertThrows(IOException.class,
+            () -> nasFileService.saveMatrixToNasWithName(timeSeriesMatrix, "matrix.arrow", OUTPUT_DIRECTORY));
+
+    assertSame(cause, exception);
+    assertFalse(Files.exists(tempDir.resolve(OUTPUT_DIRECTORY)));
+  }
+
+  @Test
+  void readAndSaveMatrixToNas_nullInput_rejectsBeforeReading() {
+    assertThrows(NullPointerException.class,
+            () -> nasFileService.readAndSaveMatrixToNas(null, OUTPUT_DIRECTORY, null, false));
+    verifyNoInteractions(timeSeriesReader, timeSeriesWriter);
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", " ", "2030"})
+  void readAndSaveMatrixToNas_readFailure_retainsCauseAndOptionalHorizon(String sheetName) throws IOException {
+    Path input = tempDir.resolve("input.XLSX");
+    IOException cause = new IOException("cannot read");
+    when(timeSeriesReader.readFromXlsx(input, sheetName, false)).thenThrow(cause);
+
+    TechnicalException exception = assertThrows(TechnicalException.class,
+            () -> nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, sheetName, false));
+
+    String horizon = sheetName != null && !sheetName.isBlank() ? ", horizon: " + sheetName : "";
+    assertEquals("Failed to read time series matrix from file: input.XLSX" + horizon, exception.getMessage());
+    assertSame(cause, exception.getCause());
+    verifyNoInteractions(timeSeriesWriter);
+  }
+
+  @Test
+  void readAndSaveMatrixToNas_textReadFailure_omitsHorizon() throws IOException {
+    Path input = tempDir.resolve("input.txt");
+    IOException cause = new IOException("cannot read");
+    when(timeSeriesReader.readFromTxt(input, false)).thenThrow(cause);
+
+    TechnicalException exception = assertThrows(TechnicalException.class,
+            () -> nasFileService.readAndSaveMatrixToNas(input, OUTPUT_DIRECTORY, "2030", false));
+
+    assertEquals("Failed to read time series matrix from file: input.txt", exception.getMessage());
+    assertSame(cause, exception.getCause());
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+          "2030, STS, battery",
+          ", STS, battery",
+          "'', STS, battery",
+          "' ', STS, battery",
+          "2030, '', battery",
+          "2030, ' ', battery",
+          "2030, STS, ''",
+          "2030, STS, ' '",
+          "2030, , ",
+          "2030, , battery",
+          "2030, STS, "
+  })
+  void readMatrix_readFailure_formatsOptionalContextAndRetainsCause(
+          String sheetName, String type, String technology) throws IOException {
+    Path input = tempDir.resolve("input.xlsx");
+    IOException cause = new IOException("cannot read");
+    when(timeSeriesReader.readFromXlsx(input, sheetName, false)).thenThrow(cause);
+
+    TechnicalException exception = assertThrows(TechnicalException.class,
+            () -> nasFileService.readMatrix(input, sheetName, false, type, technology));
+
+    String context = type != null && !type.isBlank() && technology != null && !technology.isBlank()
+            ? type + " " + technology + " " : "";
+    String horizon = sheetName != null && !sheetName.isBlank() ? ", horizon: " + sheetName : "";
+    assertEquals("Failed to read time series matrix from " + context + "file: input.xlsx" + horizon,
+            exception.getMessage());
+    assertSame(cause, exception.getCause());
+  }
+
+  @Test
+  void countXlsxColumns_delegatesAndPropagatesFailure() throws IOException {
+    Path input = tempDir.resolve("input.xlsx");
+    IOException cause = new IOException("cannot count");
+    when(timeSeriesReader.countXlsxColumns(input, "2030")).thenReturn(3).thenThrow(cause);
+
+    assertEquals(3, nasFileService.countXlsxColumns(input, "2030"));
+    assertSame(cause, assertThrows(IOException.class, () -> nasFileService.countXlsxColumns(input, "2030")));
+  }
+
+  @Test
+  void getWriter_returnsConfiguredWriter() {
+    assertSame(timeSeriesWriter, nasFileService.getWriter());
   }
 }
