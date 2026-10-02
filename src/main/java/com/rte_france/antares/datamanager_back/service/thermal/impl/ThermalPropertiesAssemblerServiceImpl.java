@@ -1,15 +1,20 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
-import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.*;
+import com.rte_france.antares.datamanager_back.mapper.ThermalMeMapper;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -19,7 +24,7 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ThermalPropertiesAssemblerService {
+public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesAssemblerService {
 
     private final ThermalGroupMappingService thermalGroupMappingService;
 
@@ -27,22 +32,10 @@ public class ThermalPropertiesAssemblerService {
 
     private final ThermalCostAssembler thermalCostAssembler;
 
-    public record AreaClusterRefKey(String area, ThermalClusterRef thermalClusterRef) {
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof AreaClusterRefKey that)) return false;
-            String thisName = this.thermalClusterRef != null ? this.thermalClusterRef.getName() : null;
-            String thatName = that.thermalClusterRef != null ? that.thermalClusterRef.getName() : null;
-            return Objects.equals(this.area, that.area) && Objects.equals(thisName, thatName);
-        }
-
-        @Override
-        public int hashCode() {
-            String name = this.thermalClusterRef != null ? this.thermalClusterRef.getName() : null;
-            return Objects.hash(area, name);
-        }
-    }
+    private final AntaresDataManagerProperties antaresDataManagerProperties;
+    
+    private static final String TIMESTEP_ANNUAL = "annual";
+    private static final String FILE_EXTENSION_XLSX = ".xlsx";
 
     /**
      * Builds thermal properties by {@code (area, cluster_ref)} from the given trajectories.
@@ -150,6 +143,82 @@ public class ThermalPropertiesAssemblerService {
         }
 
         return thermalClusterGenerationOutput;
+    }
+
+    @Override
+    public Map<String, ThermalMEClusterGenerationDto> assembleThermalMeProperties(TrajectoryEntity trajectoryEntity) {
+        if (trajectoryEntity == null || trajectoryEntity.getThermalMeEntities() == null) {
+            return Collections.emptyMap();
+        }
+
+        String trajectoryFileName = trajectoryEntity.getFileName();
+        List<ThermalMeEntity> thermalMeEntities = trajectoryEntity.getThermalMeEntities();
+
+        Path baseDirectory = Path.of(
+                antaresDataManagerProperties.getNasDirectory(),
+                antaresDataManagerProperties.getTrajectoryFilePath(),
+                antaresDataManagerProperties.getThermalMeDirectory()
+        );
+
+        return thermalMeEntities.stream()
+                .collect(Collectors.toMap(
+                        entity -> entity.getNode().toUpperCase(Locale.ROOT) + "_" + entity.getClusterName().toUpperCase(Locale.ROOT),
+                        entity -> buildThermalMeClusterDto(entity, trajectoryFileName, baseDirectory),
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ));
+    }
+
+    private ThermalMEClusterGenerationDto buildThermalMeClusterDto(
+            ThermalMeEntity entity,
+            String trajectoryFileName,
+            Path baseDirectory
+    ) {
+        boolean isMarginalCostAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getMarginalCostTimestep());
+        boolean isMarketBidCostAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getMarketBidCostTimestep());
+        boolean isCapacityAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getCmTimestep());
+        boolean isMinGenAnnual = TIMESTEP_ANNUAL.equalsIgnoreCase(entity.getMrTimestep());
+        
+        ThermalMEClusterGenerationDto dto = ThermalMeMapper.mapToThermalMeGenerationDTO(entity);
+        
+        if (!isMarginalCostAnnual) {
+            String folder = antaresDataManagerProperties.getThermalMeMarginalCostModulationDirectory();
+            String fileName = resolveModulationFileName(baseDirectory, folder, trajectoryFileName);
+            dto.setMarginalCostModulationFile(fileName);
+        }
+        
+        if (!isMarketBidCostAnnual) {
+            String folder = antaresDataManagerProperties.getThermalMeMarketBidCostModulationDirectory();
+            String fileName = resolveModulationFileName(baseDirectory, folder, trajectoryFileName);
+            dto.setMarketBidCostModulationFile(fileName);
+        }
+
+        if (!isMinGenAnnual) {
+            String folder = antaresDataManagerProperties.getThermalMeMustRunModulationDirectory();
+            String fileName = resolveModulationFileName(baseDirectory, folder, trajectoryFileName);
+            dto.setMrModulationFile(fileName);
+        }
+
+        if (!isCapacityAnnual) {
+            String folder = antaresDataManagerProperties.getThermalMeCapacityModulationDirectory();
+            String fileName = resolveModulationFileName(baseDirectory, folder, trajectoryFileName);
+            dto.setCmModulationFile(fileName);
+        }
+
+        return dto;
+    }
+
+    /**
+     * Vérifie l'existence du fichier dans le répertoire cible et renvoie son nom (ou null s'il n'existe pas).
+     */
+    private String resolveModulationFileName(Path baseDirectory, String folderName, String trajectoryFileName) {
+        if (folderName == null || trajectoryFileName == null) {
+            return null;
+        }
+        String expectedFileName = folderName + "_" + trajectoryFileName + FILE_EXTENSION_XLSX;
+        Path fullPath = baseDirectory.resolve(folderName).resolve(expectedFileName);
+
+        return Files.exists(fullPath) ? expectedFileName : null;
     }
 
     public static List<String> extractModulationParamTsFilesByAreaClusterRefKey(List<String> splitedTsFileNameList, AreaClusterRefKey areaClusterRefKey) {
