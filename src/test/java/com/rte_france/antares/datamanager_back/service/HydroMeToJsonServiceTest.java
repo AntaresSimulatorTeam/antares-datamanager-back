@@ -25,6 +25,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -777,5 +779,199 @@ class HydroMeToJsonServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> node = (Map<String, Object>) result.get("node_a");
         assertThat(node).containsKeys("properties", "inflow_structure").doesNotContainKey("allocation");
+    }
+
+    private Map<String, Object> buildWithSeries(String kind, TrajectoryEntity series) {
+        return hydroMeToJsonService.buildHydroMeMap(trajectory, null,
+                kind.equals("reservoir_levels") ? series : null,
+                kind.equals("timeseries") ? series : null,
+                kind.equals("water_values") ? series : null);
+    }
+
+    private void stubSingleCapacity() {
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(List.of(
+                HydroCapacityMeEntity.builder().node("node_a").build()));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "reservoir_levels, missing",
+            "timeseries, missing",
+            "water_values, missing",
+            "reservoir_levels, empty",
+            "timeseries, empty",
+            "water_values, empty",
+            "reservoir_levels, checksum",
+            "timeseries, checksum",
+            "water_values, checksum"
+    })
+    void buildHydroMeMap_invalidSeriesConfiguration_shouldFailBeforeReading(String kind, String failure)
+            throws IOException {
+        stubSingleCapacity();
+        if (!failure.equals("missing")) {
+            Files.createDirectories(nasDir.resolve("INPUT/ME/hydro_ME").resolve(kind).resolve("series"));
+        }
+        TrajectoryEntity series = TrajectoryEntity.builder().fileName("series")
+                .checksum(failure.equals("checksum") ? " " : "checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries(kind, series))
+                .isInstanceOf(failure.equals("checksum") ? TechnicalException.class : BusinessException.class);
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"reservoir_levels", "timeseries", "water_values"})
+    void buildHydroMeMap_seriesReadIOException_shouldPreserveCause(String kind) throws IOException {
+        stubSingleCapacity();
+        Path file = switch (kind) {
+            case "reservoir_levels" -> createReservoirLevelsFile("series",
+                    new String[]{"Date", "Minimum", "Moyenne", "Maximum"});
+            case "timeseries" -> createHydroTimeSeriesFile("series", "node_a", "ror");
+            default -> createWaterValuesFile("series", "node_a");
+        };
+        if (kind.equals("timeseries")) {
+            createHydroTimeSeriesFile("series", "node_a", "mod");
+        }
+        IOException cause = new IOException("read failed");
+        when(timeSeriesReader.readFromXlsx(file, "2027", kind.equals("reservoir_levels"))).thenThrow(cause);
+        TrajectoryEntity series = TrajectoryEntity.builder()
+                .fileName("series").horizon("2026-2027").checksum("checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries(kind, series))
+                .isInstanceOf(TechnicalException.class).hasCause(cause);
+        verifyNoInteractions(nasFileService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ror", "mod"})
+    void buildHydroMeMap_missingRequiredTimeSeriesFile_shouldIdentifyFile(String missing) throws IOException {
+        stubSingleCapacity();
+        Path existing = createHydroTimeSeriesFile("series", "node_a", missing.equals("ror") ? "mod" : "ror");
+        if (missing.equals("mod")) {
+            when(timeSeriesReader.readFromXlsx(existing, "2027", false)).thenReturn(matrixOf("Column0", 2));
+        }
+        TrajectoryEntity series = TrajectoryEntity.builder()
+                .fileName("series").horizon("2027").checksum("checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries("timeseries", series))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorMessageArguments()).containsExactly(missing, "node_a", "series"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"timeseries", "water_values"})
+    void buildHydroMeMap_emptySeriesMatrix_shouldRejectBeforeWriting(String kind) throws IOException {
+        stubSingleCapacity();
+        Path file = kind.equals("timeseries")
+                ? createHydroTimeSeriesFile("series", "node_a", "ror")
+                : createWaterValuesFile("series", "node_a");
+        if (kind.equals("timeseries")) {
+            createHydroTimeSeriesFile("series", "node_a", "mod");
+        }
+        when(timeSeriesReader.readFromXlsx(file, "2027", false)).thenReturn(new TimeSeriesMatrix(List.of()));
+        TrajectoryEntity series = TrajectoryEntity.builder()
+                .fileName("series").horizon("2027").checksum("checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries(kind, series)).isInstanceOf(BusinessException.class);
+        verifyNoInteractions(nasFileService);
+    }
+
+    @Test
+    void buildHydroMeMap_waterValuesHorizonError_shouldPreserveNodeAndStatus() throws IOException {
+        stubSingleCapacity();
+        Path file = createWaterValuesFile("series", "node_a");
+        when(timeSeriesReader.readFromXlsx(file, "2027", false)).thenThrow(BusinessException.builder()
+                .message("Missing horizon {0}").errorMessageArguments(List.of("2027"))
+                .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST).build());
+        TrajectoryEntity series = TrajectoryEntity.builder()
+                .fileName("series").horizon("2027").checksum("checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries("water_values", series))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getErrorMessageArguments()).containsExactly("node_a", "Missing horizon 2027");
+                    assertThat(exception.getHttpStatus()).isEqualTo(org.springframework.http.HttpStatus.BAD_REQUEST);
+                });
+    }
+
+    @Test
+    void buildHydroMeMap_waterValuesUnmatchedFiles_shouldSkipWithoutReading() throws IOException {
+        stubSingleCapacity();
+        createWaterValuesFile("series", "unknown");
+        TrajectoryEntity series = TrajectoryEntity.builder().fileName("series").checksum("checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries("water_values", series))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("No Water Values files matched");
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", " "})
+    void buildHydroMeMap_blankHorizon_shouldReadDefaultSheet(String horizon) throws IOException {
+        stubSingleCapacity();
+        Path file = createWaterValuesFile("series", "node_a");
+        when(timeSeriesReader.readFromXlsx(file, null, false)).thenReturn(matrixOf("Column0", 2));
+        TrajectoryEntity series = TrajectoryEntity.builder()
+                .fileName("series").horizon(horizon).checksum("checksum").build();
+
+        assertThat(buildWithSeries("water_values", series)).containsKey("node_a");
+        verify(timeSeriesReader).readFromXlsx(file, null, false);
+    }
+
+    @Test
+    void buildHydroMeMap_nullRepositoryResults_shouldReturnEmpty() {
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(null);
+        when(hydroParametersMeRepository.findByTrajectoryId(1)).thenReturn(null);
+        when(hydroAllocationMeRepository.findByTrajectoryId(1)).thenReturn(null);
+
+        assertThat(hydroMeToJsonService.buildHydroMeMap(trajectory, trajectory)).isEmpty();
+    }
+
+    @Test
+    void buildHydroMeMap_trajectoriesWithoutIds_shouldNotQueryRepositories() {
+        TrajectoryEntity withoutId = TrajectoryEntity.builder().build();
+
+        assertThat(hydroMeToJsonService.buildHydroMeMap(withoutId, withoutId)).isEmpty();
+        verifyNoInteractions(hydroCapacityMeRepository, hydroParametersMeRepository, hydroAllocationMeRepository);
+    }
+
+    @Test
+    void buildHydroMeMap_invalidEntitiesAndParametersOnlyNode_shouldBeHandled() {
+        when(hydroParametersMeRepository.findByTrajectoryId(1)).thenReturn(java.util.Arrays.asList(
+                null, HydroParametersMeEntity.builder().node(" ").build(),
+                HydroParametersMeEntity.builder().node("node_a").build()));
+        when(hydroAllocationMeRepository.findByTrajectoryId(1)).thenReturn(java.util.Arrays.asList(
+                null, HydroAllocationMeEntity.builder().node(" ").area("FR").build(),
+                HydroAllocationMeEntity.builder().node("node_a").area(" ").build()));
+
+        Map<String, Object> result = hydroMeToJsonService.buildHydroMeMap(null, trajectory);
+
+        assertThat(result).containsOnlyKeys("node_a");
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @Test
+    void buildHydroMeMap_invalidCapacityEntities_shouldBeFiltered() {
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(java.util.Arrays.asList(
+                null, HydroCapacityMeEntity.builder().node(" ").build()));
+
+        assertThat(hydroMeToJsonService.buildHydroMeMap(trajectory)).isEmpty();
+    }
+
+    @Test
+    void buildHydroMeMap_waterValuesAmbiguousConvention_shouldRejectBeforeReading() throws IOException {
+        createWaterValuesFile("series", "waterValues_x");
+        when(hydroCapacityMeRepository.findByTrajectoryIdOrderByNodeAsc(1)).thenReturn(List.of(
+                HydroCapacityMeEntity.builder().node("waterValues_x").build(),
+                HydroCapacityMeEntity.builder().node("x_water_values").build()));
+        TrajectoryEntity series = TrajectoryEntity.builder().fileName("series").checksum("checksum").build();
+
+        assertThatThrownBy(() -> buildWithSeries("water_values", series))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getMessage()).contains("matches multiple nodes");
+                    assertThat(exception.getErrorMessageArguments()).containsExactly(
+                            "waterValues_x_water_values.xlsx", "waterValues_x, x_water_values");
+                });
+        verifyNoInteractions(timeSeriesReader, nasFileService);
     }
 }
