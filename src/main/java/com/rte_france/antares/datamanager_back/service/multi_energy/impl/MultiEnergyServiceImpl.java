@@ -207,6 +207,12 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
 
         TrajectoryEntity hydroParametersMeTrajectory =
                 trajectoriesByType.get(TrajectoryType.HYDRO_PARAMETERS_ME);
+        TrajectoryEntity hydroReservoirLevelsMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME);
+        TrajectoryEntity hydroTimeSeriesMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.HYDRO_TIME_SERIES_ME);
+        TrajectoryEntity hydroWaterValuesMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.HYDRO_WATER_VALUES_ME);
 
         Map<String, Object> meMap = new LinkedHashMap<>();
 
@@ -220,10 +226,24 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             meMap.put(LINKS_ME, linksMap);
         }
 
-        Map<String, Object> hydroMeMap = hydroMeToJsonService != null
-                ? hydroMeToJsonService.buildHydroMeMap(hydroCapacityMeTrajectory, hydroParametersMeTrajectory)
-                : Collections.emptyMap();
-        if (hydroMeMap != null && !hydroMeMap.isEmpty()) {
+        Map<String, Object> hydroMeMap = new LinkedHashMap<>();
+        if (hydroCapacityMeTrajectory != null) {
+            if (hydroMeToJsonService != null) {
+                Map<String, Object> nodes = hydroReservoirLevelsMeTrajectory == null
+                        && hydroTimeSeriesMeTrajectory == null
+                        && hydroWaterValuesMeTrajectory == null
+                        ? hydroMeToJsonService.buildHydroMeMap(
+                                hydroCapacityMeTrajectory, hydroParametersMeTrajectory)
+                        : hydroMeToJsonService.buildHydroMeMap(
+                                hydroCapacityMeTrajectory, hydroParametersMeTrajectory,
+                                hydroReservoirLevelsMeTrajectory, hydroTimeSeriesMeTrajectory,
+                                hydroWaterValuesMeTrajectory);
+                if (nodes != null) {
+                    hydroMeMap.putAll(nodes);
+                }
+            }
+        }
+        if (!hydroMeMap.isEmpty()) {
             meMap.put(HYDRO_ME, hydroMeMap);
         }
 

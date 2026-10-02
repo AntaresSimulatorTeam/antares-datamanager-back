@@ -155,6 +155,19 @@ class NasFileServiceTest {
   }
 
   @Test
+  void saveMatrixToNasWithName_preservesRequestedFilename() throws IOException {
+    when(timeSeriesWriter.writeToByteArray(any(TimeSeriesMatrix.class))).thenReturn("matrix content".getBytes());
+
+    String result = nasFileService.saveMatrixToNasWithName(
+            timeSeriesMatrix, "node_reservoir_levels_checksum.arrow", OUTPUT_DIRECTORY);
+
+    assertEquals("node_reservoir_levels_checksum.arrow", result);
+    Path savedFile = tempDir.resolve(OUTPUT_DIRECTORY).resolve(result);
+    assertTrue(Files.exists(savedFile));
+    assertArrayEquals("matrix content".getBytes(), Files.readAllBytes(savedFile));
+  }
+
+  @Test
   void saveMatrixToNas_fromMatrix_nullMatrix() {
     assertThrows(NullPointerException.class, () -> nasFileService.saveMatrixToNas((TimeSeriesMatrix) null, "baseName", OUTPUT_DIRECTORY));
   }
@@ -458,4 +471,3 @@ class NasFileServiceTest {
             () -> nasFileService.saveMatrixBytesToNas("data".getBytes(), null, OUTPUT_DIRECTORY));
   }
 }
-
