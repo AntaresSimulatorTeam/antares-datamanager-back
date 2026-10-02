@@ -102,6 +102,9 @@ class StudyGeneratorServiceImplTest {
     private MultiEnergyService multiEnergyService;
 
     @Mock
+    private com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonService hydroMeToJsonService;
+
+    @Mock
     private AdequacySettingsToJsonService adequacySettingsToJsonService;
 
     @Mock
@@ -302,7 +305,7 @@ class StudyGeneratorServiceImplTest {
                     trajs.add(null);
                 }
             }
-return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService)
+return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService, hydroMeToJsonService)
                     .buildMultiEnergyMapWithThermalClusterProps(
                             study, inv.getArgument(1), trajs.toArray(new TrajectoryEntity[0]));
         }).when(multiEnergyService).buildMultiEnergyMapWithThermalClusterProps(
@@ -379,6 +382,151 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         when(studyRepository.findById(studyId)).thenReturn(Optional.of(pspStudy));
 
         assertDoesNotThrow(() -> studyGeneratorService.buildJsonForStudyGeneration(studyId));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_withOnlyReservoirLevels_shouldNotIncludeMeHydro() throws Exception {
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type("HYDRO_RESERVOIR_LEVELS_ME")
+                .fileName("reservoir_levels").checksum("abc123").build();
+        StudyEntity study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(Set.of(reservoirLevels)).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyData = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        assertThat(studyData).doesNotContainKey("ME");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_withCapacityAndReservoirLevels_shouldIncludeReservoirTsInMeHydro() throws Exception {
+        TrajectoryEntity capacity = TrajectoryEntity.builder()
+                .type("HYDRO_CAPACITY_ME").fileName("capacity").build();
+        TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
+                .type("HYDRO_RESERVOIR_LEVELS_ME")
+                .fileName("reservoir_levels").checksum("abc123").build();
+        StudyEntity study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(capacity, reservoirLevels))).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(hydroMeToJsonService.buildHydroMeMap(capacity, null, reservoirLevels, null, null))
+                .thenReturn(Map.of("node_a", Map.of(
+                        "properties", Map.of("reservoir_capacity", 5376),
+                        "reservoir_ts", "node_a_reservoir_levels_abc123.arrow")));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyData = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> me = mapper.convertValue(studyData.get("ME"), new TypeReference<>() {});
+        Map<String, Object> hydro = mapper.convertValue(me.get("hydro_me"), new TypeReference<>() {});
+        assertThat(hydro).containsOnlyKeys("node_a")
+                .containsEntry("node_a", Map.of(
+                        "properties", Map.of("reservoir_capacity", 5376),
+                        "reservoir_ts", "node_a_reservoir_levels_abc123.arrow"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_withCapacityAndHydroTimeSeries_shouldIncludeTimeseriesTsInMeHydro() throws Exception {
+        TrajectoryEntity capacity = TrajectoryEntity.builder()
+                .type("HYDRO_CAPACITY_ME").fileName("capacity").build();
+        TrajectoryEntity timeSeries = TrajectoryEntity.builder()
+                .type("HYDRO_TIME_SERIES_ME")
+                .fileName("hydro_timeseries").checksum("def456").build();
+        StudyEntity study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(capacity, timeSeries))).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(hydroMeToJsonService.buildHydroMeMap(capacity, null, null, timeSeries, null))
+                .thenReturn(Map.of("node_a", Map.of(
+                        "properties", Map.of("reservoir_capacity", 5376),
+                        "timeseries_ts", Map.of(
+                                "ror", "node_a_ror.def456.arrow",
+                                "mod", "node_a_mod.def456.arrow"))));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyData = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> me = mapper.convertValue(studyData.get("ME"), new TypeReference<>() {});
+        Map<String, Object> hydro = mapper.convertValue(me.get("hydro_me"), new TypeReference<>() {});
+        assertThat(hydro).containsOnlyKeys("node_a")
+                .containsEntry("node_a", Map.of(
+                        "properties", Map.of("reservoir_capacity", 5376),
+                        "timeseries_ts", Map.of(
+                                "ror", "node_a_ror.def456.arrow",
+                                "mod", "node_a_mod.def456.arrow")));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_withOnlyHydroTimeSeries_shouldNotIncludeMeHydro() throws Exception {
+        TrajectoryEntity timeSeries = TrajectoryEntity.builder()
+                .type("HYDRO_TIME_SERIES_ME")
+                .fileName("hydro_timeseries").checksum("def456").build();
+        StudyEntity study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(Set.of(timeSeries)).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyData = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        assertThat(studyData).doesNotContainKey("ME");
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_withCapacityAndWaterValues_shouldAttachWaterValuesToNode() throws Exception {
+        TrajectoryEntity capacity = TrajectoryEntity.builder()
+                .type("HYDRO_CAPACITY_ME").fileName("capacity").build();
+        TrajectoryEntity waterValues = TrajectoryEntity.builder()
+                .type("HYDRO_WATER_VALUES_ME")
+                .fileName("water_values").checksum("ghi789").build();
+        StudyEntity study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(capacity, waterValues))).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(hydroMeToJsonService.buildHydroMeMap(capacity, null, null, null, waterValues))
+                .thenReturn(Map.of("node_a", Map.of(
+                        "properties", Map.of("reservoir_capacity", 5376),
+                        "water_values_ts", "node_a_ghi789.arrow")));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyData = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> me = mapper.convertValue(studyData.get("ME"), new TypeReference<>() {});
+        Map<String, Object> hydro = mapper.convertValue(me.get("hydro_me"), new TypeReference<>() {});
+        assertThat(hydro).containsOnlyKeys("node_a")
+                .containsEntry("node_a", Map.of(
+                        "properties", Map.of("reservoir_capacity", 5376),
+                        "water_values_ts", "node_a_ghi789.arrow"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_withOnlyWaterValues_shouldNotIncludeMeHydro() throws Exception {
+        TrajectoryEntity waterValues = TrajectoryEntity.builder()
+                .type("HYDRO_WATER_VALUES_ME")
+                .fileName("water_values").checksum("ghi789").build();
+        StudyEntity study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(Set.of(waterValues)).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyData = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        assertThat(studyData).doesNotContainKey("ME");
     }
 
     @Test

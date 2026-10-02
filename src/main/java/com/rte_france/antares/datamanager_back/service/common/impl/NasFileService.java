@@ -108,6 +108,19 @@ public class NasFileService {
         saveMatrix(outputFileName, matrix, outputDir);
         return outputFileName;
     }
+
+    public String saveMatrixToNasWithName(TimeSeriesMatrix matrix, String fileName, String outputDir) throws IOException {
+        Objects.requireNonNull(matrix, "matrix must not be null");
+        Objects.requireNonNull(fileName, "fileName must not be null");
+        if (fileName.isBlank() || fileName.contains("..") || !Path.of(fileName).getFileName().toString().equals(fileName)) {
+            throw TechnicalException.builder()
+                    .message("Invalid file name: " + fileName)
+                    .build();
+        }
+        saveMatrix(fileName, matrix, outputDir);
+        setFilePermissions(resolveNasPath(fileName, outputDir));
+        return fileName;
+    }
     
     /**
      * Saves a time series matrix read from the given path to NAS with a unique filename.

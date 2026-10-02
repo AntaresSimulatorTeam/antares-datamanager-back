@@ -204,7 +204,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                         log.warn("NUCLEAR trajectory assembled separately: {}", trajectory.getFileName());
                 case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
                      P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME, LOAD_ME, STS_ME, EFFICIENCY_ME,
-                     CONSTRAINT_ME-> singleTrajectoryByType.put(trajectoryType, trajectory);
+                     CONSTRAINT_ME, HYDRO_CAPACITY_ME, HYDRO_PARAMETERS_ME, HYDRO_RESERVOIR_LEVELS_ME,
+                     HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME ->
+                        singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
                     throw TechnicalException.builder().message("Unhandled trajectory for generation: " + trajectoryType).build();
@@ -275,8 +277,19 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 dispatchResult.trajectoryOfType(TrajectoryType.EFFICIENCY_ME);
         Optional<TrajectoryEntity> constraintMeTrajectory =
                 dispatchResult.trajectoryOfType(TrajectoryType.CONSTRAINT_ME);
+        Optional<TrajectoryEntity> hydroCapacityMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_CAPACITY_ME);
+        Optional<TrajectoryEntity> hydroParametersMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_PARAMETERS_ME);
+        Optional<TrajectoryEntity> hydroReservoirLevelsMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME);
+        Optional<TrajectoryEntity> hydroTimeSeriesMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_TIME_SERIES_ME);
+        Optional<TrajectoryEntity> hydroWaterValuesMeTrajectory =
+                dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_WATER_VALUES_ME);
 
-        if (areaMeTrajectory.isPresent() || efficiencyMeTrajectory.isPresent() || constraintMeTrajectory.isPresent()) {
+        if (areaMeTrajectory.isPresent() || efficiencyMeTrajectory.isPresent() || constraintMeTrajectory.isPresent()
+                || hydroCapacityMeTrajectory.isPresent()) {
             Optional<TrajectoryEntity> linkMeTrajectory =
                     dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
             Optional<TrajectoryEntity> loadMeTrajectory =
@@ -292,7 +305,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     loadMeTrajectory.orElse(null),
                     stsMeTrajectory.orElse(null),
                     efficiencyMeTrajectory.orElse(null),
-                    constraintMeTrajectory.orElse(null));
+                    constraintMeTrajectory.orElse(null),
+                    hydroCapacityMeTrajectory.orElse(null),
+                    hydroParametersMeTrajectory.orElse(null),
+                    hydroReservoirLevelsMeTrajectory.orElse(null),
+                    hydroTimeSeriesMeTrajectory.orElse(null),
+                    hydroWaterValuesMeTrajectory.orElse(null));
 
             if (meMap != null && !meMap.isEmpty()) {
                 innerGeneratorMap.put("ME", meMap);

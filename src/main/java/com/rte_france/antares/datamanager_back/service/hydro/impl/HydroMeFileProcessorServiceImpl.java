@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
+import com.rte_france.antares.datamanager_back.util.HydroWaterValuesFileUtil;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
@@ -173,10 +174,10 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId);
 
         if (!validNodes.isEmpty()) {
-            // Check if at least one file name contains a valid node
+            // Match the node portion, not the fixed Water Values filename text.
             boolean hasAtLeastOneValidFile = excelFiles.stream()
                     .anyMatch(fileName -> validNodes.stream()
-                            .anyMatch(nodeName -> fileName.toLowerCase().contains(nodeName.toLowerCase())));
+                            .anyMatch(nodeName -> HydroWaterValuesFileUtil.matchesNode(fileName, nodeName)));
 
             if (!hasAtLeastOneValidFile) {
                 throw BusinessException.builder()
@@ -348,9 +349,11 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private void validateTimestepValue(String value, String columnName, String trajectoryName) {
         if (value == null || value.trim().isEmpty()) return;
-        if (!("daily".equalsIgnoreCase(value) || "annual".equalsIgnoreCase(value))) {
+        if (!("daily".equalsIgnoreCase(value)
+                || "hourly".equalsIgnoreCase(value)
+                || "annual".equalsIgnoreCase(value))) {
             throw BusinessException.builder()
-                    .message("Column " + columnName + " must be 'annual' or 'daily' only in HYDRO_ME Capacity trajectory " + trajectoryName)
+                    .message("Column " + columnName + " must be 'daily', 'hourly' or 'annual' only in HYDRO_ME Capacity trajectory " + trajectoryName)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
