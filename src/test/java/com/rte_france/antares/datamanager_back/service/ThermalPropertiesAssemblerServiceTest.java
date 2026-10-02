@@ -552,7 +552,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         // Setup economicCostTrajectory with thermalCosts for ratio_ncv_hcv
-        var gasCost = ThermalCostEntity.builder().thermalType(gasCostType).cost(40.0).build();
+        var gasCost = ThermalCostEntity.builder().thermalType(gasCostType).cost(BigDecimal.valueOf(40.0)).build();
         gasCostType.setThermalCostEntities(List.of(gasCost));
 
         var economicCostTrajectory = TrajectoryEntity.builder()
