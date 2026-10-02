@@ -431,7 +431,7 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should handle partial node matches in filenames")
+    @DisplayName("Should reject partial node matches in filenames")
     void testProcessHydroWaterValuesMeDirectory_PartialNodeMatches() throws IOException {
         // Arrange
         createExcelFile(waterValuesDir.resolve("waterValues_v_me_h2_long_roe.xlsx"));
@@ -439,28 +439,9 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
         when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
                 .thenReturn(List.of("v_me_h2", "other_node"));
 
-        TrajectoryEntity expectedTrajectory = TrajectoryEntity.builder()
-                .id(1)
-                .fileName(trajectoryName)
-                .horizon(horizon)
-                .type(TrajectoryType.HYDRO_WATER_VALUES_ME.name())
-                .version(1)
-                .build();
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                trajectoryName, horizon, TrajectoryType.HYDRO_WATER_VALUES_ME.name()))
-                .thenReturn(Optional.empty());
-
-        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
-                .thenReturn(expectedTrajectory);
-
-        // Act
-        TrajectoryEntity result = hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(
-                trajectoryName, horizon, studyId);
-
-        // Assert
-        assertNotNull(result);
-        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
+        assertThrows(BusinessException.class, () ->
+                hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(trajectoryName, horizon, studyId));
+        verify(trajectoryRepository, never()).save(any(TrajectoryEntity.class));
     }
 
     @Test
