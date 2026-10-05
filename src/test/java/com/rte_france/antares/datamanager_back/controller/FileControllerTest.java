@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
@@ -84,14 +86,27 @@ class FileControllerTest {
   }
 
   @Test
+  void uploadFile_nullFileName() throws IOException {
+    var file = mock(MultipartFile.class);
+    when(file.getOriginalFilename()).thenReturn(null);
+    when(properties.getNasDirectory()).thenReturn("/nas-test");
+    var response = fileController.uploadFile(file);
+
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    assertEquals("Invalid file name: null", response.getBody());
+    verify(nasFileService, never()).saveFile(any(String.class), any(), any(String.class));
+  }
+
+  @Test
   void uploadFile_pathOutsideNasDirectory() throws IOException {
-    var filename = "testFile.txt";
+    var filename = "/test/testFile.txt";
     var content = "test content".getBytes();
     var file = new MockMultipartFile("file", filename, "text/plain", content);
     when(properties.getNasDirectory()).thenReturn("/nas");
 
-    doThrow(new IOException("Path outside of target")).when(nasFileService).saveFile(any(String.class), eq(content), any(String.class));
+    TechnicalException exception = assertThrows(TechnicalException.class, () -> fileController.uploadFile(file));
 
-    assertThrows(IOException.class, () -> fileController.uploadFile(file));
+    assertTrue(exception.getMessage().contains("Path outside of target: " + filename));
+    verify(nasFileService, never()).saveFile(any(String.class), any(), any(String.class));
   }
 }
