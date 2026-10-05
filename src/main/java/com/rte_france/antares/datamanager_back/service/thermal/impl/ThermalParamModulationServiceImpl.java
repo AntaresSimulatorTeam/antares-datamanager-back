@@ -417,10 +417,20 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         Set<String> requestedClusters = new HashSet<>(clusterNames);
         TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromXlsx(fullPath, horizon, requestedClusters);
 
-        if (matrix.columns().isEmpty()) {
+        Set<String> foundColumns = matrix.columns().stream()
+                .filter(Objects::nonNull)
+                .map(column -> column.name().trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        Set<String> missingClusters = clusterNames.stream()
+                .filter(Objects::nonNull)
+                .filter(cluster -> !foundColumns.contains(cluster.trim().toLowerCase(Locale.ROOT)))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (!missingClusters.isEmpty()) {
             throw BusinessException.builder()
                     .message("Clusters {0} not found in file: {1}")
-                    .errorMessageArguments(List.of(clusterNames.toString(), fullPath.getFileName().toString()))
+                    .errorMessageArguments(List.of(missingClusters.toString(), fullPath.getFileName().toString()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
