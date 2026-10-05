@@ -23,6 +23,7 @@ public class ThermalToJsonService {
     private static final String PROPERTIES = "properties";
     private static final String DATA = "data";
     private static final String MODULATION = "modulation";
+    private static final String SERIES = "series";
     private static final String MATRIX_HASH = "matrix hash";
 
     public String buildClusterKey(String area, String clusterName) {
@@ -122,6 +123,7 @@ public class ThermalToJsonService {
                     Map<String, Object> clusterData = new LinkedHashMap<>();
                     clusterData.put(PROPERTIES, propertiesMap);
                     clusterData.put(MODULATION, dataMap);
+                    clusterData.put(SERIES, dto.getTsList());
 
                     thermalMeClusterName.put(clusterName, clusterData);
                     log.info("Thermal ME cluster added {} for area {} (enabled={})", clusterName, areaName, dto.getEnabled());

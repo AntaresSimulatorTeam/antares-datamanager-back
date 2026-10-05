@@ -1,6 +1,8 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ThermalMEClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -10,15 +12,22 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModul
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalCostAssembler;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalGroupMappingService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -41,8 +50,14 @@ class ThermalPropertiesAssemblerServiceTest {
     @Mock
     private ThermalCostTypeRepository thermalCostTypeRepository;
 
+    @Mock
+    private AntaresDataManagerProperties antaresDataManagerProperties;
+
+    @TempDir
+    Path tempDir;
+
     @InjectMocks
-    private ThermalPropertiesAssemblerService service;
+    private ThermalPropertiesAssemblerServiceImpl service;
 
     private ThermalCostAssembler thermalCostAssembler;
 
@@ -52,9 +67,11 @@ class ThermalPropertiesAssemblerServiceTest {
     @BeforeEach
     void init() throws Exception {
         thermalCostAssembler = new ThermalCostAssembler(thermalCostTypeRepository);
-        var field = ThermalPropertiesAssemblerService.class.getDeclaredField("thermalCostAssembler");
-        field.setAccessible(true);
-        field.set(service, thermalCostAssembler);
+        ReflectionTestUtils.setField(
+                service,
+                "thermalCostAssembler",
+                thermalCostAssembler
+        );
 
         gasRef = ThermalClusterRef.builder().name("Gas1").build();
         nucRef = ThermalClusterRef.builder().name("NuclearA").build();
@@ -1407,5 +1424,83 @@ class ThermalPropertiesAssemblerServiceTest {
 
         assertThat(exception.getMessage()).contains("Failed to generate study. unit count must not be zero for thermal cluster");
         assertThat(exception.getErrorMessageArguments()).contains(gasRef.getName(), "capacity_null.xlsx");
+    }
+
+    @Test
+    void assembleThermalMeProperties_nullTrajectoryOrNullEntities_returnsEmptyMap() {
+        assertThat(service.assembleThermalMeProperties(null)).isEmpty();
+        assertThat(service.assembleThermalMeProperties(TrajectoryEntity.builder().build())).isEmpty();
+    }
+
+    @Test
+    void assembleThermalMeProperties_hourlyModulationFiles_groupsAndCallsService() throws IOException {
+        String trajectoryFileName = "traj_me_2025";
+        Path baseDir = tempDir.resolve("nas/trajectories/thermal_me");
+        Path mcDir = baseDir.resolve("marginal_cost_modulation");
+        Path cmDir = baseDir.resolve("capacity_modulation");
+        Files.createDirectories(mcDir);
+        Files.createDirectories(cmDir);
+
+        Path mcFile = mcDir.resolve("marginal_cost_modulation_" + trajectoryFileName + ".xlsx");
+        Path cmFile = cmDir.resolve("capacity_modulation_" + trajectoryFileName + ".xlsx");
+        Files.createFile(mcFile);
+        Files.createFile(cmFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.resolve("nas").toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getThermalMeDirectory()).thenReturn("thermal_me");
+        when(antaresDataManagerProperties.getThermalMeMarginalCostModulationDirectory()).thenReturn("marginal_cost_modulation");
+        when(antaresDataManagerProperties.getThermalMeCapacityModulationDirectory()).thenReturn("capacity_modulation");
+
+        ThermalMeEntity entity1 = ThermalMeEntity.builder()
+                .node("FR")
+                .clusterName("gas_1")
+                .groupName("GAS")
+                .enabled(true)
+                .marginalCostTimestep("hourly")
+                .cmTimestep("annual")
+                .mrTimestep("annual")
+                .marketBidCostTimestep("annual")
+                .build();
+
+        ThermalMeEntity entity2 = ThermalMeEntity.builder()
+                .node("FR")
+                .clusterName("gas_2")
+                .groupName("GAS")
+                .enabled(true)
+                .marginalCostTimestep("hourly")
+                .cmTimestep("hourly")
+                .mrTimestep("annual")
+                .marketBidCostTimestep("annual")
+                .build();
+
+        TrajectoryEntity trajectoryEntity = TrajectoryEntity.builder()
+                .fileName(trajectoryFileName)
+                .horizon("2025")
+                .thermalMeEntities(List.of(entity1, entity2))
+                .build();
+
+        when(paramModulationService.createThermalMeModulationArrowFile("2025", List.of("FR_GAS_1", "FR_GAS_2"), mcFile))
+                .thenReturn(Map.of(
+                        "FR_GAS_1", List.of("arrow_mc_1.arrow"),
+                        "FR_GAS_2", List.of("arrow_mc_2.arrow")
+                ));
+
+        when(paramModulationService.createThermalMeModulationArrowFile("2025", List.of("FR_GAS_2"), cmFile))
+                .thenReturn(Map.of(
+                        "FR_GAS_2", List.of("arrow_cm_2.arrow")
+                ));
+
+        Map<String, ThermalMEClusterGenerationDto> result = service.assembleThermalMeProperties(trajectoryEntity);
+
+        assertThat(result).hasSize(2);
+        assertThat(result).containsKey("FR_GAS_1");
+        assertThat(result).containsKey("FR_GAS_2");
+
+        ThermalMEClusterGenerationDto dto1 = result.get("FR_GAS_1");
+        assertThat(dto1.getTsList()).containsExactly("arrow_mc_1.arrow");
+
+        ThermalMEClusterGenerationDto dto2 = result.get("FR_GAS_2");
+        assertThat(dto2.getTsList()).containsExactly("arrow_mc_2.arrow", "arrow_cm_2.arrow");
     }
 }
