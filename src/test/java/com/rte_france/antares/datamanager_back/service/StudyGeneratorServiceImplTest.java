@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.dto.ThermalMEClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.P2gGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.P2gClusterGenerationDTO;
@@ -282,6 +283,8 @@ class StudyGeneratorServiceImplTest {
                 .when(thermalToJsonService).thermalsMapGenerator(anyMap(), anyMap(), anyMap());
         lenient().doAnswer(inv -> new ThermalToJsonService().buildClusterKey(inv.getArgument(0), inv.getArgument(1)))
                 .when(thermalToJsonService).buildClusterKey(any(String.class), any(String.class));
+        lenient().doAnswer(inv -> new ThermalToJsonService().thermalsMeMapGenerator(inv.getArgument(0), inv.getArgument(1)))
+                .when(thermalToJsonService).thermalsMeMapGenerator(any(String.class), anyMap());
 
         lenient().doAnswer(inv -> new DsrToJsonService().buildDsrDataMap(inv.getArgument(0), inv.getArgument(1)))
                 .when(drsToJsonService).buildDsrDataMap(any(String.class),anyMap());
@@ -1907,5 +1910,133 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         Map<String, Object> vMeH2LongIber = mapper.convertValue(areaMe.get("V_ME_H2_LONG_IBER"), new TypeReference<>() {});
         assertThat(vMeH2LongIber.get("loads")).isEqualTo(List.of("load_v_me_h2_long_iber_2026-2027.csv.uuid3.arrow"));
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldIncludeThermalsInAreaMe_whenThermalCapacityMeTrajectoryAttachedToStudy() throws Exception {
+        var atEntity = AreaEntity.builder().name("AT").build();
+        var atConfig = AreaConfigEntity.builder().area(atEntity).unsuppliedEnergyCost(4000.0).spilledEnergyCost(0.0).build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(atConfig)).build();
+
+        var vMeH2ShortFrEntity = AreaEntity.builder().name("V_ME_H2_SHORT_FR").build();
+        var vMeH2ShortFrConfig = AreaConfigEntity.builder().area(vMeH2ShortFrEntity).unsuppliedEnergyCost(0.0).spilledEnergyCost(0.0).build();
+        var areaMeTrajectory = TrajectoryEntity.builder()
+                .type("AREA_ME")
+                .areaConfigEntities(List.of(vMeH2ShortFrConfig))
+                .fileName("area_me.xlsx")
+                .build();
+
+        var thermalMeTrajectory = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY_ME")
+                .fileName("thermal_me.xlsx")
+                .horizon("2026-2027")
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaTrajectory, areaMeTrajectory, thermalMeTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        var thermalMeDto = ThermalMEClusterGenerationDto.builder()
+                .group("GAS")
+                .enabled(true)
+                .unitCount(1)
+                .marginalCost(50.0)
+                .nominalCapacity(100.0)
+                .tsList(List.of("arrow_file_1.arrow"))
+                .build();
+
+        when(thermalPropertiesAssemblerService.assembleThermalMeProperties(thermalMeTrajectory))
+                .thenReturn(Map.of("V_ME_H2_SHORT_FR_IMPORT_CANALISATION", thermalMeDto));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+
+        assertThat(studyMap).containsKey("ME");
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        assertThat(meMap).containsKey("area_me");
+
+        Map<String, Object> areaMe = mapper.convertValue(meMap.get("area_me"), new TypeReference<>() {});
+        assertThat(areaMe).containsKey("V_ME_H2_SHORT_FR");
+
+        Map<String, Object> areaData = mapper.convertValue(areaMe.get("V_ME_H2_SHORT_FR"), new TypeReference<>() {});
+        assertThat(areaData).containsKey("thermals_me");
+
+        Map<String, Object> thermals = mapper.convertValue(areaData.get("thermals_me"), new TypeReference<>() {});
+        assertThat(thermals).containsKey("V_ME_H2_SHORT_FR_IMPORT_CANALISATION");
+
+        Map<String, Object> clusterData = mapper.convertValue(thermals.get("V_ME_H2_SHORT_FR_IMPORT_CANALISATION"), new TypeReference<>() {});
+        assertThat(clusterData).containsKeys("properties", "modulation", "series");
+        assertThat(clusterData.get("series")).isEqualTo(List.of("arrow_file_1.arrow"));
+
+        Map<String, Object> properties = mapper.convertValue(clusterData.get("properties"), new TypeReference<>() {});
+        assertThat(properties.get("group")).isEqualTo("GAS");
+        assertThat(properties.get("enabled")).isEqualTo(true);
+        assertThat(properties.get("unit_count")).isEqualTo(1);
+        assertThat(properties.get("marginal_cost")).isEqualTo(50.0);
+        assertThat(properties.get("nominal_capacity")).isEqualTo(100.0);
+    }
+
+    @Test
+    void buildJsonForStudyGeneration_shouldDispatchThermalsPerArea_whenMultipleThermalMeClustersPresent() throws Exception {
+        var area1 = AreaEntity.builder().name("AREA_ME_1").build();
+        var area1Config = AreaConfigEntity.builder().area(area1).unsuppliedEnergyCost(0.0).spilledEnergyCost(0.0).build();
+        var area2 = AreaEntity.builder().name("AREA_ME_2").build();
+        var area2Config = AreaConfigEntity.builder().area(area2).unsuppliedEnergyCost(0.0).spilledEnergyCost(0.0).build();
+
+        var areaMeTrajectory = TrajectoryEntity.builder()
+                .type("AREA_ME")
+                .areaConfigEntities(List.of(area1Config, area2Config))
+                .fileName("area_me.xlsx")
+                .build();
+
+        var thermalMeTrajectory = TrajectoryEntity.builder()
+                .type("THERMAL_CAPACITY_ME")
+                .fileName("thermal_me.xlsx")
+                .horizon("2030")
+                .build();
+
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaMeTrajectory, thermalMeTrajectory)))
+                .build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        var dto1 = ThermalMEClusterGenerationDto.builder()
+                .group("GAS")
+                .enabled(true)
+                .tsList(List.of("ts1.arrow"))
+                .build();
+        var dto2 = ThermalMEClusterGenerationDto.builder()
+                .group("OIL")
+                .enabled(false)
+                .tsList(List.of("ts2.arrow"))
+                .build();
+
+        when(thermalPropertiesAssemblerService.assembleThermalMeProperties(thermalMeTrajectory))
+                .thenReturn(Map.of(
+                        "AREA_ME_1_CLUSTER_A", dto1,
+                        "AREA_ME_2_CLUSTER_B", dto2
+                ));
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> meMap = mapper.convertValue(studyMap.get("ME"), new TypeReference<>() {});
+        Map<String, Object> areaMe = mapper.convertValue(meMap.get("area_me"), new TypeReference<>() {});
+
+        Map<String, Object> area1Data = mapper.convertValue(areaMe.get("AREA_ME_1"), new TypeReference<>() {});
+        Map<String, Object> area1Thermals = mapper.convertValue(area1Data.get("thermals_me"), new TypeReference<>() {});
+        assertThat(area1Thermals).containsKey("AREA_ME_1_CLUSTER_A").doesNotContainKey("AREA_ME_2_CLUSTER_B");
+
+        Map<String, Object> area2Data = mapper.convertValue(areaMe.get("AREA_ME_2"), new TypeReference<>() {});
+        Map<String, Object> area2Thermals = mapper.convertValue(area2Data.get("thermals_me"), new TypeReference<>() {});
+        assertThat(area2Thermals).containsKey("AREA_ME_2_CLUSTER_B").doesNotContainKey("AREA_ME_1_CLUSTER_A");
     }
 }
