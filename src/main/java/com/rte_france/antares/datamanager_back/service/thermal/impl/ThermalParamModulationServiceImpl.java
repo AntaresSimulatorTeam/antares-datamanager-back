@@ -13,6 +13,9 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModul
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.ColumnSplitWriter;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -51,6 +54,8 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
     private final ThermalSpecificFileProcessorService thermalSpecificFileProcessorService;
 
     private final NasFileService nasFileService;
+
+    private final TimeSeriesReader timeSeriesReader;
 
     /**
      * Saves a thermal modulation parameter trajectory.
@@ -398,5 +403,48 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
         }
 
         return trajectoryFilePath;
+    }
+
+    @Override
+    public Map<String, List<String>> createThermalMeModulationArrowFile(String horizon, List<String> clusterNames, Path fullPath) throws IOException, BusinessException {
+        Objects.requireNonNull(clusterNames, "clusterNames must not be null");
+        Objects.requireNonNull(fullPath, "fullPath must not be null");
+
+        if (clusterNames.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Set<String> requestedClusters = new HashSet<>(clusterNames);
+        TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromXlsx(fullPath, horizon, requestedClusters);
+
+        if (matrix.columns().isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Clusters {0} not found in file: {1}")
+                    .errorMessageArguments(List.of(clusterNames.toString(), fullPath.getFileName().toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        String outputDir = antaresDataManagerProperties.getThermalMeModulationOutputDirectory();
+        String fileName = fullPath.getFileName().toString();
+
+        Map<String, String> lookup = clusterNames.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(
+                        s -> s.trim().toLowerCase(Locale.ROOT),
+                        s -> s,
+                        (c1, c2) -> c1
+                ));
+
+        Map<String, List<String>> resultMap = new LinkedHashMap<>();
+
+        for (TimeSeriesMatrixColumn column : matrix.columns()) {
+            String clusterKey = lookup.getOrDefault(column.name().trim().toLowerCase(Locale.ROOT), column.name());
+            TimeSeriesMatrix singleColumnMatrix = new TimeSeriesMatrix(List.of(column));
+            String arrowFileName = nasFileService.saveMatrixToNas(singleColumnMatrix, fileName, outputDir);
+            resultMap.computeIfAbsent(clusterKey, k -> new ArrayList<>()).add(arrowFileName);
+        }
+
+        return resultMap;
     }
 }

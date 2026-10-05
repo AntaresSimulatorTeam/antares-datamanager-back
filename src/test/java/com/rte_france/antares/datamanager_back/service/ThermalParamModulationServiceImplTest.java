@@ -13,6 +13,9 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalParamModulationServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,6 +55,9 @@ class ThermalParamModulationServiceImplTest {
 
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
+
+    @Mock
+    private TimeSeriesReader timeSeriesReader;
 
     @InjectMocks
     private ThermalParamModulationServiceImpl thermalParamModulationService;
@@ -544,5 +550,98 @@ class ThermalParamModulationServiceImplTest {
                         trajectoryToUse, horizon, studyId, trajectoryFilePath, fileName, thermalModulationParameters, file, "MR"));
 
         assertTrue(exception.getMessage().contains("Missing Areas/Cluster"));
+    }
+
+    @Test
+    void createThermalMeModulationArrowFile_shouldReadExcelColumnAndSaveArrow() throws IOException {
+        String horizon = "2025";
+        String clusterName = "ClusterGas1";
+        String fileName = "marginal_cost_modulation_FE50.xlsx";
+        Path filePath = tempDir.resolve(fileName);
+        String outputDir = "output/thermal_me_modulation_arrow";
+        String expectedArrowName = "marginal_cost_modulation_FE50.xlsx.12345.arrow";
+
+        TimeSeriesMatrixColumn column = new TimeSeriesMatrixColumn("ClusterGas1", new double[]{10.5, 20.0, 30.5});
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(column));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(filePath, horizon, Set.of(clusterName)))
+                .thenReturn(matrix);
+        when(antaresDataManagerProperties.getThermalMeModulationOutputDirectory())
+                .thenReturn(outputDir);
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq(fileName), eq(outputDir)))
+                .thenReturn(expectedArrowName);
+
+        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(List.of(expectedArrowName), result.get(clusterName));
+        verify(timeSeriesReader).readSelectedColumnsFromXlsx(filePath, horizon, Set.of(clusterName));
+        verify(nasFileService).saveMatrixToNas(any(TimeSeriesMatrix.class), eq(fileName), eq(outputDir));
+    }
+
+    @Test
+    void createThermalMeModulationArrowFile_multipleClusters_shouldCreateArrowPerCluster() throws IOException {
+        String horizon = "2025";
+        String cluster1 = "CLUSTER_A";
+        String cluster2 = "CLUSTER_B";
+        String fileName = "capacity_modulation_FE50.xlsx";
+        Path filePath = tempDir.resolve(fileName);
+        String outputDir = "output/thermal_me_modulation_arrow";
+        String arrow1 = "capacity_modulation_FE50.xlsx.uuid1.arrow";
+        String arrow2 = "capacity_modulation_FE50.xlsx.uuid2.arrow";
+
+        TimeSeriesMatrixColumn col1 = new TimeSeriesMatrixColumn("CLUSTER_A", new double[]{1.0, 2.0});
+        TimeSeriesMatrixColumn col2 = new TimeSeriesMatrixColumn("cluster_b", new double[]{3.0, 4.0});
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(col1, col2));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(filePath, horizon, Set.of(cluster1, cluster2)))
+                .thenReturn(matrix);
+        when(antaresDataManagerProperties.getThermalMeModulationOutputDirectory())
+                .thenReturn(outputDir);
+        when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq(fileName), eq(outputDir)))
+                .thenReturn(arrow1)
+                .thenReturn(arrow2);
+
+        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(cluster1, cluster2), filePath);
+
+        assertEquals(2, result.size());
+        assertEquals(List.of(arrow1), result.get(cluster1));
+        assertEquals(List.of(arrow2), result.get(cluster2));
+        verify(nasFileService, times(2)).saveMatrixToNas(any(TimeSeriesMatrix.class), eq(fileName), eq(outputDir));
+    }
+
+    @Test
+    void createThermalMeModulationArrowFile_shouldThrowBusinessExceptionWhenClusterNotFound() throws IOException {
+        String horizon = "2025";
+        String clusterName = "UnknownCluster";
+        String fileName = "marginal_cost_modulation_FE50.xlsx";
+        Path filePath = tempDir.resolve(fileName);
+
+        TimeSeriesMatrix emptyMatrix = new TimeSeriesMatrix(List.of());
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(filePath, horizon, Set.of(clusterName)))
+                .thenReturn(emptyMatrix);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath));
+
+        assertTrue(exception.getMessage().contains("Clusters {0} not found in file: {1}"));
+        verify(nasFileService, never()).saveMatrixToNas(any(), any(), any());
+    }
+
+    @Test
+    void createThermalMeModulationArrowFile_emptyList_returnsEmptyMap() throws IOException {
+        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile("2025", List.of(), Path.of("file.xlsx"));
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void createThermalMeModulationArrowFile_nullArguments_shouldThrowNullPointerException() {
+        assertThrows(NullPointerException.class, () ->
+                thermalParamModulationService.createThermalMeModulationArrowFile("2025", null, Path.of("file.xlsx")));
+
+        assertThrows(NullPointerException.class, () ->
+                thermalParamModulationService.createThermalMeModulationArrowFile("2025", List.of("Cluster1"), null));
     }
 }
