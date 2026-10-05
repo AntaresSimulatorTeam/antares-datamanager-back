@@ -700,7 +700,7 @@ class MultiEnergyControllerTest {
     void uploadHydroWaterValuesMeTrajectory_whenHorizonInvalidOrWhenHorizonMissingSecondPart_returns400_andDoesNotCallService(String arg) throws Exception {
         String invalidHorizon = arg;
 
-        mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
+        mockMvc.perform(post("/v1/trajectory/hydro-water-values-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .param("trajectoryToUse", TRAJECTORY_NAME)
                         .param("horizon", invalidHorizon)
