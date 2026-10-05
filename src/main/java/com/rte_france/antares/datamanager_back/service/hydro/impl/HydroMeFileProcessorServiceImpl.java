@@ -181,6 +181,8 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                     throw BusinessException.builder()
                             .message(String.format("Excel file %s does not contain required sheet: %s", 
                                     excelFilePath.getFileName().toString(), secondPartOfHorizon))
+                            .message("Missing horizon {0} in water values file for {1} in HYDRO_ME Water values trajectory {2}")
+                            .errorMessageArguments(List.of(secondPartOfHorizon, excelFilePath.getFileName().toString(), trajectoryName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }

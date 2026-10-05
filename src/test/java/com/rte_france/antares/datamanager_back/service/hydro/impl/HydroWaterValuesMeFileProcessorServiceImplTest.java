@@ -506,9 +506,9 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
                 () -> hydroMeFileProcessorService.processHydroWaterValuesMeDirectory(
                         trajectoryName, horizon, studyId));
 
-        assertTrue(exception.getMessage().contains("does not contain required sheet"), 
+        assertTrue(exception.getMessage().contains("Missing horizon"),
                 "Exception message should contain 'does not contain required sheet'. Got: " + exception.getMessage());
-        assertTrue(exception.getMessage().contains("2030"), 
+        assertTrue(exception.getErrorMessageArguments().contains("2030"),
                 "Exception message should contain '2030'. Got: " + exception.getMessage());
     }
 

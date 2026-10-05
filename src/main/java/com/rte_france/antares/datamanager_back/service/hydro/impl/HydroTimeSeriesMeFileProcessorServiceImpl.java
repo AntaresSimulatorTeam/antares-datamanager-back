@@ -182,8 +182,8 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
             Sheet sheet = workbook.getSheet(requiredSheet);
             if (sheet == null) {
                 throw BusinessException.builder()
-                        .message(String.format("Excel file %s in node %s does not contain required sheet: %s (trajectory: %s)",
-                                fileName, nodeName, requiredSheet, trajectoryName))
+                        .message("Missing horizon {0} in {1} file for {2} in HYDRO_ME Time Series trajectory {3}")
+                        .errorMessageArguments(List.of(requiredSheet, fileName, nodeName, trajectoryName))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }

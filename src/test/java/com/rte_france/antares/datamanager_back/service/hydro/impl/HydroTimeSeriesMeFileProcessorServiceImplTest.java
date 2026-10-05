@@ -392,9 +392,9 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
 
-        assertTrue(exception.getMessage().contains("does not contain required sheet"));
-        assertTrue(exception.getMessage().contains("2021"));
-        assertTrue(exception.getMessage().contains("mod.xlsx"));
+        assertTrue(exception.getMessage().contains("Missing horizon"));
+        assertTrue(exception.getErrorMessageArguments().contains("2021"));
+        assertTrue(exception.getErrorMessageArguments().contains("mod.xlsx"));
     }
 
     @Test
@@ -412,9 +412,9 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
 
-        assertTrue(exception.getMessage().contains("does not contain required sheet"));
-        assertTrue(exception.getMessage().contains("2021"));
-        assertTrue(exception.getMessage().contains("ror.xlsx"));
+        assertTrue(exception.getMessage().contains("Missing horizon"));
+        assertTrue(exception.getErrorMessageArguments().contains("2021"));
+        assertTrue(exception.getErrorMessageArguments().contains("ror.xlsx"));
     }
 
     @Test
