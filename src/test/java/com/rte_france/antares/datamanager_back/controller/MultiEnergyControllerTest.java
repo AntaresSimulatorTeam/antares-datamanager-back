@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileP
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -252,11 +253,9 @@ class MultiEnergyControllerTest {
         verifyNoInteractions(hydroMeFileProcessorService);
     }
 
-    @Test
-    @ValueSource(strings = {"2020", "2020-2021"})
-    void uploadHydroCapacityMeTrajectory_whenHorizonInvalidOrWhenHorizonMissingSecondPart_returns400_andDoesNotCallService(String arg) throws Exception {
-        String invalidHorizon = "2020-21";
-
+    @ParameterizedTest
+    @ValueSource(strings = {"2020", "2020-21"})
+    void uploadHydroCapacityMeTrajectory_whenHorizonInvalidOrWhenHorizonMissingSecondPart_returns400_andDoesNotCallService(String invalidHorizon) throws Exception {
         mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .param("trajectoryToUse", TRAJECTORY_NAME)
@@ -695,11 +694,9 @@ class MultiEnergyControllerTest {
         verifyNoInteractions(hydroMeFileProcessorService);
     }
 
-    @Test
-    @ValueSource(strings = {"2020", "2020-2021"})
-    void uploadHydroWaterValuesMeTrajectory_whenHorizonInvalidOrWhenHorizonMissingSecondPart_returns400_andDoesNotCallService(String arg) throws Exception {
-        String invalidHorizon = arg;
-
+    @ParameterizedTest
+    @ValueSource(strings = {"2020", "2020-21"})
+    void uploadHydroWaterValuesMeTrajectory_whenHorizonInvalidOrWhenHorizonMissingSecondPart_returns400_andDoesNotCallService(String invalidHorizon) throws Exception {
         mockMvc.perform(post("/v1/trajectory/hydro-water-values-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .param("trajectoryToUse", TRAJECTORY_NAME)
