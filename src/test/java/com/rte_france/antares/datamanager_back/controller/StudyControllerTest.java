@@ -10,14 +10,12 @@ import com.rte_france.antares.datamanager_back.service.study.impl.StudyServiceIm
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -32,8 +30,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-
-@ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class StudyControllerTest {
 
@@ -49,7 +45,7 @@ class StudyControllerTest {
     StudyGeneratorServiceImpl studyGeneratorService;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         this.mockMvc = MockMvcBuilders
                 .webAppContextSetup(wac)
                 .build();
@@ -142,7 +138,7 @@ class StudyControllerTest {
     }
 
     @Test
-    void createStudyThrowsBadRequestWhenNoProjectInfoProvided() throws Exception {
+    void createStudyThrowsInternalServerErrorWhenNoProjectInfoProvided() throws Exception {
         StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
 
         when(studyService.createStudy(any(StudyDTO.class))).thenThrow(BusinessException.builder().message("Either project name or project ID must be provided.").build());
@@ -172,7 +168,7 @@ class StudyControllerTest {
     }
 
     @Test
-    void deleteStudyByIdThrowsBadRequestWhenStudyNotFound() throws Exception {
+    void deleteStudyByIdThrowsInternalServerErrorWhenStudyNotFound() throws Exception {
         doThrow(BusinessException.builder().message("Study with id 1 not found.").build()).when(studyService).deleteStudyById(1);
 
         this.mockMvc.perform(delete("/v1/study/1")
@@ -212,6 +208,44 @@ class StudyControllerTest {
         mockMvc.perform(get("/v1/study/1", studyId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void duplicateStudyReturnsDuplicatedStudy() throws Exception {
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
+        StudyDTO duplicateStudyDTO = StudyDTO.builder().id(1).name("Study 1").createdBy("User 1").build();
+
+        when(studyService.duplicateStudy(any(StudyDTO.class))).thenReturn(duplicateStudyDTO);
+
+        this.mockMvc.perform(post("/v1/study/duplicate")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(Utils.asJsonString(studyDTO))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Study 1"))
+                .andExpect(jsonPath("$.createdBy").value("User 1"))
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+
+        verify(studyService, times(1)).duplicateStudy(any(StudyDTO.class));
+    }
+
+    @Test
+    void duplicateStudyThrowsInternalServerErrorWhenNoProjectInfoProvided() throws Exception {
+        StudyDTO studyDTO = StudyDTO.builder().name("Study 1").createdBy("User 1").build();
+
+        when(studyService.duplicateStudy(any(StudyDTO.class))).thenThrow(BusinessException.builder().message("Either project name or project ID must be provided.").build());
+
+        this.mockMvc.perform(post("/v1/study/duplicate")
+                        .contentType(MediaType.APPLICATION_JSON_VALUE)
+                        .content(Utils.asJsonString(studyDTO))
+                        .accept(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isInternalServerError())
+                .andDo(MockMvcResultHandlers.print())
+                .andReturn();
+
+        verify(studyService, times(1)).duplicateStudy(any(StudyDTO.class));
     }
 
     @Test
