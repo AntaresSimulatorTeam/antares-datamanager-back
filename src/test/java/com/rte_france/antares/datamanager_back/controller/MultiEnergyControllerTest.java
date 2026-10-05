@@ -160,7 +160,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadConstraintMeTrajectory_withSpacesInFileName_returnsCreatedTrajectory() throws Exception {
-        when(trajectoryServiceImpl.processConstraintMeTrajectory(any(), any(), any()))
+        when(trajectoryServiceImpl.processConstraintMeTrajectory(anyString(), anyString(), anyInt()))
                 .thenReturn(TrajectoryEntity.builder().build());
 
         this.mockMvc.perform(post("/v1/trajectory/constraint-me")
@@ -173,7 +173,7 @@ class MultiEnergyControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
         verify(trajectoryServiceImpl, times(1))
-                .processConstraintMeTrajectory(any(), any(), any());
+                .processConstraintMeTrajectory(anyString(), anyString(), anyInt());
     }
 
     // ==================== Efficiency-ME Tests ====================
@@ -608,7 +608,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadThermalMeTrajectory_returnsCreatedTrajectory() throws Exception {
-        when(thermalMeFileProcessorService.processThermalMeFile(any(), any(), any()))
+        when(thermalMeFileProcessorService.processThermalMeFile(anyString(), anyString(), anyInt()))
                 .thenReturn(TrajectoryEntity.builder().build());
 
         executePathSecurityLambda();
@@ -623,7 +623,7 @@ class MultiEnergyControllerTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andReturn();
         verify(thermalMeFileProcessorService, times(1))
-                .processThermalMeFile(any(), any(), any());
+                .processThermalMeFile(anyString(), anyString(), anyInt());
     }
 
     @Test
