@@ -70,11 +70,11 @@ public class ThermalToJsonService {
 
             Map<String, Object> clusterData = new LinkedHashMap<>();
             clusterData.put(PROPERTIES, propertiesMap);
-            clusterData.put("series", seriesOverrides.getOrDefault(clusterName, MATRIX_HASH));
+            clusterData.put(SERIES, seriesOverrides.getOrDefault(clusterName, MATRIX_HASH));
             clusterData.put("fuel_cost", MATRIX_HASH);
             clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put(DATA, dataMap);
-            clusterData.put("modulation", dto.getParamModulationTsList());
+            clusterData.put(MODULATION, dto.getParamModulationTsList());
 
             NuclearSMRMixageDTO mixage = smrMixageOverrides.get(clusterName);
             if (mixage != null) {

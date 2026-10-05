@@ -627,6 +627,29 @@ class ThermalParamModulationServiceImplTest {
                 thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath));
 
         assertTrue(exception.getMessage().contains("Clusters {0} not found in file: {1}"));
+        assertEquals(List.of("[UnknownCluster]", fileName), exception.getErrorMessageArguments());
+        verify(nasFileService, never()).saveMatrixToNas(any(), any(), any());
+    }
+
+    @Test
+    void createThermalMeModulationArrowFile_shouldThrowBusinessExceptionWhenSomeClustersMissing() throws IOException {
+        String horizon = "2025";
+        String cluster1 = "CLUSTER_FOUND";
+        String cluster2 = "CLUSTER_MISSING";
+        String fileName = "capacity_modulation_FE50.xlsx";
+        Path filePath = tempDir.resolve(fileName);
+
+        TimeSeriesMatrixColumn col1 = new TimeSeriesMatrixColumn("CLUSTER_FOUND", new double[]{1.0, 2.0});
+        TimeSeriesMatrix matrixWithOnlyOneCluster = new TimeSeriesMatrix(List.of(col1));
+
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(filePath, horizon, Set.of(cluster1, cluster2)))
+                .thenReturn(matrixWithOnlyOneCluster);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(cluster1, cluster2), filePath));
+
+        assertTrue(exception.getMessage().contains("Clusters {0} not found in file: {1}"));
+        assertEquals(List.of("[CLUSTER_MISSING]", fileName), exception.getErrorMessageArguments());
         verify(nasFileService, never()).saveMatrixToNas(any(), any(), any());
     }
 
