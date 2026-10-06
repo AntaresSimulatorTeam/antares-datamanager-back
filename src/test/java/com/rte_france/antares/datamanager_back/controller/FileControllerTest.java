@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -103,10 +102,10 @@ class FileControllerTest {
     var content = "test content".getBytes();
     var file = new MockMultipartFile("file", filename, "text/plain", content);
     when(properties.getNasDirectory()).thenReturn("/nas");
+    var response = fileController.uploadFile(file);
 
-    TechnicalException exception = assertThrows(TechnicalException.class, () -> fileController.uploadFile(file));
-
-    assertTrue(exception.getMessage().contains("Path outside of target: " + filename));
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    assertEquals("Path outside of target: " + filename, response.getBody());
     verify(nasFileService, never()).saveFile(any(String.class), any(), any(String.class));
   }
 }
