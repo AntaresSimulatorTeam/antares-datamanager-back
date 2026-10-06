@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -240,11 +241,12 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
                 .hasMessageContaining("No data in DSR Capacity Modulation trajectory");
     }
 
-    @Test
-    void validateDsrCapacityModulationCoherence_shouldReuseImportValidationRules() throws IOException {
+    @ParameterizedTest
+    @ValueSource(strings = {"cm_validation_test.xlsx", "validation_test.xlsx"})
+    void validateDsrCapacityModulationCoherence_shouldReuseImportValidationRules(String fileName) throws IOException {
         List<String> clusters = List.of("DSR_industries");
 
-        Path xlsx = tempDir.resolve("cm_validation_test.xlsx");
+        Path xlsx = tempDir.resolve(fileName);
         Files.createFile(xlsx);
         createWorkbookWithHeadersAndData(clusters, xlsx);
 
@@ -259,7 +261,7 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
         doReturn(xlsx).when(service).getTrajectoryFilePath(any(String.class));
 
         TrajectoryEntity trajectoryToValidate = new TrajectoryEntity();
-        trajectoryToValidate.setFileName("cm_validation_test");
+        trajectoryToValidate.setFileName(fileName);
         trajectoryToValidate.setHorizon("2029-2030");
         service.validateDsrCapacityModulationCoherence(trajectoryToValidate, 1);
 

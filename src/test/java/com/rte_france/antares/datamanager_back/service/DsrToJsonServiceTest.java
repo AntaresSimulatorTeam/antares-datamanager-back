@@ -94,4 +94,13 @@ class DsrToJsonServiceTest {
         // Then
         assertTrue(result.isEmpty());
     }
+
+    @Test
+    void buildDsrDataMap_ShouldReturnEmptyMapWhenAreaNameIsEmpty() {
+        // When
+        Map<String, Object> result = dsrToJsonService.buildDsrDataMap(null, Collections.emptyMap());
+
+        // Then
+        assertTrue(result.isEmpty());
+    }
 }
