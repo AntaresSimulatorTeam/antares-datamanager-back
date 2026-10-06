@@ -202,6 +202,30 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should throw BusinessException when trajectoryFilePath is null")
+    void testProcessWhenTrajectoryFilePathIsNull_throwsBusinessException() {
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(null);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(testTrajectoryName, testHorizon, studyId));
+
+        assertEquals("Antares path configuration is incomplete", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("Should throw BusinessException when hydroReservoirLevelsMeDirectory is null")
+    void testProcessWhenDirectoryByTypeIsNull_throwsBusinessException() {
+        when(antaresDataManagerProperties.getHydroReservoirLevelsMeDirectory()).thenReturn(null);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(testTrajectoryName, testHorizon, studyId));
+
+        assertEquals("Antares path configuration is incomplete", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
     @DisplayName("Should throw BusinessException when Antares path configuration is incomplete")
     void testProcessWhenConfigIncomplete_throwsBusinessException() {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(null);

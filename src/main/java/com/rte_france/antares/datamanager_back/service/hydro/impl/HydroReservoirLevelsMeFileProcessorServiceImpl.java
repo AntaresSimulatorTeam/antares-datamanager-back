@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.computeChecksumByType;
@@ -97,7 +96,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
         try (Stream<Path> files = Files.list(trajectoryPath)) {
             nodeFiles = files
                     .filter(Files::isRegularFile)
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         if (nodeFiles.isEmpty()) {
@@ -111,7 +110,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
         // Get valid nodes from HYDRO_CAPACITY_ME associated to the study
         List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId)
                 .stream().map(node -> node+"_"+RESERVOIR_LEVELS_FILE)
-                .collect(Collectors.toList());
+                .toList();
         if (!validNodes.isEmpty()) {
             // Check if at least one node directory exists in validNodes
             boolean hasAtLeastOneValidNode = nodeFiles.stream()
@@ -165,7 +164,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
                 .horizon(horizon)
                 .checksum(computeChecksumByType(trajectoryPath, TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME, horizon, null))
                 .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
-                .creationDate(LocalDateTime.now())
+                .creationDate(LocalDateTime.now(ZoneId.of("Europe/Zurich")))
                 .build();
     }
 }
