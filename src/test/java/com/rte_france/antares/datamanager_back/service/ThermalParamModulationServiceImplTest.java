@@ -571,7 +571,7 @@ class ThermalParamModulationServiceImplTest {
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq(fileName), eq(outputDir)))
                 .thenReturn(expectedArrowName);
 
-        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath);
+        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath, "trajectory");
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -603,7 +603,7 @@ class ThermalParamModulationServiceImplTest {
                 .thenReturn(arrow1)
                 .thenReturn(arrow2);
 
-        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(cluster1, cluster2), filePath);
+        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(cluster1, cluster2), filePath, "trajectory");
 
         assertEquals(2, result.size());
         assertEquals(List.of(arrow1), result.get(cluster1));
@@ -624,10 +624,10 @@ class ThermalParamModulationServiceImplTest {
                 .thenReturn(emptyMatrix);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath));
+                thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(clusterName), filePath, "trajectory"));
 
-        assertTrue(exception.getMessage().contains("Clusters {0} not found in file: {1}"));
-        assertEquals(List.of("[UnknownCluster]", fileName), exception.getErrorMessageArguments());
+        assertTrue(exception.getMessage().contains("Cluster(s) {0} are missing for {1} in THERMAL_ME trajectory {2}"));
+        assertEquals(List.of("[UnknownCluster]", fileName, "trajectory"), exception.getErrorMessageArguments());
         verify(nasFileService, never()).saveMatrixToNas(any(), any(), any());
     }
 
@@ -646,25 +646,25 @@ class ThermalParamModulationServiceImplTest {
                 .thenReturn(matrixWithOnlyOneCluster);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(cluster1, cluster2), filePath));
+                thermalParamModulationService.createThermalMeModulationArrowFile(horizon, List.of(cluster1, cluster2), filePath, "trajectory"));
 
-        assertTrue(exception.getMessage().contains("Clusters {0} not found in file: {1}"));
-        assertEquals(List.of("[CLUSTER_MISSING]", fileName), exception.getErrorMessageArguments());
+        assertTrue(exception.getMessage().contains("Cluster(s) {0} are missing for {1} in THERMAL_ME trajectory {2}"));
+        assertEquals(List.of("[CLUSTER_MISSING]", fileName, "trajectory"), exception.getErrorMessageArguments());
         verify(nasFileService, never()).saveMatrixToNas(any(), any(), any());
     }
 
     @Test
     void createThermalMeModulationArrowFile_emptyList_returnsEmptyMap() throws IOException {
-        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile("2025", List.of(), Path.of("file.xlsx"));
+        Map<String, List<String>> result = thermalParamModulationService.createThermalMeModulationArrowFile("2025", List.of(), Path.of("file.xlsx"), "trajectory");
         assertTrue(result.isEmpty());
     }
 
     @Test
     void createThermalMeModulationArrowFile_nullArguments_shouldThrowNullPointerException() {
         assertThrows(NullPointerException.class, () ->
-                thermalParamModulationService.createThermalMeModulationArrowFile("2025", null, Path.of("file.xlsx")));
+                thermalParamModulationService.createThermalMeModulationArrowFile("2025", null, Path.of("file.xlsx"), "trajectory"));
 
         assertThrows(NullPointerException.class, () ->
-                thermalParamModulationService.createThermalMeModulationArrowFile("2025", List.of("Cluster1"), null));
+                thermalParamModulationService.createThermalMeModulationArrowFile("2025", List.of("Cluster1"), null, "trajectory"));
     }
 }

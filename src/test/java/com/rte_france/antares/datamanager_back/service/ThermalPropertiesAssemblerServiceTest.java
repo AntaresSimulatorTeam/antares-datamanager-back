@@ -1480,13 +1480,13 @@ class ThermalPropertiesAssemblerServiceTest {
                 .thermalMeEntities(List.of(entity1, entity2))
                 .build();
 
-        when(paramModulationService.createThermalMeModulationArrowFile("2025", List.of("FR_GAS_1", "FR_GAS_2"), mcFile))
+        when(paramModulationService.createThermalMeModulationArrowFile("2025", List.of("FR_GAS_1", "FR_GAS_2"), mcFile, trajectoryFileName))
                 .thenReturn(Map.of(
                         "FR_GAS_1", List.of("arrow_mc_1.arrow"),
                         "FR_GAS_2", List.of("arrow_mc_2.arrow")
                 ));
 
-        when(paramModulationService.createThermalMeModulationArrowFile("2025", List.of("FR_GAS_2"), cmFile))
+        when(paramModulationService.createThermalMeModulationArrowFile("2025", List.of("FR_GAS_2"), cmFile, trajectoryFileName))
                 .thenReturn(Map.of(
                         "FR_GAS_2", List.of("arrow_cm_2.arrow")
                 ));
