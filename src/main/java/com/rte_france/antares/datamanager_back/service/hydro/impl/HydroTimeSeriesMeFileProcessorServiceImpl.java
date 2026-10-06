@@ -71,7 +71,7 @@ public class HydroTimeSeriesMeFileProcessorServiceImpl implements HydroTimeSerie
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (isSameFileWithSameContent(trajectoryPath, existingTrajectory)) {
                 throw BusinessException.builder()
-                        .message("Directory already processed with same content: {0}")
+                        .message("File already processed with same content: {0}")
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
