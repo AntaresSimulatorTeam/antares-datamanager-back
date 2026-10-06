@@ -952,6 +952,61 @@ class StStorageMeFileProcessorServiceImplTest {
     }
 
     @Test
+    void shouldThrowBusinessExceptionWhenAreaFromAreaMeIsNotPresentInStStorageMe() throws IOException {
+        Path xlsx = createValidMeWorkbook();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        AreaConfigEntity areaConfigBe = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("BE").build())
+                .build();
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr, areaConfigBe))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), 1))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        assertThatThrownBy(() ->
+                service.processStStorageMeFile("me_test", "2029-2030", 1)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Areas {0} from AREA_ME trajectory is (are) not present in ST_STORAGE_ME trajectory")
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getErrorMessageArguments()).containsExactly("BE");
+                });
+    }
+
+    @Test
+    void shouldSuccessfullyProcessWhenAllAreasFromAreaMeArePresentInStStorageMe() throws IOException {
+        Path xlsx = createValidMeWorkbook();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), 1))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setHorizon("2030");
+        trajectory.setId(10);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
     void shouldThrowBusinessExceptionWhenStorageAreaIsNotPresentInStudyAreasMe() throws IOException {
         Path xlsx = createValidMeWorkbook();
         placeInMeClusters(xlsx, "me_test.xlsx");

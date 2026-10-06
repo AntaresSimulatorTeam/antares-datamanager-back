@@ -971,7 +971,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // No existing trajectory: create and save new
-       TrajectoryEntity newTrajectory = buildNewLoadMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+        TrajectoryEntity newTrajectory = buildNewLoadMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
         return buildAndSaveLoadMeTrajectory(horizon, trajectoryPath, newTrajectory, studyId);
     }
 
@@ -1126,12 +1126,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
             Optional<LoadEntity> existingLoad = loadRepository.findByFileNameAndTrajectoryFileName(loadFileName, loadMeTrajectory.getFileName());
             LoadEntity loadEntity;
-            loadEntity = existingLoad.orElseGet(() -> {
-                return LoadEntity.builder()
+            loadEntity = existingLoad.orElseGet(() -> LoadEntity.builder()
                         .fileName(loadFileName)
                         .area(area)
-                        .build();
-            });
+                        .build());
 
             loadEntity.addTrajectoryEntity(loadMeTrajectory);
             loadEntities.add(loadEntity);
@@ -1214,11 +1212,22 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .map(String::toUpperCase)
                 .collect(Collectors.toSet());
 
+        Set<String> missingAreas = areaMeNames.stream()
+                .filter(area -> !loadMeAreas.contains(area))
+                .collect(Collectors.toSet());   
+        
+        if (!missingAreas.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Areas {0} from AREA_ME trajectory is (are) not present in LOAD_ME trajectory")
+                    .errorMessageArguments(List.of(String.join(", ", missingAreas)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }             
+
         boolean hasMatchingArea = loadMeAreas.stream()
                 .anyMatch(areaMeNames::contains);
 
         if (!hasMatchingArea) {
-            String missingAreasStr = String.join(", ", loadMeAreas);
             log.error("No area from AREA_ME trajectory is present in LOAD_ME trajectory");
             throw BusinessException.builder()
                     .message("No area from the AREAS_ME trajectory is present in LOAD_ME trajectory {0}")
@@ -1227,23 +1236,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
     }
-
-    private Set<String> extractAreaNamesFromAreaMe(List<TrajectoryEntity> areaMeTrajectories) {
-        Set<String> areaNames = new HashSet<>();
-
-        for (TrajectoryEntity trajectory : areaMeTrajectories) {
-            // For AREA_ME trajectories, extract names from AreaConfigEntities
-            if (trajectory.getAreaConfigEntities() != null) {
-                trajectory.getAreaConfigEntities().stream()
-                        .map(ac -> ac.getArea().getName().toUpperCase())
-                        .forEach(areaNames::add);
-            }
-        }
-
-        return areaNames;
-    }
-
-
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
