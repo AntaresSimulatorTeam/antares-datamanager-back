@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.sts.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
@@ -55,7 +56,9 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse);
 
         Map<String, List<String>> missingFilesMeKeysMap = new LinkedHashMap<>();
-        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap);
+        List<TrajectoryEntity> areaMeTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId);
+        Set<String> aresMeList = extractAreaNamesFromAreaMe(areaMeTrajectories);
+        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap, aresMeList);
         List<String> areasMeInStorage = stStorageEntityList.stream()
                 .map(StStorageEntity::getArea)
                 .toList();
@@ -116,7 +119,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         return trajectoryRepository.save(trajectoryEntity);
     }
 
-    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap) throws IOException{
+    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap, Set<String> areaMeNames) throws IOException{
         List<StStorageEntity> stStorageEntityList = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         Map<Path, Set<String>> headersCache = new HashMap<>();
@@ -128,6 +131,8 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
             if (sheet == null) {
                 throw createValidationError("Missing horizon {0} in ST_STORAGE_ME Clusters trajectory {1}", List.of(horizonYear, trajectoryFileName));
             }
+            
+            List<String> nodeList = new ArrayList<>();
 
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
@@ -139,6 +144,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
                 // Validations
                 validateMeNodeField(node, trajectoryFileName);
+                nodeList.add(node.toUpperCase(Locale.ROOT));
                 validateMeFieldLength(node, NODE_MAX_LENGTH, "Node", trajectoryFileName);
                 validateMeFieldLength(name, NAME_MAX_LENGTH, "Name", trajectoryFileName);
                 validateMeFieldLength(group, GROUP_MAX_LENGTH, "Group", trajectoryFileName);
@@ -149,6 +155,14 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
                 StStorageEntity stStorageEntity = mapRowToEntityMe(row, trajectoryFilePath, node, name, group, horizonYear, headersCache, missingFilesMeKeysMap);
                 stStorageEntityList.add(stStorageEntity);
+            }
+            Set<String> missingAreas = areaMeNames.stream()
+                    .filter(area -> !nodeList.contains(area))
+                    .collect(Collectors.toSet());
+
+            if (!missingAreas.isEmpty()) {
+                throw createValidationError("Areas {0} from AREA_ME trajectory is (are) not present in ST_STORAGE_ME trajectory",
+                        List.of(String.join(", ", missingAreas)));
             }
         }
 

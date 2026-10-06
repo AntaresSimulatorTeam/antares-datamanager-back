@@ -1927,4 +1927,19 @@ public class Utils {
         }
         return size;
     }
+
+    public Set<String> extractAreaNamesFromAreaMe(List<TrajectoryEntity> areaMeTrajectories) {
+        Set<String> areaNames = new HashSet<>();
+
+        for (TrajectoryEntity trajectory : areaMeTrajectories) {
+            // For AREA_ME trajectories, extract names from AreaConfigEntities
+            if (trajectory.getAreaConfigEntities() != null) {
+                trajectory.getAreaConfigEntities().stream()
+                        .map(ac -> ac.getArea().getName().toUpperCase())
+                        .forEach(areaNames::add);
+            }
+        }
+
+        return areaNames;
+    }
 }
