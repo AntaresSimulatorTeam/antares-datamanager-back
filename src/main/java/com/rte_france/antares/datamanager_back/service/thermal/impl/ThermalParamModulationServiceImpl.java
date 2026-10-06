@@ -406,7 +406,7 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
     }
 
     @Override
-    public Map<String, List<String>> createThermalMeModulationArrowFile(String horizon, List<String> clusterNames, Path fullPath) throws IOException, BusinessException {
+    public Map<String, List<String>> createThermalMeModulationArrowFile(String horizon, List<String> clusterNames, Path fullPath, String trajectoryFileName) throws IOException, BusinessException {
         Objects.requireNonNull(clusterNames, "clusterNames must not be null");
         Objects.requireNonNull(fullPath, "fullPath must not be null");
 
@@ -429,8 +429,8 @@ public class ThermalParamModulationServiceImpl implements ThermalParamModulation
 
         if (!missingClusters.isEmpty()) {
             throw BusinessException.builder()
-                    .message("Clusters {0} not found in file: {1}")
-                    .errorMessageArguments(List.of(missingClusters.toString(), fullPath.getFileName().toString()))
+                    .errorMessageArguments(List.of(missingClusters.toString(), fullPath.getFileName().toString(), trajectoryFileName))
+                    .message("Cluster(s) {0} are missing for {1} in THERMAL_ME trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

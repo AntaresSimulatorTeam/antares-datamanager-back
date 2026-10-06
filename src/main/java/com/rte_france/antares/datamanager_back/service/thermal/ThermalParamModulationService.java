@@ -23,5 +23,5 @@ public interface ThermalParamModulationService {
 
     void verifyExistingSpecificClustersOfParamModulation(String horizon, Integer studyId, Path modulationFile, String trajectoryName, String fileType) throws IOException;
 
-    Map<String, List<String>> createThermalMeModulationArrowFile(String horizon, List<String> clusterNames, Path fullPath) throws IOException, BusinessException;
+    Map<String, List<String>> createThermalMeModulationArrowFile(String horizon, List<String> clusterNames, Path fullPath, String trajectoryFileName) throws IOException, BusinessException;
 }

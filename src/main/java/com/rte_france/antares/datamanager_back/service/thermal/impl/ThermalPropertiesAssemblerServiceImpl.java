@@ -177,7 +177,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
             for (Map.Entry<Path, List<String>> entry : modulationFilesToClusters.entrySet()) {
                 Path fullPath = entry.getKey();
                 List<String> clusterNames = entry.getValue();
-                Map<String, List<String>> clusterArrowFiles = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, clusterNames, fullPath);
+                Map<String, List<String>> clusterArrowFiles = thermalParamModulationService.createThermalMeModulationArrowFile(horizon, clusterNames, fullPath, trajectoryFileName);
 
                 for (Map.Entry<String, List<String>> arrowEntry : clusterArrowFiles.entrySet()) {
                     String clusterName = arrowEntry.getKey();
