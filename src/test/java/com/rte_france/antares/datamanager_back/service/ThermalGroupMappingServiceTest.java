@@ -72,6 +72,20 @@ class ThermalGroupMappingServiceTest {
     }
 
     @Test
+    void toGroup_foundCCGTtAndNotH2_returnGas() {
+        when(repository.findByClusterIgnoreCase("CCGT")).thenReturn(Optional.empty());
+        assertThat(service.toGroup("CCGT")).isEqualTo(Optional.of("Gas"));
+    }
+
+    @Test
+    void toGroup_foundCCGTAndH2_returnsEmpty() {
+        when(repository.findByClusterIgnoreCase("CCGT H2")).thenReturn(Optional.empty());
+        assertThat(service.toGroup("CCGT H2")).isEmpty();
+    }
+
+
+
+    @Test
     void toGroup_foundH2_mapToLignite() {
 
         when(repository.findByClusterIgnoreCase("LIGNITE OLD 1")).thenReturn(Optional.empty());
