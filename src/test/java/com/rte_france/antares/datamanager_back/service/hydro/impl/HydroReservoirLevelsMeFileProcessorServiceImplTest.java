@@ -319,6 +319,29 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should throw BusinessException when Excel file is missing required sheet")
+    void testProcessWhenExcelMissingRequiredSheet_throwsBusinessException() throws IOException {
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        
+        // Create an Excel file without the required sheet
+        Path noSheetFilePath = tempDir.resolve("trajectories/ME/hydro_ME/reservoir_levels")
+                .resolve(testTrajectoryName)
+                .resolve("node3_reservoir_levels.xlsx");
+        createExcelFile(noSheetFilePath);  // Creates file with "Sheet1" instead of required sheet
+
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(Arrays.asList("node1", "node2", "node3"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(testTrajectoryName, testHorizon, studyId));
+
+        assertEquals("Missing horizon {0} in Reservoir Levels file for {1} in HYDRO_ME Reservoir Levels trajectory {2}", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertThat(exception.getErrorMessageArguments())
+                .contains(secondPartOfHorizon, "node3_reservoir_levels.xlsx", testTrajectoryName);
+    }
+
+    @Test
     @DisplayName("Should create new version when existing trajectory has different content")
     void testProcessWithExistingTrajectoryWithDifferentContent() throws IOException {
         when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
