@@ -1517,6 +1517,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
             case "LOAD_ME" -> validateLoadMeAreasAgainstAreaMeForTrajectory(studyId, trajectory);
+            case "STS_ME" -> multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, "STS_ME", trajectory);
             case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS",
                  "HYDRO_ALLOCATION", "HYDRO_PARAMETERS", "HYDRO_CAPACITY_ME",
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",

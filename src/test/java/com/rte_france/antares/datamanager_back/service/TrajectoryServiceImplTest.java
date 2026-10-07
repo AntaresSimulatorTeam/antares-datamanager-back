@@ -5722,6 +5722,65 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void checkTrajectoryCoherence_whenTrajectoryTypeIsStsMe_shouldCallMultiEnergyCoherenceCheckServiceAndSaveWarnings() throws IOException {
+        // Given
+        Integer studyId = 1;
+        String userNni = "testUser";
+        StStorageEntity stStorage = StStorageEntity.builder()
+                .area("FR")
+                .name("Battery_FR")
+                .build();
+        TrajectoryEntity stsMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.STS_ME.name())
+                .stStorageEntities(List.of(stStorage))
+                .build();
+
+        WarningMessageEntity warning = new WarningMessageEntity();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>(List.of(warning));
+
+        // When
+        assertDoesNotThrow(() ->
+                trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, stsMeTrajectory, userNni));
+
+        // Then
+        verify(multiEnergyCoherenceCheckService, times(1))
+                .checkAreaMETrajectoryConsistency(studyId, TrajectoryType.STS_ME.name(), stsMeTrajectory);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
+        assertEquals(stsMeTrajectory, warning.getTrajectory());
+    }
+
+    @Test
+    void checkTrajectoryCoherence_whenTrajectoryTypeIsStsMe_andConsistencyCheckThrowsException_shouldPropagateException() {
+        // Given
+        Integer studyId = 1;
+        String userNni = "testUser";
+        TrajectoryEntity stsMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.STS_ME.name())
+                .build();
+
+        doThrow(BusinessException.builder()
+                .message("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory")
+                .errorMessageArguments(List.of("FR"))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(multiEnergyCoherenceCheckService)
+                .checkAreaMETrajectoryConsistency(studyId, TrajectoryType.STS_ME.name(), stsMeTrajectory);
+
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, stsMeTrajectory, userNni));
+
+        assertEquals("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory", exception.getMessage());
+        assertEquals(List.of("FR"), exception.getErrorMessageArguments());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        verify(warningRepository, never()).saveAll(any());
+    }
+
+    @Test
     void findTrajectoriesByType_returnsLoadMeDirectoriesWithCsvFiles(@TempDir Path tempDir) throws IOException {
         // Given
         Path loadMeDir = tempDir.resolve("load_me/");
