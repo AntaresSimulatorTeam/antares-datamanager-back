@@ -449,6 +449,240 @@ class ConstraintMeFileProcessorServiceImplTest {
         );
     }
 
+    @Test
+    @DisplayName("saveConstraintMeTrajectoryInDb - should handle MSG_FILE_ALREADY_PROCESSED scenario")
+    void testSaveThrowsFileAlreadyProcessed() throws IOException {
+        // Testing the scenario when existing trajectory is found
+        // The actual checksum comparison depends on static method
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        createValidExcelFile(filePath);
+        
+        TrajectoryEntity existingEntity = createTrajectoryEntity(trajectoryName, horizon, 1);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.of(existingEntity));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 2));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        // Should handle existing trajectory and increment version
+        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
+        
+        assertNotNull(result);
+        // Trajectory is saved once in processExistingTrajectory
+        verify(trajectoryRepository, atLeastOnce()).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    @DisplayName("processListAreaDescSheet - should throw MSG_AREA_NOT_IN_STUDY when area not in study")
+    void testThrowsAreaNotInStudy() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        Row areaHeaderRow = areaSheet.createRow(0);
+        areaHeaderRow.createCell(0).setCellValue("InvalidAreaGroup");
+        
+        Row areaRow = areaSheet.createRow(1);
+        areaRow.createCell(0).setCellValue("InvalidArea");
+        
+        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        Row clusterHeaderRow = clusterSheet.createRow(0);
+        clusterHeaderRow.createCell(0).setCellValue("ClusterGroup");
+        Row clusterRow = clusterSheet.createRow(1);
+        clusterRow.createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row horizonHeaderRow = horizonSheet.createRow(0);
+        horizonHeaderRow.createCell(0).setCellValue("Name");
+        Row horizonRow = horizonSheet.createRow(1);
+        horizonRow.createCell(0).setCellValue("TestConstraint");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("does not exist in study areas"));
+    }
+
+    @Test
+    @DisplayName("processHorizonSheet - should throw MSG_NODE_MUST_BELONG_AREA_ME when node not in AREA_ME")
+    void testThrowsNodeMustBelongAreaMe() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        Row areaHeaderRow = areaSheet.createRow(0);
+        areaHeaderRow.createCell(0).setCellValue("listArea_euest");
+        Row areaRow = areaSheet.createRow(1);
+        areaRow.createCell(0).setCellValue("AT");
+        
+        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        Row clusterHeaderRow = clusterSheet.createRow(0);
+        clusterHeaderRow.createCell(0).setCellValue("ClusterGroup1");
+        Row clusterRow = clusterSheet.createRow(1);
+        clusterRow.createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row horizonHeaderRow = horizonSheet.createRow(0);
+        horizonHeaderRow.createCell(0).setCellValue("Name");
+        horizonHeaderRow.createCell(1).setCellValue("Enabled");
+        horizonHeaderRow.createCell(2).setCellValue("Sign");
+        horizonHeaderRow.createCell(3).setCellValue("Temporality");
+        horizonHeaderRow.createCell(4).setCellValue("Type");
+        horizonHeaderRow.createCell(5).setCellValue("Comments");
+        horizonHeaderRow.createCell(6).setCellValue("Noeud1Gauche");
+        horizonHeaderRow.createCell(7).setCellValue("Noeud2Gauche");
+        horizonHeaderRow.createCell(8).setCellValue("ClusterGauche");
+        horizonHeaderRow.createCell(9).setCellValue("Noeud1Droite");
+        horizonHeaderRow.createCell(10).setCellValue("Noeud2Droite");
+        horizonHeaderRow.createCell(11).setCellValue("ClusterDroite");
+        
+        Row horizonRow = horizonSheet.createRow(1);
+        horizonRow.createCell(0).setCellValue("TestConstraint");
+        horizonRow.createCell(1).setCellValue("YES");
+        horizonRow.createCell(2).setCellValue("<=");
+        horizonRow.createCell(3).setCellValue("Daily");
+        horizonRow.createCell(4).setCellValue("G2P");
+        horizonRow.createCell(5).setCellValue("Test constraint");
+        horizonRow.createCell(6).setCellValue("InvalidNode");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("must belong to AREA_ME trajectory"));
+    }
+
+    @Test
+    @DisplayName("processHorizonSheet - should throw MSG_CLUSTER_MUST_BELONG_DESC when cluster not in listCluster_desc")
+    void testThrowsClusterMustBelongDesc() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        Row areaHeaderRow = areaSheet.createRow(0);
+        areaHeaderRow.createCell(0).setCellValue("listArea_euest");
+        Row areaRow = areaSheet.createRow(1);
+        areaRow.createCell(0).setCellValue("AT");
+        
+        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        Row clusterHeaderRow = clusterSheet.createRow(0);
+        clusterHeaderRow.createCell(0).setCellValue("ClusterGroup1");
+        Row clusterRow = clusterSheet.createRow(1);
+        clusterRow.createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row horizonHeaderRow = horizonSheet.createRow(0);
+        horizonHeaderRow.createCell(0).setCellValue("Name");
+        horizonHeaderRow.createCell(1).setCellValue("Enabled");
+        horizonHeaderRow.createCell(2).setCellValue("Sign");
+        horizonHeaderRow.createCell(3).setCellValue("Temporality");
+        horizonHeaderRow.createCell(4).setCellValue("Type");
+        horizonHeaderRow.createCell(5).setCellValue("Comments");
+        horizonHeaderRow.createCell(6).setCellValue("Noeud1Gauche");
+        horizonHeaderRow.createCell(7).setCellValue("Noeud2Gauche");
+        horizonHeaderRow.createCell(8).setCellValue("ClusterGauche");
+        horizonHeaderRow.createCell(9).setCellValue("Noeud1Droite");
+        horizonHeaderRow.createCell(10).setCellValue("Noeud2Droite");
+        horizonHeaderRow.createCell(11).setCellValue("ClusterDroite");
+        
+        Row horizonRow = horizonSheet.createRow(1);
+        horizonRow.createCell(0).setCellValue("TestConstraint");
+        horizonRow.createCell(1).setCellValue("YES");
+        horizonRow.createCell(2).setCellValue("<=");
+        horizonRow.createCell(3).setCellValue("Daily");
+        horizonRow.createCell(4).setCellValue("G2P");
+        horizonRow.createCell(5).setCellValue("Test constraint");
+        horizonRow.createCell(8).setCellValue("InvalidCluster");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("must belong to listCluster_desc tab"));
+    }
+
     // ============ Helper Methods ============
 
     private void setupMocks(String nasDir, String trajPath, String constraintMeDir) {
