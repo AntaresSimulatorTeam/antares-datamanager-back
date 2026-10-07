@@ -5722,7 +5722,7 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
-    void checkTrajectoryCoherence_whenTrajectoryTypeIsStsMe_shouldCallMultiEnergyCoherenceCheckServiceAndSaveWarnings() throws IOException {
+    void checkTrajectoryCoherence_whenTrajectoryTypeIsStsMe_shouldCallMultiEnergyCoherenceCheckServiceAndSaveWarnings() {
         // Given
         Integer studyId = 1;
         String userNni = "testUser";
