@@ -22,7 +22,9 @@ import com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonS
 import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +51,9 @@ class MultiEnergyServiceImplTest {
 
     @Mock
     private StsGenerationAssemblerService stsPropertiesAssemblerService;
+
+    @Mock
+    private ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
 
     @Mock
     private StsToJsonService stsToJsonService;
@@ -343,7 +348,7 @@ class MultiEnergyServiceImplTest {
     @Test
     void buildMultiEnergyMap_withNullLoadToJsonService_shouldReturnNoLoadFiles() {
         // Given
-        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService, hydroMeToJsonService);
+        MultiEnergyServiceImpl serviceWithoutLoadService = new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertiesAssemblerService, thermalPropertiesAssemblerService, loadToJsonService, stsToJsonService, thermalToJsonService, hydroMeToJsonService);
         AreaConfigEntity config = AreaConfigEntity.builder()
                 .area(AreaEntity.builder().name("AREA1").build())
                 .build();
@@ -801,8 +806,8 @@ class MultiEnergyServiceImplTest {
         ThermalClusterGenerationDto cluster1Dto = new ThermalClusterGenerationDto();
         cluster1Dto.setEfficiency(60.0);
 
-        Map<ThermalPropertiesAssemblerService.AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps =
-                Map.of(new ThermalPropertiesAssemblerService.AreaClusterRefKey("node_right_area1", cluster1Ref), cluster1Dto);
+        Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps =
+                Map.of(new AreaClusterRefKey("node_right_area1", cluster1Ref), cluster1Dto);
 
         when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster1")).thenReturn("NODE_RIGHT_AREA1_cluster1");
         when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster2")).thenReturn("NODE_RIGHT_AREA1_cluster2");

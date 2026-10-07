@@ -47,6 +47,7 @@ import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
+import static java.util.regex.Pattern.compile;
 
 
 /**
@@ -116,7 +117,7 @@ public class Utils {
     public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) throws IOException {
         String areaRegex = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : Pattern.quote(area.toLowerCase());
 
-        Pattern pattern = Pattern.compile("load_(" + areaRegex + ")_(\\d{4}-\\d{4})\\.txt");
+        Pattern pattern = compile("load_(" + areaRegex + ")_(\\d{4}-\\d{4})\\.txt");
 
         List<String> loadsFileNames = new ArrayList<>();
 
@@ -942,7 +943,7 @@ public class Utils {
     // java
     public static String extractStsPathFromErrorMessage(String errorMessage) {
         if (errorMessage == null) return null;
-        Pattern p = Pattern.compile("(?i)INPUT/([^\\s']+)(?:\\sfor|$)");
+        Pattern p = compile("(?i)INPUT/([^\\s']+)(?:\\sfor|$)");
         Matcher m = p.matcher(errorMessage);
         return m.find() ? m.group(1) : errorMessage;
     }
@@ -1926,5 +1927,20 @@ public class Utils {
             }
         }
         return size;
+    }
+
+    public static Set<String> extractAreaNamesFromAreaMe(List<TrajectoryEntity> areaMeTrajectories) {
+        Set<String> areaNames = new HashSet<>();
+
+        for (TrajectoryEntity trajectory : areaMeTrajectories) {
+            // For AREA_ME trajectories, extract names from AreaConfigEntities
+            if (trajectory.getAreaConfigEntities() != null) {
+                trajectory.getAreaConfigEntities().stream()
+                        .map(ac -> ac.getArea().getName().toUpperCase())
+                        .forEach(areaNames::add);
+            }
+        }
+
+        return areaNames;
     }
 }

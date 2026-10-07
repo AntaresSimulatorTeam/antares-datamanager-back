@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.thermal;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -8,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 public interface ThermalParamModulationService {
 
@@ -21,4 +23,5 @@ public interface ThermalParamModulationService {
 
     void verifyExistingSpecificClustersOfParamModulation(String horizon, Integer studyId, Path modulationFile, String trajectoryName, String fileType) throws IOException;
 
-    }
+    Map<String, List<String>> createThermalMeModulationArrowFile(String horizon, List<String> clusterNames, Path fullPath, String trajectoryFileName) throws IOException, BusinessException;
+}

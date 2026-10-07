@@ -14,7 +14,7 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabili
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabilityAssemblyResult;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNames;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFilePrefixes;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.NuclearTimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
