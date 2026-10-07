@@ -683,6 +683,368 @@ class ConstraintMeFileProcessorServiceImplTest {
         assertTrue(exception.getMessage().contains("must belong to listCluster_desc tab"));
     }
 
+    @Test
+    @DisplayName("processListAreaDescSheet - should handle empty sheet gracefully")
+    void testProcessListAreaDescSheetEmpty() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        // Create empty listArea_desc sheet
+        workbook.createSheet("listArea_desc");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.createSheet("2025").createRow(0).createCell(0).setCellValue("Name");
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+
+        assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+    }
+
+    @Test
+    @DisplayName("processListAreaDescSheet - should handle null sheet")
+    void testProcessListAreaDescSheetNull() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        // Don't create listArea_desc sheet at all
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.createSheet("2025").createRow(0).createCell(0).setCellValue("Name");
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+
+        assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+    }
+
+    @Test
+    @DisplayName("processListClusterDescSheet - should handle empty sheet gracefully")
+    void testProcessListClusterDescSheetEmpty() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        // Create empty listCluster_desc sheet
+        workbook.createSheet("listCluster_desc");
+        workbook.createSheet("2025").createRow(0).createCell(0).setCellValue("Name");
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+
+        assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+    }
+
+    @Test
+    @DisplayName("processHorizonSheet - should handle empty horizon sheet gracefully")
+    void testProcessHorizonSheetEmpty() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listCluster_desc").createRow(1).createCell(0).setCellValue("Cluster1");
+        // Create empty horizon sheet
+        workbook.createSheet("2025");
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+
+        assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+    }
+
+    @Test
+    @DisplayName("processHorizonSheet - should handle null horizon sheet")
+    void testProcessHorizonSheetNull() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listCluster_desc").createRow(1).createCell(0).setCellValue("Cluster1");
+        // Don't create horizon sheet
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+
+        assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+    }
+
+    @Test
+    @DisplayName("processHorizonSheet - should skip empty constraint names")
+    void testProcessHorizonSheetSkipsEmptyNames() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listCluster_desc").createRow(1).createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row headerRow = horizonSheet.createRow(0);
+        for (int i = 0; i < 12; i++) {
+            headerRow.createCell(i).setCellValue("Header" + i);
+        }
+        
+        // Row with empty name should be skipped
+        Row emptyRow = horizonSheet.createRow(1);
+        emptyRow.createCell(0).setCellValue("");
+        emptyRow.createCell(1).setCellValue("YES");
+        
+        // Row with valid constraint
+        Row validRow = horizonSheet.createRow(2);
+        validRow.createCell(0).setCellValue("ValidConstraint");
+        validRow.createCell(1).setCellValue("YES");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(meConstraintRepository.save(any(MeConstraintEntity.class)))
+                .thenAnswer(inv -> {
+                    MeConstraintEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
+        
+        // Verify that only one constraint is saved (empty name should be skipped)
+        ArgumentCaptor<MeConstraintEntity> captor = ArgumentCaptor.forClass(MeConstraintEntity.class);
+        verify(meConstraintRepository, times(1)).save(captor.capture());
+    }
+
+    @Test
+    @DisplayName("validateConstraintData - should validate noeud1Gauche not empty and valid")
+    void testValidateNoeud1GaucheValid() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listCluster_desc").createRow(1).createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row headerRow = horizonSheet.createRow(0);
+        for (int i = 0; i < 12; i++) {
+            headerRow.createCell(i).setCellValue("Header" + i);
+        }
+        
+        Row validRow = horizonSheet.createRow(1);
+        validRow.createCell(0).setCellValue("ValidConstraint");
+        validRow.createCell(1).setCellValue("YES");
+        validRow.createCell(6).setCellValue("Node1");  // Valid AREA_ME node
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        
+        // Mock AREA_ME nodes
+        List<AreaEntity> areaMeAreas = new ArrayList<>();
+        AreaEntity areaMeNode = AreaEntity.builder().name("Node1").build();
+        areaMeAreas.add(areaMeNode);
+        
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(areaMeAreas);
+        
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(meConstraintRepository.save(any(MeConstraintEntity.class)))
+                .thenAnswer(inv -> {
+                    MeConstraintEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
+        
+        ArgumentCaptor<MeConstraintEntity> captor = ArgumentCaptor.forClass(MeConstraintEntity.class);
+        verify(meConstraintRepository).save(captor.capture());
+        assertEquals("Node1", captor.getValue().getNoeud1Gauche());
+    }
+
+    @Test
+    @DisplayName("extractConstraintRowData - should extract all fields with correct values")
+    void testExtractConstraintRowDataComplete() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        createValidExcelFile(filePath);  // Use the tested valid structure
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(meConstraintRepository.save(any(MeConstraintEntity.class)))
+                .thenAnswer(inv -> {
+                    MeConstraintEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
+        
+        ArgumentCaptor<MeConstraintEntity> captor = ArgumentCaptor.forClass(MeConstraintEntity.class);
+        verify(meConstraintRepository).save(captor.capture());
+        
+        // Verify that the constraint was created and enabled
+        MeConstraintEntity constraint = captor.getValue();
+        assertEquals("TestConstraint", constraint.getName());
+        assertTrue(constraint.getEnabled());
+        assertEquals("<=", constraint.getSign());
+        assertEquals("Daily", constraint.getTemporality());
+        assertEquals("G2P", constraint.getType());
+        assertEquals("Test constraint", constraint.getComments());
+    }
+
+    @Test
+    @DisplayName("extractConstraintRowData - should handle NO value for enabled field")
+    void testExtractConstraintRowDataEnabledNo() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listCluster_desc").createRow(1).createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row headerRow = horizonSheet.createRow(0);
+        for (int i = 0; i < 12; i++) {
+            headerRow.createCell(i).setCellValue("Header" + i);
+        }
+        
+        Row dataRow = horizonSheet.createRow(1);
+        dataRow.createCell(0).setCellValue("TestConstraint");
+        dataRow.createCell(1).setCellValue("NO");  // Not enabled
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(meConstraintRepository.save(any(MeConstraintEntity.class)))
+                .thenAnswer(inv -> {
+                    MeConstraintEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
+        
+        ArgumentCaptor<MeConstraintEntity> captor = ArgumentCaptor.forClass(MeConstraintEntity.class);
+        verify(meConstraintRepository).save(captor.capture());
+        
+        assertFalse(captor.getValue().getEnabled());
+    }
+
     // ============ Helper Methods ============
 
     private void setupMocks(String nasDir, String trajPath, String constraintMeDir) {
