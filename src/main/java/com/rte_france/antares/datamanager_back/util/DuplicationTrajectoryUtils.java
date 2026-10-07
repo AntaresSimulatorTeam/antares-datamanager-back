@@ -67,6 +67,22 @@ public class DuplicationTrajectoryUtils {
                     .errorMessageArguments(List.of(existingAreaTrajectory !=null ? existingAreaTrajectory.getFileName() : "", horizon))
                     .build();
         }
+        
+        boolean hasAreaMeTrajectory = existingStudyTrajectories.stream()
+                .anyMatch(t ->  TrajectoryType.AREA_ME.name().equals(t.getType()));
+                
+        TrajectoryEntity availableAreaMeTrajectory = trajectoriesAvailable.stream()
+                .filter(t -> TrajectoryType.AREA_ME.name().equals(t.getType()))
+                .findFirst().orElse(null);
+
+        if (hasAreaMeTrajectory && availableAreaMeTrajectory == null) {
+            throw BusinessException.builder()
+                    .message("AREA_ME trajectory {0} does not exist for horizon {1}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .errorMessageArguments(List.of(existingAreaTrajectory !=null ? existingAreaTrajectory.getFileName() : "", horizon))
+                    .build();
+        }        
+                
         return availableAreaTrajectory;
     }
 
