@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -37,6 +37,9 @@ class ConstraintMeFileProcessorServiceImplTest {
 
     @Mock
     private TrajectoryRepository trajectoryRepository;
+
+    @Mock(lenient = true)
+    private StudyTrajectoryRepository studyTrajectoryRepository;
 
     @Mock
     private UserService userService;
@@ -52,6 +55,9 @@ class ConstraintMeFileProcessorServiceImplTest {
 
     @Mock
     private MeConstraintRepository meConstraintRepository;
+
+    @Mock(lenient = true)
+    private AreaRepository areaRepository;
 
     @InjectMocks
     private ConstraintMeFileProcessorServiceImpl service;
@@ -112,7 +118,7 @@ class ConstraintMeFileProcessorServiceImplTest {
                     return e;
                 });
 
-        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         assertNotNull(result);
         assertEquals(trajectoryName, result.getFileName());
@@ -127,7 +133,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         String trajectoryName = "test_trajectory";
         
         assertThrows(BusinessException.class, () -> 
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, null)
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, null, 1)
         );
     }
 
@@ -143,7 +149,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(null);
 
         assertThrows(BusinessException.class, () -> 
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon)
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
         );
     }
 
@@ -179,7 +185,7 @@ class ConstraintMeFileProcessorServiceImplTest {
                     return e;
                 });
 
-        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         assertNotNull(result);
         assertEquals(2, result.getVersion());
@@ -222,7 +228,7 @@ class ConstraintMeFileProcessorServiceImplTest {
                     return e;
                 });
 
-        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         assertNotNull(result);
         assertEquals(2, result.getVersion());
@@ -245,7 +251,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
 
         assertThrows(BusinessException.class, () -> {
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
     }
 
@@ -266,7 +272,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
 
         assertThrows(BusinessException.class, () -> {
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
     }
 
@@ -290,7 +296,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
 
         assertThrows(BusinessException.class, () -> {
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
     }
 
@@ -323,7 +329,7 @@ class ConstraintMeFileProcessorServiceImplTest {
                     return e;
                 });
 
-        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         ArgumentCaptor<GroupAreaDescEntity> captor = ArgumentCaptor.forClass(GroupAreaDescEntity.class);
         verify(groupAreaDescRepository, atLeast(2)).save(captor.capture());
@@ -358,7 +364,7 @@ class ConstraintMeFileProcessorServiceImplTest {
                     return e;
                 });
 
-        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         ArgumentCaptor<GroupClusterDescEntity> captor = ArgumentCaptor.forClass(GroupClusterDescEntity.class);
         verify(groupClusterDescRepository, atLeast(2)).save(captor.capture());
@@ -399,7 +405,7 @@ class ConstraintMeFileProcessorServiceImplTest {
                     return e;
                 });
 
-        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon);
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         ArgumentCaptor<MeConstraintEntity> captor = ArgumentCaptor.forClass(MeConstraintEntity.class);
         verify(meConstraintRepository, atLeastOnce()).save(captor.capture());
@@ -423,7 +429,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
 
         assertThrows(BusinessException.class, () -> 
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon)
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
         );
     }
 
@@ -439,7 +445,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
 
         assertThrows(IOException.class, () -> 
-            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon)
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
         );
     }
 
@@ -449,6 +455,45 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDir);
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn(trajPath);
         when(antaresDataManagerProperties.getConstraintMeDirectory()).thenReturn(constraintMeDir);
+        
+        // Create mock AREA and AREA_ME trajectories
+        List<StudyTrajectoryEntity> mockTrajectories = new ArrayList<>();
+        
+        // Add AREA trajectories with test area names
+        TrajectoryEntity areaTrajectory1 = TrajectoryEntity.builder().fileName("AT").type(TrajectoryType.AREA.name()).build();
+        StudyTrajectoryEntity studyTraj1 = new StudyTrajectoryEntity();
+        studyTraj1.setTrajectory(areaTrajectory1);
+        mockTrajectories.add(studyTraj1);
+        
+        TrajectoryEntity areaTrajectory2 = TrajectoryEntity.builder().fileName("BE").type(TrajectoryType.AREA.name()).build();
+        StudyTrajectoryEntity studyTraj2 = new StudyTrajectoryEntity();
+        studyTraj2.setTrajectory(areaTrajectory2);
+        mockTrajectories.add(studyTraj2);
+        
+        TrajectoryEntity areaTrajectory3 = TrajectoryEntity.builder().fileName("FR").type(TrajectoryType.AREA.name()).build();
+        StudyTrajectoryEntity studyTraj3 = new StudyTrajectoryEntity();
+        studyTraj3.setTrajectory(areaTrajectory3);
+        mockTrajectories.add(studyTraj3);
+        
+        // Add AREA_ME trajectories with test node names (using simple names for testing)
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder().fileName("Node1").type(TrajectoryType.AREA_ME.name()).build();
+        StudyTrajectoryEntity studyTrajMe = new StudyTrajectoryEntity();
+        studyTrajMe.setTrajectory(areaMeTrajectory);
+        mockTrajectories.add(studyTrajMe);
+        
+        when(studyTrajectoryRepository.findById_ScenarioId(anyInt())).thenReturn(mockTrajectories);
+        
+        // Mock areaRepository.findAllByStudyId for AREA type
+        List<AreaEntity> mockAreas = new ArrayList<>();
+        AreaEntity area1 = AreaEntity.builder().name("AT").build();
+        AreaEntity area2 = AreaEntity.builder().name("BE").build();
+        AreaEntity area3 = AreaEntity.builder().name("FR").build();
+        mockAreas.add(area1);
+        mockAreas.add(area2);
+        mockAreas.add(area3);
+        
+        when(areaRepository.findAllByStudyId(anyInt(), eq(TrajectoryType.AREA.name())))
+                .thenReturn(mockAreas);
     }
 
     private void createValidExcelFile(Path filePath) throws IOException {

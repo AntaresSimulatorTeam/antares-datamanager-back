@@ -39,14 +39,15 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private final GroupAreaDescRepository groupAreaDescRepository;
     private final GroupClusterDescRepository groupClusterDescRepository;
     private final MeConstraintRepository meConstraintRepository;
+    private final AreaRepository areaRepository;
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processConstraintMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return saveConstraintMeTrajectoryInDb(trajectoryToUse, horizon);
+        return saveConstraintMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
     }
 
-    public TrajectoryEntity saveConstraintMeTrajectoryInDb(String trajectoryToUse, String horizon) throws IOException {
+    public TrajectoryEntity saveConstraintMeTrajectoryInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         if (horizon == null) {
             throw BusinessException.builder()
                     .message("Horizon must not be null")
@@ -84,31 +85,37 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
                 TrajectoryEntity newTrajectory = buildNewConstraintMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
                 newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
                 TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-                insertConstraintMeData(workbook, horizon, savedTrajectory);
+                insertConstraintMeData(workbook, horizon, savedTrajectory, studyId);
                 return savedTrajectory;
             }
 
             TrajectoryEntity newTrajectory = buildNewConstraintMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-            insertConstraintMeData(workbook, horizon, savedTrajectory);
+            insertConstraintMeData(workbook, horizon, savedTrajectory, studyId);
             return savedTrajectory;
         }
     }
 
-    private void insertConstraintMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory) throws IOException {
+    private void insertConstraintMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory, Integer studyId) throws IOException {
         String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
         
-        processListAreaDescSheet(workbook, trajectory);
+        processListAreaDescSheet(workbook, trajectory, studyId);
         processListClusterDescSheet(workbook, trajectory);
-        processHorizonSheet(workbook, horizonYear, trajectory);
+        processHorizonSheet(workbook, horizonYear, trajectory, studyId);
     }
 
-    private void processListAreaDescSheet(Workbook workbook, TrajectoryEntity trajectory) {
+    private void processListAreaDescSheet(Workbook workbook, TrajectoryEntity trajectory, Integer studyId) {
         Sheet sheet = workbook.getSheet("listArea_desc");
         if (sheet == null) return;
 
         Row headerRow = sheet.getRow(0);
         if (headerRow == null) return;
+
+        List<AreaEntity> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.name());
+        Set<String> studyAreaNames = new HashSet<>();
+        for (AreaEntity area : studyAreas) {
+            studyAreaNames.add(area.getName().toLowerCase(Locale.ROOT));
+        }
 
         int lastCellNum = headerRow.getLastCellNum();
         
@@ -129,8 +136,18 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
                 
                 String area = getCellStringValue(row, colIdx);
                 if (area != null && !area.trim().isEmpty()) {
+                    String trimmedArea = area.trim().toLowerCase(Locale.ROOT);
+                    
+                    if (!studyAreaNames.contains(trimmedArea)) {
+                        throw BusinessException.builder()
+                                .message("Area {0} in group {1} does not exist in study areas")
+                                .errorMessageArguments(List.of(area, groupName))
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
+                    
                     ListAreaDescEntity listAreaDesc = ListAreaDescEntity.builder()
-                            .area(area.trim())
+                            .area(trimmedArea)
                             .groupArea(groupAreaDesc)
                             .build();
                     groupAreaDesc.getAreas().add(listAreaDesc);
@@ -183,15 +200,86 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         }
     }
 
-    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory) {
+    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Integer studyId) {
         Sheet sheet = workbook.getSheet(horizonYear);
         if (sheet == null) return;
+
+        Set<String> listAreaDescNodes = extractNodesFromListAreaDesc(workbook);
+        Set<String> listClusterDescClusters = extractClustersFromListClusterDesc(workbook);
+        Set<String> areaMeNodes = extractNodesFromAreaMeTrajectory(studyId);
 
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
             
             String name = getCellStringValue(row, 0);
             if (name == null || name.trim().isEmpty()) continue;
+            
+            String noeud1Gauche = getCellStringValue(row, 6);
+            String noeud2Gauche = getCellStringValue(row, 7);
+            String clusterGauche = getCellStringValue(row, 8);
+            String noeud1Droite = getCellStringValue(row, 9);
+            String noeud2Droite = getCellStringValue(row, 10);
+            String clusterDroite = getCellStringValue(row, 11);
+
+            if (noeud1Gauche != null && !noeud1Gauche.trim().isEmpty()) {
+                if (!areaMeNodes.contains(noeud1Gauche.trim().toLowerCase(Locale.ROOT))) {
+                    throw BusinessException.builder()
+                            .message("Node {0} in {1} tab must belong to AREA_ME trajectory")
+                            .errorMessageArguments(List.of(noeud1Gauche.trim(), horizonYear))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+            if (noeud2Gauche != null && !noeud2Gauche.trim().isEmpty()) {
+                if (!areaMeNodes.contains(noeud2Gauche.trim().toLowerCase(Locale.ROOT))) {
+                    throw BusinessException.builder()
+                            .message("Node {0} in {1} tab must belong to AREA_ME trajectory")
+                            .errorMessageArguments(List.of(noeud2Gauche.trim(), horizonYear))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+            if (clusterGauche != null && !clusterGauche.trim().isEmpty()) {
+                if (!listClusterDescClusters.contains(clusterGauche.trim().toLowerCase(Locale.ROOT))) {
+                    throw BusinessException.builder()
+                            .message("Cluster {0} in {1} tab must belong to listCluster_desc tab")
+                            .errorMessageArguments(List.of(clusterGauche.trim(), horizonYear))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+            if (noeud1Droite != null && !noeud1Droite.trim().isEmpty()) {
+                if (!listAreaDescNodes.contains(noeud1Droite.trim().toLowerCase(Locale.ROOT))) {
+                    throw BusinessException.builder()
+                            .message("Node {0} in {1} tab must belong to listArea_desc tab")
+                            .errorMessageArguments(List.of(noeud1Droite.trim(), horizonYear))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+            if (noeud2Droite != null && !noeud2Droite.trim().isEmpty()) {
+                if (!listAreaDescNodes.contains(noeud2Droite.trim().toLowerCase(Locale.ROOT))) {
+                    throw BusinessException.builder()
+                            .message("Node {0} in {1} tab must belong to listArea_desc tab")
+                            .errorMessageArguments(List.of(noeud2Droite.trim(), horizonYear))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+
+            if (clusterDroite != null && !clusterDroite.trim().isEmpty()) {
+                if (!listClusterDescClusters.contains(clusterDroite.trim())) {
+                    throw BusinessException.builder()
+                            .message("Cluster {0} in {1} tab must belong to listCluster_desc tab")
+                            .errorMessageArguments(List.of(clusterDroite.trim(), horizonYear))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
             
             MeConstraintEntity constraint = MeConstraintEntity.builder()
                     .name(name)
@@ -200,17 +288,64 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
                     .temporality(getCellStringValue(row, 3))
                     .type(getCellStringValue(row, 4))
                     .comments(getCellStringValue(row, 5))
-                    .noeud1Gauche(getCellStringValue(row, 6))
-                    .noeud2Gauche(getCellStringValue(row, 7))
-                    .clusterGauche(getCellStringValue(row, 8))
-                    .noeud1Droite(getCellStringValue(row, 9))
-                    .noeud2Droite(getCellStringValue(row, 10))
-                    .clusterDroite(getCellStringValue(row, 11))
+                    .noeud1Gauche(noeud1Gauche)
+                    .noeud2Gauche(noeud2Gauche)
+                    .clusterGauche(clusterGauche)
+                    .noeud1Droite(noeud1Droite)
+                    .noeud2Droite(noeud2Droite)
+                    .clusterDroite(clusterDroite)
                     .trajectory(trajectory)
                     .build();
             
             meConstraintRepository.save(constraint);
         }
+    }
+
+    private Set<String> extractNodesFromListAreaDesc(Workbook workbook) {
+        Set<String> nodes = new HashSet<>();
+        Sheet sheet = workbook.getSheet("listArea_desc");
+        if (sheet == null) return nodes;
+
+        for (int rowIdx = 1; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
+            Row row = sheet.getRow(rowIdx);
+            if (row == null) continue;
+            
+            for (int colIdx = 0; colIdx < row.getLastCellNum(); colIdx++) {
+                String node = getCellStringValue(row, colIdx);
+                if (node != null && !node.trim().isEmpty()) {
+                    nodes.add(node.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        return nodes;
+    }
+
+    private Set<String> extractClustersFromListClusterDesc(Workbook workbook) {
+        Set<String> clusters = new HashSet<>();
+        Sheet sheet = workbook.getSheet("listCluster_desc");
+        if (sheet == null) return clusters;
+
+        for (int rowIdx = 1; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
+            Row row = sheet.getRow(rowIdx);
+            if (row == null) continue;
+            
+            for (int colIdx = 0; colIdx < row.getLastCellNum(); colIdx++) {
+                String cluster = getCellStringValue(row, colIdx);
+                if (cluster != null && !cluster.trim().isEmpty()) {
+                    clusters.add(cluster.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        return clusters;
+    }
+
+    private Set<String> extractNodesFromAreaMeTrajectory(Integer studyId) {
+        Set<String> nodes = new HashSet<>();
+        List<AreaEntity> areaMeEntities = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name());
+        for (AreaEntity area : areaMeEntities) {
+            nodes.add(area.getName().toLowerCase(Locale.ROOT));
+        }
+        return nodes;
     }
 
     private String getCellStringValue(Row row, int cellIndex) {
