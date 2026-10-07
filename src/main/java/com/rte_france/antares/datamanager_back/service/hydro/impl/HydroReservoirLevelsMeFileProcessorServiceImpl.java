@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroReservoirLevelsMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.HydroWaterValuesFileUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -30,8 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.function.BiPredicate;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.computeChecksumByType;
 import static com.rte_france.antares.datamanager_back.util.Utils.isSameFileWithSameContent;
@@ -48,7 +46,13 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     private static final String RESERVOIR_LEVELS_FILE = "reservoir_levels.xlsx";
+    private static final String FILE_PATTERN_RESERVOIR_LEVELS = "*_reservoir_levels.xlsx";
+    private static final String MISSING_HORIZON_RESERVOIR_LEVELS_MESSAGE = "Missing horizon {0} in Reservoir Levels file for {1} in HYDRO_ME Reservoir Levels trajectory {2}";
+    private static final String NO_FILE_RELATED_TO_NODES_RESERVOIR_LEVELS_MESSAGE = "No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Reservoir Levels trajectory {0}";
 
+    private static final String FILE_PATTERN_WATER_VALUES = "waterValues_*.xlsx";
+    private static final String MISSING_HORIZON_WATER_VALUES_MESSAGE = "Missing horizon {0} in water values file for {1} in HYDRO_ME Water values trajectory {2}";
+    private static final String NO_FILE_RELATED_TO_NODES_WATER_VALUES_MESSAGE = "No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Water Values trajectory {0}";
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -92,6 +96,23 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
     }
 
     private void validateHydroReservoirLevelsMeDirectory(Path trajectoryPath, String trajectoryName, String horizon, Integer studyId) throws IOException {
+        validateHydroExcelDirectory(
+                trajectoryPath,
+                trajectoryName,
+                horizon,
+                studyId,
+                false,
+                HydroReservoirLevelsMeFileProcessorServiceImpl::matchesNode
+        );
+    }
+
+    protected void validateHydroExcelDirectory(
+            Path trajectoryPath,
+            String trajectoryName,
+            String horizon,
+            Integer studyId,
+            boolean isWaterValues,
+            BiPredicate<String, String> nodeMatcherFunction) throws IOException {
         if (!Files.isDirectory(trajectoryPath)) {
             throw BusinessException.builder()
                     .message("Trajectory must be a directory: {0}")
@@ -100,13 +121,14 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
                     .build();
         }
 
+
         // Get all Excel files (*.xlsx) in the directory
         List<Path> excelFilePaths;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(trajectoryPath, "*_reservoir_levels.xlsx")) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(trajectoryPath, isWaterValues ? FILE_PATTERN_WATER_VALUES : FILE_PATTERN_RESERVOIR_LEVELS)) {
             excelFilePaths = new ArrayList<>();
             stream.forEach(excelFilePaths::add);
         }
-        if(excelFilePaths.isEmpty()) {
+        if (excelFilePaths.isEmpty()) {
             throw BusinessException.builder()
                     .message("No Excel files found in the directory: {0}")
                     .errorMessageArguments(List.of(trajectoryName))
@@ -123,9 +145,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
                 Sheet requiredSheet = workbook.getSheet(secondPartOfHorizon);
                 if (requiredSheet == null) {
                     throw BusinessException.builder()
-                            .message(String.format("Excel file %s does not contain required sheet: %s",
-                                    excelFilePath.getFileName().toString(), secondPartOfHorizon))
-                            .message("Missing horizon {0} in Reservoir Levels file for {1} in HYDRO_ME Reservoir Levels trajectory {2}")
+                            .message(isWaterValues ? MISSING_HORIZON_WATER_VALUES_MESSAGE : MISSING_HORIZON_RESERVOIR_LEVELS_MESSAGE)
                             .errorMessageArguments(List.of(secondPartOfHorizon, excelFilePath.getFileName().toString(), trajectoryName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
@@ -137,14 +157,13 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
         List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId);
 
         if (!validNodes.isEmpty()) {
-            // Match the node portion, not the fixed Reservoir Levels filename text.
             boolean hasAtLeastOneValidFile = excelFiles.stream()
                     .anyMatch(fileName -> validNodes.stream()
-                            .anyMatch(nodeName -> matchesNode(fileName, nodeName)));
+                            .anyMatch(nodeName -> nodeMatcherFunction.test(fileName, nodeName)));
 
             if (!hasAtLeastOneValidFile) {
                 throw BusinessException.builder()
-                        .message("No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Reservoir Levels trajectory {0}")
+                        .message(isWaterValues ? NO_FILE_RELATED_TO_NODES_WATER_VALUES_MESSAGE : NO_FILE_RELATED_TO_NODES_RESERVOIR_LEVELS_MESSAGE)
                         .errorMessageArguments(List.of(trajectoryName))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
