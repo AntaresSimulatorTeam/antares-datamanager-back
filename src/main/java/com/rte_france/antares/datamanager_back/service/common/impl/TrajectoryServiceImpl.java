@@ -25,6 +25,7 @@ import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFi
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
@@ -84,11 +85,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final ThermalControlService thermalControlService;
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
-
-
+    
     private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final LoadFileProcessorService loadFileProcessorService;
+
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     private final StudyRepository studyRepository;
 
@@ -751,6 +753,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
 
+        if (TrajectoryType.LOAD_ME.name().equals(trajectoryType) || TrajectoryType.STS_ME.name().equals(trajectoryType)) {
+            multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, trajectoryType, trajectory);
+        }
+
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
@@ -1186,6 +1192,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // Reuse existing validation logic
+        multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.LOAD_ME.name(), trajectory);
         validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, trajectory.getFileName(), studyId);
     }
 
@@ -1211,18 +1218,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Set<String> loadMeAreas = loadsFileWithAreas.values().stream()
                 .map(String::toUpperCase)
                 .collect(Collectors.toSet());
-
-        Set<String> missingAreas = areaMeNames.stream()
-                .filter(area -> !loadMeAreas.contains(area))
-                .collect(Collectors.toSet());   
-        
-        if (!missingAreas.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Areas {0} from AREA_ME trajectory is (are) not present in LOAD_ME trajectory")
-                    .errorMessageArguments(List.of(String.join(", ", missingAreas)))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }             
 
         boolean hasMatchingArea = loadMeAreas.stream()
                 .anyMatch(areaMeNames::contains);

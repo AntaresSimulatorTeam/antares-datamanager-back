@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private final UserService userService;
     private final WarningRepository warningRepository;
     private final StudyRepository studyRepository;
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService; 
 
     private static final Integer SERIES_INDEX_ME = 10;
     private static final String EXCEL_EXTENSION = ".xlsx";
@@ -56,9 +58,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse);
 
         Map<String, List<String>> missingFilesMeKeysMap = new LinkedHashMap<>();
-        List<TrajectoryEntity> areaMeTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId);
-        Set<String> aresMeList = extractAreaNamesFromAreaMe(areaMeTrajectories);
-        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap, aresMeList);
+        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap);
         List<String> areasMeInStorage = stStorageEntityList.stream()
                 .map(StStorageEntity::getArea)
                 .toList();
@@ -96,7 +96,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                         .build();
             }
        }
-        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon);
+        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon, studyId);
 
         saveMissingColumnWarning(study, savedTrajectory, missingFilesMeKeysMap);
 
@@ -104,7 +104,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private TrajectoryEntity saveTrajectoryImport(List<StStorageEntity> stStorageEntityList, Path trajectoryFilePath,
-                                                   String horizon) throws IOException {
+                                                   String horizon, Integer studyId) throws IOException {
         if (stStorageEntityList.isEmpty()) {
             throw createValidationError("No ST Storage data found in the file for horizon: {0}", List.of(horizon));
         }
@@ -116,10 +116,11 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
         stStorageEntityList.forEach(stStorageEntity -> stStorageEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
+        multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.STS_ME.name(), trajectoryEntity);
         return trajectoryRepository.save(trajectoryEntity);
     }
 
-    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap, Set<String> areaMeNames) throws IOException{
+    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap) throws IOException{
         List<StStorageEntity> stStorageEntityList = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         Map<Path, Set<String>> headersCache = new HashMap<>();
@@ -131,8 +132,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
             if (sheet == null) {
                 throw createValidationError("Missing horizon {0} in ST_STORAGE_ME Clusters trajectory {1}", List.of(horizonYear, trajectoryFileName));
             }
-            
-            List<String> nodeList = new ArrayList<>();
 
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
@@ -144,7 +143,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
                 // Validations
                 validateMeNodeField(node, trajectoryFileName);
-                nodeList.add(node.toUpperCase(Locale.ROOT));
                 validateMeFieldLength(node, NODE_MAX_LENGTH, "Node", trajectoryFileName);
                 validateMeFieldLength(name, NAME_MAX_LENGTH, "Name", trajectoryFileName);
                 validateMeFieldLength(group, GROUP_MAX_LENGTH, "Group", trajectoryFileName);
@@ -155,14 +153,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
                 StStorageEntity stStorageEntity = mapRowToEntityMe(row, trajectoryFilePath, node, name, group, horizonYear, headersCache, missingFilesMeKeysMap);
                 stStorageEntityList.add(stStorageEntity);
-            }
-            Set<String> missingAreas = areaMeNames.stream()
-                    .filter(area -> !nodeList.contains(area))
-                    .collect(Collectors.toSet());
-
-            if (!missingAreas.isEmpty()) {
-                throw createValidationError("Areas {0} from AREA_ME trajectory is (are) not present in ST_STORAGE_ME trajectory",
-                        List.of(String.join(", ", missingAreas)));
             }
         }
 
