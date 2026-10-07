@@ -55,7 +55,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
         }
         checkIfHorizonExist(path, updatedHorizon, trajectoryType.name());
         ExcelCommonValidator.checkIfColumnsAreValid(path, ExcelFileType.AREAS, updatedHorizon, trajectoryType.name());
-        AreasValidator.validateAreaColumns(path, updatedHorizon);
+        AreasValidator.validateAreaColumns(path, updatedHorizon, trajectoryType.name());
         String fileName = getFileNameWithoutExtensionAndWithoutPrefix(path.getFileName().toString(), trajectoryType.name());
         Optional<TrajectoryEntity> trajectoryEntity = trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(fileName, horizon, trajectoryType.name());
 
