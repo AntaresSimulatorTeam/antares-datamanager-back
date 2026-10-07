@@ -24,8 +24,8 @@ import com.rte_france.antares.datamanager_back.service.misc.MiscGenerationAssemb
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.study.*;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -205,7 +205,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 case SETTINGS, SCENARIO_BUILDER, NUCLEAR_FR_MODULATION, NUCLEAR_FR_TALON, FLOWBASED,
                      P2G_CAPACITY_COST, P2G_MARKET_MODULATION, AREA_ME, LINK_ME, LOAD_ME, STS_ME, EFFICIENCY_ME,
                      CONSTRAINT_ME, HYDRO_CAPACITY_ME, HYDRO_PARAMETERS_ME, HYDRO_RESERVOIR_LEVELS_ME,
-                     HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME ->
+                     HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME, THERMAL_CAPACITY_ME ->
                         singleTrajectoryByType.put(trajectoryType, trajectory);
                 default -> {
                     log.error("Unhandled trajectory type {} for trajectory {}", trajectoryType, trajectory.getFileName());
@@ -296,6 +296,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     dispatchResult.trajectoryOfType(TrajectoryType.LOAD_ME);
             Optional<TrajectoryEntity> stsMeTrajectory =
                     dispatchResult.trajectoryOfType(TrajectoryType.STS_ME);
+            Optional<TrajectoryEntity> thermalMeTrajectory =
+                    dispatchResult.trajectoryOfType(TrajectoryType.THERMAL_CAPACITY_ME);
 
             Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMapWithThermalClusterProps(
                     study,
@@ -305,6 +307,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     loadMeTrajectory.orElse(null),
                     stsMeTrajectory.orElse(null),
                     efficiencyMeTrajectory.orElse(null),
+                    constraintMeTrajectory.orElse(null),
+                    thermalMeTrajectory.orElse(null),
                     constraintMeTrajectory.orElse(null),
                     hydroCapacityMeTrajectory.orElse(null),
                     hydroParametersMeTrajectory.orElse(null),

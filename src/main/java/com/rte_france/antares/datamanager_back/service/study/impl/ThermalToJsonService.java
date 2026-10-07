@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.NuclearSMRMixageDTO;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterGenerationDto;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.dto.ThermalMEClusterGenerationDto;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -20,13 +22,15 @@ public class ThermalToJsonService {
 
     private static final String PROPERTIES = "properties";
     private static final String DATA = "data";
+    private static final String MODULATION = "modulation";
+    private static final String SERIES = "series";
     private static final String MATRIX_HASH = "matrix hash";
 
     public String buildClusterKey(String area, String clusterName) {
         return area.toUpperCase(Locale.ROOT) + "_" + clusterName;
     }
 
-    public  Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<ThermalPropertiesAssemblerService.AreaClusterRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
+    public  Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<AreaClusterRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
         return areaRefProps.entrySet().stream()
                 .filter(e -> e.getKey().area().equalsIgnoreCase(areaName))
                 .collect(Collectors.toMap(
@@ -66,11 +70,11 @@ public class ThermalToJsonService {
 
             Map<String, Object> clusterData = new LinkedHashMap<>();
             clusterData.put(PROPERTIES, propertiesMap);
-            clusterData.put("series", seriesOverrides.getOrDefault(clusterName, MATRIX_HASH));
+            clusterData.put(SERIES, seriesOverrides.getOrDefault(clusterName, MATRIX_HASH));
             clusterData.put("fuel_cost", MATRIX_HASH);
             clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put(DATA, dataMap);
-            clusterData.put("modulation", dto.getParamModulationTsList());
+            clusterData.put(MODULATION, dto.getParamModulationTsList());
 
             NuclearSMRMixageDTO mixage = smrMixageOverrides.get(clusterName);
             if (mixage != null) {
@@ -91,4 +95,41 @@ public class ThermalToJsonService {
     private static final ObjectMapper DATA_MAPPER = new ObjectMapper()
             .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalClusterGenerationDto.ThermalClusterViews.Data.class));
 
+    private static final ObjectMapper PROPERTIES_MAPPER_ME = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalMEClusterGenerationDto.ThermalClusterViews.Properties.class));
+
+    private static final ObjectMapper DATA_MAPPER_ME = new ObjectMapper()
+            .setConfig(new ObjectMapper().getSerializationConfig().withView(ThermalMEClusterGenerationDto.ThermalClusterViews.Modulation.class));
+
+    // ex: v_me_h2_long_euest : [v_me_h2_long_euest_import_canalisation]
+    public Map<String, Object> thermalsMeMapGenerator(String areaName, Map<String, ThermalMEClusterGenerationDto> clusterProps) {
+        if (clusterProps == null || clusterProps.isEmpty()) {
+            log.info("thermalsMeMapGenerator: missing clusterProps for area ={}", areaName);
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> thermalMeClusterName = new LinkedHashMap<>();
+
+        clusterProps.entrySet().stream()
+                .filter(e -> e.getKey().startsWith(areaName.toUpperCase() + "_"))
+                .forEach(e -> {
+                    String clusterName = e.getKey();
+                    ThermalMEClusterGenerationDto dto = e.getValue();
+
+                    Map<String, Object> propertiesMap = PROPERTIES_MAPPER_ME.convertValue(dto, new TypeReference<>() {});
+                    Map<String, Object> dataMap = DATA_MAPPER_ME.convertValue(dto, new TypeReference<>() {
+                    });
+
+                    Map<String, Object> clusterData = new LinkedHashMap<>();
+                    clusterData.put(PROPERTIES, propertiesMap);
+                    clusterData.put(MODULATION, dataMap);
+                    clusterData.put(SERIES, dto.getTsList());
+
+                    thermalMeClusterName.put(clusterName, clusterData);
+                    log.info("Thermal ME cluster added {} for area {} (enabled={})", clusterName, areaName, dto.getEnabled());
+                });
+
+        log.info("thermalsMeMapGenerator: {} clusters Thermal ME added for area {}", thermalMeClusterName.size(), areaName);
+        return thermalMeClusterName;
+    }
 }

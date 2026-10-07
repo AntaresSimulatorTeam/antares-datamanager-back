@@ -25,6 +25,7 @@ import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFi
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
 import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
@@ -84,11 +85,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final ThermalControlService thermalControlService;
 
     private final ThermalSpecificFileProcessorService thermalSpecificProcessorService;
-
-
+    
     private final ThermalEconomicCostAndRateService thermalEconomicCostAndRateService;
 
     private final LoadFileProcessorService loadFileProcessorService;
+
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     private final StudyRepository studyRepository;
 
@@ -751,6 +753,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
 
+        if (TrajectoryType.LOAD_ME.name().equals(trajectoryType) || TrajectoryType.STS_ME.name().equals(trajectoryType)) {
+            multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, trajectoryType, trajectory);
+        }
+
         existingLink.ifPresent(studyTrajectoryRepository::delete);
 
         StudyTrajectoryEntity newLink = StudyTrajectoryEntity.builder()
@@ -971,7 +977,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // No existing trajectory: create and save new
-       TrajectoryEntity newTrajectory = buildNewLoadMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
+        TrajectoryEntity newTrajectory = buildNewLoadMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
         return buildAndSaveLoadMeTrajectory(horizon, trajectoryPath, newTrajectory, studyId);
     }
 
@@ -1126,12 +1132,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
             Optional<LoadEntity> existingLoad = loadRepository.findByFileNameAndTrajectoryFileName(loadFileName, loadMeTrajectory.getFileName());
             LoadEntity loadEntity;
-            loadEntity = existingLoad.orElseGet(() -> {
-                return LoadEntity.builder()
+            loadEntity = existingLoad.orElseGet(() -> LoadEntity.builder()
                         .fileName(loadFileName)
                         .area(area)
-                        .build();
-            });
+                        .build());
 
             loadEntity.addTrajectoryEntity(loadMeTrajectory);
             loadEntities.add(loadEntity);
@@ -1188,6 +1192,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // Reuse existing validation logic
+        multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.LOAD_ME.name(), trajectory);
         validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, trajectory.getFileName(), studyId);
     }
 
@@ -1218,7 +1223,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .anyMatch(areaMeNames::contains);
 
         if (!hasMatchingArea) {
-            String missingAreasStr = String.join(", ", loadMeAreas);
             log.error("No area from AREA_ME trajectory is present in LOAD_ME trajectory");
             throw BusinessException.builder()
                     .message("No area from the AREAS_ME trajectory is present in LOAD_ME trajectory {0}")
@@ -1227,23 +1231,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .build();
         }
     }
-
-    private Set<String> extractAreaNamesFromAreaMe(List<TrajectoryEntity> areaMeTrajectories) {
-        Set<String> areaNames = new HashSet<>();
-
-        for (TrajectoryEntity trajectory : areaMeTrajectories) {
-            // For AREA_ME trajectories, extract names from AreaConfigEntities
-            if (trajectory.getAreaConfigEntities() != null) {
-                trajectory.getAreaConfigEntities().stream()
-                        .map(ac -> ac.getArea().getName().toUpperCase())
-                        .forEach(areaNames::add);
-            }
-        }
-
-        return areaNames;
-    }
-
-
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
@@ -1535,7 +1522,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
                  "NUCLEAR_FR_TS_SMR",
                  "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER", "AREA_ME",
-                 "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION" ->
+                 "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "THERMAL_CAPACITY_ME" ->
                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
                     log.info("No additional coherence check for Hydro trajectory type {} yet", type);
 

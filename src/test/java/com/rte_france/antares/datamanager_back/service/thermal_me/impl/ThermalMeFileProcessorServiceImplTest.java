@@ -316,7 +316,7 @@ class ThermalMeFileProcessorServiceImplTest {
 
         createModulationFile("marginal_cost_modulation", trajectoryName);
         createModulationFile("market_bid_modulation", trajectoryName);
-        createModulationFile("must_run", trajectoryName);
+        createModulationFile("must_run_modulation", trajectoryName);
         createModulationFile("capacity_modulation", trajectoryName);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
@@ -482,7 +482,7 @@ class ThermalMeFileProcessorServiceImplTest {
         );
 
         assertEquals("Missing {0} {1} TS in trajectory {2}", exception.getMessage());
-        assertThat(exception.getErrorMessageArguments()).containsExactly("THERMAL_ME", "Must Run", trajectoryName);
+        assertThat(exception.getErrorMessageArguments()).containsExactly("THERMAL_ME", "Must Run Modulation", trajectoryName);
     }
 
     @Test

@@ -198,4 +198,7 @@ public class AntaresDataManagerProperties {
 
     @Value("${antares.datamanager.thermal.me.capacity.modulation.directory}")
     public String thermalMeCapacityModulationDirectory;
+
+    @Value("${antares.datamanager.thermal.me.modulation.output.directory}")
+    public String thermalMeModulationOutputDirectory;
 }

@@ -41,11 +41,11 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private static final String FILE_EXTENSION_XLSX = ".xlsx";
     private static final String MARGINAL_COST_MODULATION = "marginal_cost_modulation";
     private static final String MARKET_BID_MODULATION = "market_bid_modulation";
-    private static final String MUST_RUN = "must_run";
+    private static final String MUST_RUN_MODULATION = "must_run_modulation";
     private static final String CAPACITY_MODULATION = "capacity_modulation";
     
     private static final List<String> TIMESTEP_VALUES = List.of("hourly", "annual");
-    private static final Map<Integer, String> MODULATION_FOLDERS = Map.of(7, MARGINAL_COST_MODULATION, 10, MARKET_BID_MODULATION, 13, MUST_RUN, 15, CAPACITY_MODULATION); 
+    private static final Map<Integer, String> MODULATION_FOLDERS = Map.of(7, MARGINAL_COST_MODULATION, 10, MARKET_BID_MODULATION, 13, MUST_RUN_MODULATION, 15, CAPACITY_MODULATION); 
     
     enum CheckValueType {
         BOOLEAN,
@@ -163,7 +163,8 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
         for (Row row : sheet) {
             if (row == null || isRowEmpty(row) || row.getRowNum() < 3) continue;
             if (row.getRowNum() == 3) {
-                for (int r = 0; r <= sheet.getLastRowNum(); r++) {
+                int lastCol = getRealLastColumn(row);
+                for (int r = 0; r <= lastCol; r++) {
                     columnNames.add(Objects.toString(getCellValue(row, r)));   
                 }
                 continue;

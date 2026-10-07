@@ -10,7 +10,9 @@ import com.rte_france.antares.datamanager_back.service.study.impl.HydroMeToJsonS
 import com.rte_france.antares.datamanager_back.service.study.impl.LoadToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
 import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
-import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerService.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -37,6 +39,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
     private static final String LINKS_ME = "links_me";
     private static final String STS_ME = "sts_me";
     private static final String HYDRO_ME = "hydro_me";
+    private static final String THERMAL_ME = "thermals_me";
     private static final String PROPERTIES = "properties";
     private static final String BINDING_CONSTRAINTS_ME = "binding_constraints_me";
     private static final String UI = "ui";
@@ -65,6 +68,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
 
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final StsGenerationAssemblerService stPropertiesAssemblerService;
+    private final ThermalPropertiesAssemblerService thermalPropertiesAssemblerService;
     private final LoadToJsonService loadToJsonService;
     private final StsToJsonService stsToJsonService;
     private final ThermalToJsonService thermalToJsonService;
@@ -214,9 +218,12 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         TrajectoryEntity hydroWaterValuesMeTrajectory =
                 trajectoriesByType.get(TrajectoryType.HYDRO_WATER_VALUES_ME);
 
+        TrajectoryEntity thermalMeTrajectory =
+                trajectoriesByType.get(TrajectoryType.THERMAL_CAPACITY_ME);        
+
         Map<String, Object> meMap = new LinkedHashMap<>();
 
-        Map<String, Object> areasMap = buildAreasMap(study, areaMeTrajectory, stsMeTrajectory);
+        Map<String, Object> areasMap = buildAreasMap(study, areaMeTrajectory, stsMeTrajectory, thermalMeTrajectory);
         if (!areasMap.isEmpty()) {
             meMap.put(AREA_ME, areasMap);
         }
@@ -261,7 +268,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
 
     private Map<String, Object> buildAreasMap(
             StudyEntity study,
-            TrajectoryEntity areaMeTrajectory, TrajectoryEntity stsMeTrajectory) {
+            TrajectoryEntity areaMeTrajectory, TrajectoryEntity stsMeTrajectory, TrajectoryEntity thermalMeTrajectory) {
 
         if (areaMeTrajectory == null
                 || areaMeTrajectory.getAreaConfigEntities() == null) {
@@ -288,6 +295,8 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                 stPropertiesAssemblerService != null
                         ? stPropertiesAssemblerService.assembleStsMeProperties(study, stsMeTrajectory)
                         : Collections.<String, com.rte_france.antares.datamanager_back.dto.StsGenerationDTO>emptyMap();
+        
+        var areaThermalMeClusterGenerationDtoMap = thermalPropertiesAssemblerService.assembleThermalMeProperties(thermalMeTrajectory);               
 
         Map<String, Object> areasMap = new LinkedHashMap<>();
 
@@ -338,6 +347,12 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
             areaEntryMap.put(
                     STS_ME,
                     stsMap);
+            
+            Map<String, Object> thermalsMeMap = thermalToJsonService.thermalsMeMapGenerator(areaName, areaThermalMeClusterGenerationDtoMap);        
+
+            areaEntryMap.put(
+                    THERMAL_ME,
+                    thermalsMeMap);        
 
             areasMap.put(areaName, areaEntryMap);
         }
