@@ -1092,6 +1092,155 @@ class ConstraintMeFileProcessorServiceImplTest {
                 .thenReturn(mockAreas);
     }
 
+    @Test
+    @DisplayName("validateConstraintMeExcelFile - should throw MSG_MISSING_TABS when SHEET_LIST_CLUSTER_DESC is missing")
+    void testThrowsMissingTabsForMissingClusterDescSheet() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        // Create only listArea_desc and Constraints_ME sheets, missing listCluster_desc
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        Row areaHeaderRow = areaSheet.createRow(0);
+        areaHeaderRow.createCell(0).setCellValue("listArea_euest");
+        Row areaRow = areaSheet.createRow(1);
+        areaRow.createCell(0).setCellValue("AT");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row horizonHeaderRow = horizonSheet.createRow(0);
+        horizonHeaderRow.createCell(0).setCellValue("Name");
+        Row horizonRow = horizonSheet.createRow(1);
+        horizonRow.createCell(0).setCellValue("TestConstraint");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("Missing tab"));
+        assertTrue(exception.getErrorMessageArguments().contains("listCluster_desc"));
+    }
+
+    @Test
+    @DisplayName("validateListAreaDescTab - should throw MSG_TAB_EMPTY when SHEET_LIST_AREA_DESC is empty")
+    void testThrowsTabEmptyForEmptyAreaDescSheet() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        // Create empty listArea_desc sheet
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        // No rows added - sheet is empty
+        
+        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        Row clusterHeaderRow = clusterSheet.createRow(0);
+        clusterHeaderRow.createCell(0).setCellValue("ClusterGroup");
+        Row clusterRow = clusterSheet.createRow(1);
+        clusterRow.createCell(0).setCellValue("Cluster1");
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row horizonHeaderRow = horizonSheet.createRow(0);
+        horizonHeaderRow.createCell(0).setCellValue("Name");
+        Row horizonRow = horizonSheet.createRow(1);
+        horizonRow.createCell(0).setCellValue("TestConstraint");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("Tab cant be empty"));
+        assertTrue(exception.getErrorMessageArguments().contains("listArea_desc"));
+    }
+
+    @Test
+    @DisplayName("validateListClusterDescTab - should throw MSG_TAB_EMPTY when SHEET_LIST_CLUSTER_DESC is empty")
+    void testThrowsTabEmptyForEmptyClusterDescSheet() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        Row areaHeaderRow = areaSheet.createRow(0);
+        areaHeaderRow.createCell(0).setCellValue("listArea_euest");
+        Row areaRow = areaSheet.createRow(1);
+        areaRow.createCell(0).setCellValue("AT");
+        
+        // Create empty listCluster_desc sheet
+        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        // No rows added - sheet is empty
+        
+        Sheet horizonSheet = workbook.createSheet("2025");
+        Row horizonHeaderRow = horizonSheet.createRow(0);
+        horizonHeaderRow.createCell(0).setCellValue("Name");
+        Row horizonRow = horizonSheet.createRow(1);
+        horizonRow.createCell(0).setCellValue("TestConstraint");
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("Tab cant be empty"));
+        assertTrue(exception.getErrorMessageArguments().contains("listCluster_desc"));
+    }
+
+    @Test
+    @DisplayName("validateHorizonTab - should throw MSG_TAB_EMPTY when horizon sheet is empty")
+    void testThrowsTabEmptyForEmptyHorizonSheet() throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+        
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+        
+        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        Row areaHeaderRow = areaSheet.createRow(0);
+        areaHeaderRow.createCell(0).setCellValue("listArea_euest");
+        Row areaRow = areaSheet.createRow(1);
+        areaRow.createCell(0).setCellValue("AT");
+        
+        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        Row clusterHeaderRow = clusterSheet.createRow(0);
+        clusterHeaderRow.createCell(0).setCellValue("ClusterGroup");
+        Row clusterRow = clusterSheet.createRow(1);
+        clusterRow.createCell(0).setCellValue("Cluster1");
+        
+        // Create empty horizon sheet (2025)
+        Sheet horizonSheet = workbook.createSheet("2025");
+        // No rows added - sheet is empty
+        
+        saveWorkbook(workbook, filePath);
+        
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        
+        BusinessException exception = assertThrows(BusinessException.class, () -> 
+            service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+        
+        assertTrue(exception.getMessage().contains("Tab cant be empty"));
+        assertTrue(exception.getErrorMessageArguments().contains("2025"));
+    }
+
     private void createValidExcelFile(Path filePath) throws IOException {
         Workbook workbook = new XSSFWorkbook();
         
