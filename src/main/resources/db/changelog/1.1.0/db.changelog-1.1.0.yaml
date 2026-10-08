@@ -164,3 +164,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V78-create-thermal-me-table.sql
   - include:
           file: classpath*:db/changelog/1.1.0/V79-alter-thermal-me-unique-constraint.sql 
+  - include:
+      file: classpath*:db/changelog/1.1.0/V80-alter-nuclear-modulation-type-check.sql

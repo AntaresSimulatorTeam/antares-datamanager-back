@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.NuclearModulationParameterRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.NuclearModulationParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -23,12 +25,13 @@ import org.springframework.http.HttpStatus;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import org.apache.poi.ss.usermodel.Workbook;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -70,7 +73,7 @@ class NuclearFileProcessorServiceImplTest {
         // Create temporary directory structure
         testDirectory = Files.createTempDirectory("nuclear_test_");
         nasDirectory = testDirectory;
-        
+
         // Setup mock configurations with lenient stubbing
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(nasDirectory.toString());
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
@@ -98,11 +101,11 @@ class NuclearFileProcessorServiceImplTest {
 
     private Path createTestTrajectoryFolderWithAllFiles() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, horizon);
-        
+
         // Create time series files
         Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
         NuclearTestDataBuilder.createValidTimeSeriesFile(
@@ -110,8 +113,10 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
-        
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
+
         return trajectoryFolder;
     }
 
@@ -144,7 +149,7 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withMissingTSModulationDirectory_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolder();
-        
+
         // Create parameters file
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, horizon);
@@ -160,17 +165,19 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withMissingDailyTimeSeriesFile_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, horizon);
 
-        // Create only hourly and weekly files - daily is missing
+        // Create hourly, one weekly variant, and max_weekly; daily is missing.
         Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
@@ -183,17 +190,19 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withMissingHourlyTimeSeriesFile_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, horizon);
 
-        // Create only daily and weekly files - hourly is missing
+        // Create daily, one weekly variant, and max_weekly; hourly is missing.
         Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_daily.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
@@ -204,9 +213,9 @@ class NuclearFileProcessorServiceImplTest {
     }
 
     @Test
-    void processNuclearModulationFile_withMissingWeeklyTimeSeriesFile_throwsBusinessException() throws IOException {
+    void processNuclearModulationFile_withMissingBothWeeklyVariants_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, horizon);
@@ -217,12 +226,36 @@ class NuclearFileProcessorServiceImplTest {
                 tsModulationDir.resolve(trajectoryName + "_daily.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assertEquals("Time series file not found: {0}", exception.getMessage());
+        assertEquals("Time series file not found: {0}",
+                exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void processNuclearModulationFile_withBothWeeklyVariants_throwsBusinessException() throws IOException {
+        Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
+        Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
+        NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, horizon);
+
+        Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
+        for (String modulationType : List.of("daily", "hourly", "min_weekly")) {
+            NuclearTestDataBuilder.createValidTimeSeriesFile(
+                    tsModulationDir.resolve(trajectoryName + "_" + modulationType + ".xlsx"), horizon);
+        }
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
+        );
+
+        assertEquals("Time series file not found: {0}",
+                exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 
@@ -231,7 +264,7 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withEmptyParametersFile_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create empty parameters file
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         Files.createFile(parametersFile);
@@ -243,7 +276,9 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
@@ -256,7 +291,7 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withParametersFileWithoutSheet_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file with wrong sheet name
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         String wrongSheetName = "wrong_sheet";
@@ -269,7 +304,9 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
@@ -282,7 +319,7 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withParametersFileWithoutHeaderRow_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create a parameters file with sheet but completely empty (no rows)
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         try (Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
@@ -299,7 +336,9 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
@@ -312,7 +351,7 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withParametersFileWithoutHorizonColumn_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file without the required horizon column
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createParametersFileWithoutHorizonColumn(parametersFile, trajectoryName);
@@ -324,14 +363,16 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assert exception.getMessage() != null && 
-               (exception.getMessage().contains("Horizon {0} not found") || 
+        assert exception.getMessage() != null &&
+               (exception.getMessage().contains("Horizon {0} not found") ||
                 exception.getMessage().contains("not found in parameters file"));
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
@@ -339,7 +380,7 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withParametersFileWithoutModulationParameters_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
-        
+
         // Create parameters file without modulation parameters
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createParametersFileWithoutModulation(parametersFile, trajectoryName, horizon);
@@ -351,13 +392,15 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), horizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), horizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), horizon);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assertEquals("All three modulation rows {0} are required for modulation trajectory", exception.getMessage());
+        assertEquals("All four modulation rows {0} are required for modulation trajectory", exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 
@@ -366,11 +409,11 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_successfulProcessing_firstVersion() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
-        
+
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
                 .thenReturn(Optional.empty());
-        
+
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> {
                     TrajectoryEntity entity = inv.getArgument(0);
@@ -391,19 +434,48 @@ class NuclearFileProcessorServiceImplTest {
     }
 
     @Test
+    void processNuclearModulationFile_acceptsMinWeeklyInsteadOfWeekly() throws IOException {
+        Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
+        Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), horizon);
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> {
+                    TrajectoryEntity entity = inv.getArgument(0);
+                    entity.setId(1);
+                    return entity;
+                });
+
+        assertNotNull(nuclearFileProcessorService.processNuclearModulationFile(
+                trajectoryName, horizon, studyId, area));
+
+        ArgumentCaptor<NuclearModulationParameterEntity> parameterCaptor =
+                ArgumentCaptor.forClass(NuclearModulationParameterEntity.class);
+        verify(nuclearModulationParameterRepository, times(4)).save(parameterCaptor.capture());
+        assertTrue(parameterCaptor.getAllValues().stream()
+                .anyMatch(parameter -> parameter.getType().equals("nucFR_modul_min_weekly")));
+        assertFalse(parameterCaptor.getAllValues().stream()
+                .anyMatch(parameter -> parameter.getType().equals("nucFR_modul_weekly")));
+    }
+
+    @Test
     void processNuclearModulationFile_successfulProcessing_nextVersion() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
-        
+
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
                 .id(1)
                 .version(1)
                 .checksum("different_checksum")
                 .build();
-        
+
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
                 .thenReturn(Optional.of(existingTrajectory));
-        
+
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> {
                     TrajectoryEntity entity = inv.getArgument(0);
@@ -421,16 +493,16 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withDuplicateChecksum_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
-        
+
         // Get the actual checksum of the folder
         String actualChecksum = Utils.calculateDirectoryChecksum(trajectoryFolder);
-        
+
         TrajectoryEntity existingTrajectory = TrajectoryEntity.builder()
                 .id(1)
                 .version(1)
                 .checksum(actualChecksum)
                 .build();
-        
+
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
                 .thenReturn(Optional.of(existingTrajectory));
@@ -448,14 +520,14 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withDifferentHorizonFormat() throws IOException {
         String differentHorizon = "2030-2031";
-        
+
         Path trajectoryFolder = nasDirectory.resolve("trajectories/nuclear_modulation/" + trajectoryName);
         Files.createDirectories(trajectoryFolder);
-        
+
         // Create parameters file for 2030-2031
         Path parametersFile = trajectoryFolder.resolve("Parameters_modNuc_" + trajectoryName + ".xlsx");
         NuclearTestDataBuilder.createValidParametersFile(parametersFile, trajectoryName, differentHorizon);
-        
+
         // Create time series files with different horizon
         Path tsModulationDir = trajectoryFolder.resolve("TS_modulation");
         Files.createDirectories(tsModulationDir);
@@ -464,12 +536,14 @@ class NuclearFileProcessorServiceImplTest {
         NuclearTestDataBuilder.createValidTimeSeriesFile(
                 tsModulationDir.resolve(trajectoryName + "_hourly.xlsx"), differentHorizon);
         NuclearTestDataBuilder.createValidTimeSeriesFile(
-                tsModulationDir.resolve(trajectoryName + "_weekly.xlsx"), differentHorizon);
+                tsModulationDir.resolve(trajectoryName + "_min_weekly.xlsx"), differentHorizon);
+        NuclearTestDataBuilder.createValidTimeSeriesFile(
+                tsModulationDir.resolve(trajectoryName + "_max_weekly.xlsx"), differentHorizon);
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, differentHorizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
                 .thenReturn(Optional.empty());
-        
+
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> {
                     TrajectoryEntity entity = inv.getArgument(0);
@@ -487,14 +561,14 @@ class NuclearFileProcessorServiceImplTest {
     @Test
     void processNuclearModulationFile_withDifferentAreas() throws IOException {
         String[] areas = {"FR", "DE", "IT", "ES", "BE"};
-        
+
         for (String testArea : areas) {
             Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
-            
+
             when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                     trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
                     .thenReturn(Optional.empty());
-            
+
             when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                     .thenAnswer(inv -> {
                         TrajectoryEntity entity = inv.getArgument(0);
@@ -512,13 +586,12 @@ class NuclearFileProcessorServiceImplTest {
     // ========== Tests for parameter parsing ==========
 
     @Test
-    void processNuclearModulationFile_allModulationTypesAreExtracted() throws IOException {
+    void processNuclearModulationFile_savesFourModulationFiles() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
-        
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
                 .thenReturn(Optional.empty());
-        
+
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> {
                     TrajectoryEntity entity = inv.getArgument(0);
@@ -529,12 +602,10 @@ class NuclearFileProcessorServiceImplTest {
         nuclearFileProcessorService.processNuclearModulationFile(
                 trajectoryName, horizon, studyId, area);
 
-        // Verify that we attempted to save modulation parameters
-        // At least 3 parameters should be saved (hourly, daily, weekly)
-        // We can't fully verify without capturing the exact calls but we ensure the service completes successfully
-        assertDoesNotThrow(() -> {
-            // If we reach here, the modulation parameter parsing was successful
-        });
+        ArgumentCaptor<NuclearModulationParameterEntity> parameterCaptor =
+                ArgumentCaptor.forClass(NuclearModulationParameterEntity.class);
+        verify(nuclearModulationParameterRepository, times(4)).save(parameterCaptor.capture());
+
     }
 
     // ========== Tests for processNuclearLongTermFile (nuclear-lt) ==========
