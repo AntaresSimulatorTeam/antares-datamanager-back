@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -59,6 +60,9 @@ class ConstraintMeFileProcessorServiceImplTest {
     @Mock(lenient = true)
     private AreaRepository areaRepository;
 
+    @Mock(lenient = true)
+    private HydroMeFileProcessorService hydroMeFileProcessorService;
+
     @InjectMocks
     private ConstraintMeFileProcessorServiceImpl service;
 
@@ -72,6 +76,24 @@ class ConstraintMeFileProcessorServiceImplTest {
         userInfoDto = UserInfoDto.builder()
                 .nni("USER123")
                 .build();
+        
+        // Mock AreaRepository to return area entities
+        List<AreaEntity> mockAreas = Arrays.asList(
+                AreaEntity.builder().name("area1").build(),
+                AreaEntity.builder().name("area2").build(),
+                AreaEntity.builder().name("area3").build(),
+                AreaEntity.builder().name("AT").build(),
+                AreaEntity.builder().name("BE").build(),
+                AreaEntity.builder().name("FR").build(),
+                AreaEntity.builder().name("Node1").build()
+        );
+        when(areaRepository.findAllByStudyId(anyInt(), anyString()))
+                .thenReturn(mockAreas);
+        
+        // Mock HydroMeFileProcessorService to return AREA_ME nodes (lowercase for validation)
+        Set<String> areaMeNodes = new HashSet<>(Arrays.asList("node1", "area1", "area2", "area3"));
+        when(hydroMeFileProcessorService.extractNodesFromAreaMeTrajectory(anyInt()))
+                .thenReturn(areaMeNodes);
     }
 
     @AfterEach

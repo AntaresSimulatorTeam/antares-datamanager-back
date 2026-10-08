@@ -28,6 +28,8 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -42,6 +44,8 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     private final HydroCapacityMeRepository hydroCapacityMeRepository;
     private final TrajectoryServiceImpl trajectoryService;
     private final HydroReservoirLevelsMeFileProcessorServiceImpl hydroReservoirLevelsMeFileProcessorService;
+    private final AreaRepository areaRepository;
+
 
     private static final String RESERVOIR_CAPACITY_COLUMN = "Reservoir Capacity [MWh]";
     private static final String GENERATING_PMAX_TIMESTEP_COLUMN = "Generating Pmax - timestep (daily/annual)";
@@ -58,7 +62,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processHydroCapacityMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return saveHydroCapacityMeTrajectoryInDb(trajectoryToUse, horizon);
+        return saveHydroCapacityMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
     }
 
     @Transactional(rollbackFor = {IOException.class})
@@ -67,7 +71,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         return saveHydroWaterValuesMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
     }
 
-    public TrajectoryEntity saveHydroCapacityMeTrajectoryInDb(String trajectoryToUse, String horizon) throws IOException {
+    public TrajectoryEntity saveHydroCapacityMeTrajectoryInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
 
         String userNni = Optional.ofNullable(userService.getCurrentUserDetails())
                 .map(UserInfoDto::getNni)
@@ -102,13 +106,13 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 TrajectoryEntity newTrajectory = buildNewHydroCapacityMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
                 newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
                 TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-                insertHydroCapacityMeData(workbook, horizon, trajectoryPath, savedTrajectory);
+                insertHydroCapacityMeData(workbook, horizon, trajectoryPath, savedTrajectory, studyId);
                 return savedTrajectory;
             }
 
             TrajectoryEntity newTrajectory = buildNewHydroCapacityMeTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-            insertHydroCapacityMeData(workbook, horizon, trajectoryPath, savedTrajectory);
+            insertHydroCapacityMeData(workbook, horizon, trajectoryPath, savedTrajectory, studyId);
             return savedTrajectory;
         }
     }
@@ -158,15 +162,24 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         );
     }
 
-    private void insertHydroCapacityMeData(Workbook workbook, String horizon, Path trajectoryPath, TrajectoryEntity trajectory) throws IOException {
+    private void insertHydroCapacityMeData(Workbook workbook, String horizon, Path trajectoryPath, TrajectoryEntity trajectory, Integer studyId) throws IOException {
         String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? String.valueOf(Integer.parseInt(horizon.split("-")[0]) + 1) : horizon;
-        processHorizonSheet(workbook, horizonYear, trajectory, trajectoryPath);
+        processHorizonSheet(workbook, horizonYear, trajectory, trajectoryPath, studyId);
     }
 
-    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Path trajectoryPath) throws IOException {
+    public Set<String> extractNodesFromAreaMeTrajectory(Integer studyId) {
+      return  areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name()).stream()
+                .map(area -> area.getName().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+    }
+    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Path trajectoryPath, Integer studyId) throws IOException {
         Sheet sheet = workbook.getSheet(horizonYear);
         if (sheet == null) return;
 
+        // Get all nodes from AREA_ME trajectory for the study
+        Set<String> areasMeNodes = extractNodesFromAreaMeTrajectory(studyId);
+        
+        Set<String> hydroMeNodes = new HashSet<>();
         boolean hasGeneratingDaily = false;
         boolean hasPumpingDaily = false;
 
@@ -201,6 +214,9 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 if ("daily".equalsIgnoreCase(pumpingTimestep)) {
                     hasPumpingDaily = true;
                 }
+                
+                // Store node for validation (convert to lowercase for comparison)
+                hydroMeNodes.add(node.trim().toLowerCase(Locale.ROOT));
                 
                 // Data extraction and persistence in same pass
                 BigDecimal reservoirCapacity = getCellNumericValue(row, 1);
@@ -237,6 +253,21 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
                 }
+            }
+        }
+
+        // Validate that all nodes in HYDRO_ME_CAPACITY exist in AREAS_ME
+        if (!hydroMeNodes.isEmpty() && !areasMeNodes.isEmpty()) {
+            Set<String> missingAreas = hydroMeNodes.stream()
+                    .filter(node -> !areasMeNodes.contains(node))
+                    .collect(Collectors.toSet());
+            
+            if (!missingAreas.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("Areas {0} from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory")
+                        .errorMessageArguments(List.of(String.join(", ", missingAreas)))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         }
 
