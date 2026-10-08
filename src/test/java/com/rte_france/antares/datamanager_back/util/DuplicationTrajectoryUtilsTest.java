@@ -1,7 +1,7 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEntity;
@@ -12,7 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -293,6 +296,179 @@ class DuplicationTrajectoryUtilsTest {
         // Et surtout: comme ça "return" avant linkTrajectoryToStudy pour LOAD, donc aucun link LOAD ne doit arriver
         verify(trajectoryService, never()).linkTrajectoryToStudy(eq(10), eq(studyId), eq(TrajectoryType.LOAD));
         verify(trajectoryService, never()).linkTrajectoryToStudy(eq(11), eq(studyId), eq(TrajectoryType.LOAD));
+    }
+
+    @Test
+    void validateAreaTrajectoryForDuplication_whenAreaTrajectoryAvailableAndNoAreaMeInExisting_shouldReturnAvailableAreaTrajectory() {
+        // Given
+        TrajectoryEntity availableArea = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_available.xlsx")
+                .build();
+        TrajectoryEntity existingArea = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_existing.xlsx")
+                .build();
+
+        List<TrajectoryEntity> available = List.of(availableArea);
+        Set<TrajectoryEntity> existing = Set.of(existingArea);
+        String horizon = "2030";
+
+        // When
+        TrajectoryEntity result = DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(available, existing, horizon);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(1);
+        assertThat(result.getFileName()).isEqualTo("area_available.xlsx");
+        assertThat(result.getType()).isEqualTo(TrajectoryType.AREA.name());
+    }
+
+    @Test
+    void validateAreaTrajectoryForDuplication_whenAreaAndAreaMeAvailableAndBothInExisting_shouldReturnAvailableAreaTrajectory() {
+        // Given
+        TrajectoryEntity availableArea = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_available.xlsx")
+                .build();
+        TrajectoryEntity availableAreaMe = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me_available.xlsx")
+                .build();
+
+        TrajectoryEntity existingArea = TrajectoryEntity.builder()
+                .id(3)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_existing.xlsx")
+                .build();
+        TrajectoryEntity existingAreaMe = TrajectoryEntity.builder()
+                .id(4)
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me_existing.xlsx")
+                .build();
+
+        List<TrajectoryEntity> available = List.of(availableArea, availableAreaMe);
+        Set<TrajectoryEntity> existing = Set.of(existingArea, existingAreaMe);
+        String horizon = "2030";
+
+        // When
+        TrajectoryEntity result = DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(available, existing, horizon);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(1);
+        assertThat(result.getFileName()).isEqualTo("area_available.xlsx");
+    }
+
+    @Test
+    void validateAreaTrajectoryForDuplication_whenNoAreaTrajectoryAvailable_shouldThrowBusinessException() {
+        // Given
+        TrajectoryEntity existingArea = TrajectoryEntity.builder()
+                .id(3)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_existing.xlsx")
+                .build();
+
+        List<TrajectoryEntity> available = List.of();
+        Set<TrajectoryEntity> existing = Set.of(existingArea);
+        String horizon = "2035";
+
+        // When & Then
+        assertThatThrownBy(() -> DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(available, existing, horizon))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getMessage()).isEqualTo("AREA trajectory {0} does not exist for horizon {1}");
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("area_existing.xlsx", "2035");
+                });
+    }
+
+    @Test
+    void validateAreaTrajectoryForDuplication_whenNoAreaTrajectoryAvailableAndNoExistingAreaTrajectory_shouldThrowBusinessExceptionWithEmptyFileName() {
+        // Given
+        List<TrajectoryEntity> available = List.of();
+        Set<TrajectoryEntity> existing = Set.of();
+        String horizon = "2040";
+
+        // When & Then
+        assertThatThrownBy(() -> DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(available, existing, horizon))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getMessage()).isEqualTo("AREA trajectory {0} does not exist for horizon {1}");
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("", "2040");
+                });
+    }
+
+    @Test
+    void validateAreaTrajectoryForDuplication_whenExistingHasAreaMeButNotAvailable_shouldThrowBusinessException() {
+        // Given
+        TrajectoryEntity availableArea = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_available.xlsx")
+                .build();
+
+        TrajectoryEntity existingArea = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_existing.xlsx")
+                .build();
+        TrajectoryEntity existingAreaMe = TrajectoryEntity.builder()
+                .id(3)
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me_existing.xlsx")
+                .build();
+
+        List<TrajectoryEntity> available = List.of(availableArea);
+        Set<TrajectoryEntity> existing = Set.of(existingArea, existingAreaMe);
+        String horizon = "2045";
+
+        // When & Then
+        assertThatThrownBy(() -> DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(available, existing, horizon))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getMessage()).isEqualTo("AREA_ME trajectory {0} does not exist for horizon {1}");
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("area_existing.xlsx", "2045");
+                });
+    }
+
+    @Test
+    void validateAreaTrajectoryForDuplication_whenExistingHasAreaMeAndNoExistingAreaAndNotAvailable_shouldThrowBusinessExceptionWithEmptyFileName() {
+        // Given
+        TrajectoryEntity availableArea = TrajectoryEntity.builder()
+                .id(1)
+                .type(TrajectoryType.AREA.name())
+                .fileName("area_available.xlsx")
+                .build();
+
+        TrajectoryEntity existingAreaMe = TrajectoryEntity.builder()
+                .id(3)
+                .type(TrajectoryType.AREA_ME.name())
+                .fileName("area_me_existing.xlsx")
+                .build();
+
+        List<TrajectoryEntity> available = List.of(availableArea);
+        Set<TrajectoryEntity> existing = Set.of(existingAreaMe);
+        String horizon = "2045";
+
+        // When & Then
+        assertThatThrownBy(() -> DuplicationTrajectoryUtils.validateAreaTrajectoryForDuplication(available, existing, horizon))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getMessage()).isEqualTo("AREA_ME trajectory {0} does not exist for horizon {1}");
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("", "2045");
+                });
     }
 
     private static TrajectoryEntity trajectory(TrajectoryType type, int id, String area) {
