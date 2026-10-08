@@ -4,8 +4,12 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.HydroCapacityMeRepository;
+import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -47,6 +51,12 @@ class HydroMeFileProcessorServiceImplTest {
     @Mock(lenient = true)
     private TrajectoryServiceImpl trajectoryService;
 
+    @Mock(lenient = true)
+    private StudyRepository studyRepository;
+
+    @Mock(lenient = true)
+    private AreaRepository areaRepository;
+
     @InjectMocks
     private HydroMeFileProcessorServiceImpl hydroMeFileProcessorService;
 
@@ -73,6 +83,18 @@ class HydroMeFileProcessorServiceImplTest {
         
         when(antaresDataManagerProperties.getHydroCapacityMeDirectory())
                 .thenReturn("ME/hydro_ME");
+        
+        StudyEntity mockStudy = StudyEntity.builder().id(1).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(mockStudy));
+        
+        // Mock AreaRepository to return area entities
+        java.util.List<AreaEntity> mockAreas = java.util.Arrays.asList(
+                AreaEntity.builder().name("AREA_1").build(),
+                AreaEntity.builder().name("area2").build(),
+                AreaEntity.builder().name("area3").build()
+        );
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(mockAreas);
         
         setupExcelFile();
     }
@@ -572,6 +594,9 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
                 .thenReturn(testExcelPath);
+        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(java.util.Arrays.asList(AreaEntity.builder().name("AREA_1").build()));
         
         createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
         
@@ -603,6 +628,9 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
                 .thenReturn(testExcelPath);
+        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(java.util.Arrays.asList(AreaEntity.builder().name("AREA_1").build()));
         
         createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
         
@@ -634,6 +662,9 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
                 .thenReturn(testExcelPath);
+        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(java.util.Arrays.asList(AreaEntity.builder().name("AREA_1").build()));
         
         createExcelFileWithDailyGeneratingTimestepAtPath(testExcelPath);
         
@@ -668,6 +699,9 @@ class HydroMeFileProcessorServiceImplTest {
                 .thenReturn("ME/hydro_ME");
         when(trajectoryService.buildTrajectoryPath(testName, TrajectoryType.HYDRO_CAPACITY_ME))
                 .thenReturn(testExcelPath);
+        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(java.util.Arrays.asList(AreaEntity.builder().name("AREA_1").build()));
         
         createExcelFileWithDailyPumpingTimestepAtPath(testExcelPath);
         

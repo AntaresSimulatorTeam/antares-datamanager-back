@@ -4,10 +4,12 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.HydroCapacityMeRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,6 +65,9 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
     @InjectMocks
     private HydroMeFileProcessorServiceImpl hydroMeFileProcessorService;
 
+    @Mock(lenient = true)
+    private AreaRepository areaRepository;
+
     @TempDir
     Path tempDir;
 
@@ -101,10 +106,19 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
                 trajectoryRepository, hydroCapacityMeRepository, userService, antaresDataManagerProperties
         );
 
+        // Mock AreaRepository to return area entities
+        java.util.List<com.rte_france.antares.datamanager_back.repository.model.AreaEntity> mockAreas = java.util.Arrays.asList(
+                com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder().name("area1").build(),
+                com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder().name("area2").build(),
+                com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder().name("area3").build()
+        );
+        when(areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name()))
+                .thenReturn(mockAreas);
+
         // Manually inject it into hydroMeFileProcessorService
         hydroMeFileProcessorService = new HydroMeFileProcessorServiceImpl(
                 trajectoryRepository, userService, antaresDataManagerProperties, 
-                hydroCapacityMeRepository, trajectoryService, hydroReservoirLevelsMeFileProcessorService
+                hydroCapacityMeRepository, trajectoryService, hydroReservoirLevelsMeFileProcessorService, areaRepository
         );
 
         waterValuesDir = tempDir.resolve("trajectories/ME/hydro_ME/water_values/" + trajectoryName);

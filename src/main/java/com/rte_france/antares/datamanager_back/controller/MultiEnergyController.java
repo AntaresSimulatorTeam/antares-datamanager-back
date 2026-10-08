@@ -2,6 +2,8 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
+import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroReservoirLevelsMeFileProcessorService;
@@ -39,6 +41,8 @@ public class MultiEnergyController {
     private final ThermalMeFileProcessorService thermalMeFileProcessorService;
     private final HydroTimeSeriesMeFileProcessorService hydroTimeSeriesMeFileProcessorService;
     private final HydroReservoirLevelsMeFileProcessorService hydroReservoirLevelsMeFileProcessorService;
+    private  final ConstraintMeFileProcessorService constraintMeFileProcessorService;
+    private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
     @Operation(summary = "import Trajectory load ME to database ")
     @PostMapping("/load-me")
@@ -63,7 +67,7 @@ public class MultiEnergyController {
                 properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
                 trajectoryToUse
         );
-        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processConstraintMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+        return new ResponseEntity<>(toTrajectoryDTO(constraintMeFileProcessorService.processConstraintMeFile(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
     @Operation(summary = "import EFFICIENCY_ME trajectory file to database")
@@ -76,7 +80,7 @@ public class MultiEnergyController {
                 properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
                 trajectoryToUse
         );
-        return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processEfficiencyMeTrajectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
+        return new ResponseEntity<>(toTrajectoryDTO(efficiencyMeFileProcessorService.processEfficiencyMeFile(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
     @Operation(summary = "import HYDRO CAPACITY ME trajectory to database")

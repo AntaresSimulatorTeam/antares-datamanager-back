@@ -3,8 +3,13 @@ package com.rte_france.antares.datamanager_back.service.hydro;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 
 import java.io.IOException;
+import java.util.Set;
 
 public interface HydroMeFileProcessorService {
+
+    Set<String> extractNodesFromAreaMeTrajectory(Integer studyId);
+
     TrajectoryEntity processHydroCapacityMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
     TrajectoryEntity processHydroWaterValuesMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 }

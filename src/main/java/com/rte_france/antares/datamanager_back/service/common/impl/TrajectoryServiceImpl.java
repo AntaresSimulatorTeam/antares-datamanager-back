@@ -124,13 +124,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private final LinkMeCoherenceCheckService linkMeCoherenceCheckService;
 
-    private final ConstraintMeFileProcessorService constraintMeFileProcessorService;
-
-    private final EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
-
-
-    private final ThermalMeFileProcessorService thermalMeFileProcessorService;
-
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
     private static final String SPECIFIC_PREFIX = "specific_param_";
@@ -166,23 +159,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return saveLoadMeTrajectoriesInDb(trajectoryToUse, horizon, studyId);
     }
 
-    @Transactional(rollbackFor = {IOException.class})
-    @Override
-    public TrajectoryEntity processConstraintMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return constraintMeFileProcessorService.processConstraintMeFile(trajectoryToUse, horizon, studyId);
-    }
-
-    @Transactional(rollbackFor = {IOException.class})
-    @Override
-    public TrajectoryEntity processEfficiencyMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return efficiencyMeFileProcessorService.processEfficiencyMeFile(trajectoryToUse, horizon, studyId);
-    }
-
-    @Transactional(rollbackFor = {IOException.class})
-    @Override
-    public TrajectoryEntity processThermalMeTrajectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return thermalMeFileProcessorService.processThermalMeFile(trajectoryToUse, horizon, studyId);
-    }
 
     @Override
     @Transactional

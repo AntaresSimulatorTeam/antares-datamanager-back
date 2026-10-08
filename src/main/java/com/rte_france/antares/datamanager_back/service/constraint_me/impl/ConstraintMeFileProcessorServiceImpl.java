@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +76,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private final GroupClusterDescRepository groupClusterDescRepository;
     private final MeConstraintRepository meConstraintRepository;
     private final AreaRepository areaRepository;
+    private final HydroMeFileProcessorService hydroMeFileProcessorService;
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -284,7 +286,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         Sheet sheet = workbook.getSheet(horizonYear);
         if (sheet == null) return;
 
-        Set<String> areaMeNodes = extractNodesFromAreaMeTrajectory(studyId);
+        Set<String> areaMeNodes = hydroMeFileProcessorService.extractNodesFromAreaMeTrajectory(studyId);
 
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
@@ -376,12 +378,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         return horizon;
     }
 
-    private Set<String> extractNodesFromAreaMeTrajectory(Integer studyId) {
-        Set<String> nodes = new HashSet<>();
-        areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name())
-                .forEach(area -> nodes.add(area.getName().toLowerCase(Locale.ROOT)));
-        return nodes;
-    }
+
 
     private String getCellStringValue(Row row, int cellIndex) {
         if (row.getCell(cellIndex) == null) return null;
