@@ -51,7 +51,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private static final String PARAMETERS_FILE_PREFIX = "Parameters_modNuc_";
     private static final String PARAMETERS_FILE_SUFFIX = ".xlsx";
     private static final Set<String> REQUIRED_MODULATION_TYPES = Set.of(
-            "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_weekly"
+            "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_min_weekly","nucFR_modul_max_weekly"
     );
 
     private final TrajectoryRepository trajectoryRepository;
@@ -97,7 +97,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
 
         // Validate time series files in TS_modulation directory first
         validateTimeSeriesFiles(trajectoryFolder, trajectoryToUse, horizon);
-        
+
         // Read parameters and extract modulation values
         List<NuclearModulationParameterEntity> modulationParameters = readNuclearModulationParameters(parametersFilePath, trajectoryToUse, horizonYear);
 
@@ -162,7 +162,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         String horizonYear = horizon.split("-")[1];
 
         // Array of modulation types to check
-        String[] modulationTypes = {"daily", "hourly", "weekly"};
+        String[] modulationTypes = {"daily", "hourly", "min_weekly", "max_weekly"};
 
         for (String modulationType : modulationTypes) {
             String fileName = trajectoryToUse + "_" + modulationType + PARAMETERS_FILE_SUFFIX;
@@ -177,7 +177,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                         .build();
             }
         }
-        
+
         log.info("Time series files validation successful for trajectory {}", trajectoryToUse);
     }
 
@@ -222,7 +222,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     } else {
                         headerValueStr = headerValue.toString();
                     }
-                    
+
                     if (headerValueStr.equals(horizonYear)) {
                         horizonColumnIndex = cellIndex;
                         break;
@@ -286,7 +286,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     .collect(Collectors.toSet());
             if (!foundTypes.equals(REQUIRED_MODULATION_TYPES)) {
                 throw BusinessException.builder()
-                        .message("All three modulation rows {0} are required for modulation trajectory")
+                        .message("All four modulation rows {0} are required for modulation trajectory")
                         .errorMessageArguments(List.of(REQUIRED_MODULATION_TYPES.toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -322,7 +322,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private TrajectoryEntity buildNuclearModulationTrajectory(
             String trajectoryName, Path trajectoryFolder, String horizon, String checksum, String area) throws IOException {
 
-        String createdBy = userService.getCurrentUserDetails() != null ? 
+        String createdBy = userService.getCurrentUserDetails() != null ?
                 userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         return TrajectoryEntity.builder()
@@ -434,7 +434,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private TrajectoryEntity buildNuclearLongTermTrajectory(
             String trajectoryName, Path trajectoryFolder, String horizon, String checksum, String area) throws IOException {
 
-        String createdBy = userService.getCurrentUserDetails() != null ? 
+        String createdBy = userService.getCurrentUserDetails() != null ?
                 userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         return TrajectoryEntity.builder()
@@ -456,30 +456,30 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsErpFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area,
                 antaresDataManagerProperties.getNuclearEprDirectory(), TrajectoryType.NUCLEAR_FR_TS_ERP);
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsSmrFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area,
                 antaresDataManagerProperties.getNuclearSmrDirectory(), TrajectoryType.NUCLEAR_FR_TS_SMR);
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTalonFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area, 
+        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area,
                 antaresDataManagerProperties.getNuclearTalonDirectory(), TrajectoryType.NUCLEAR_FR_TALON);
     }
 
     /**
      * Generic method to process nuclear time series (EPR/SMR) files
      */
-    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon, Integer studyId, 
+    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon, Integer studyId,
             String area, String directoryPath, TrajectoryType trajectoryType) throws IOException {
-        
+
         // If trajectoryToUse doesn't have an extension, add .xlsx
         String fileName = trajectoryToUse.endsWith(PARAMETERS_FILE_SUFFIX) ? trajectoryToUse : trajectoryToUse + PARAMETERS_FILE_SUFFIX;
 
@@ -539,9 +539,9 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
      */
     private TrajectoryEntity buildNuclearTsTrajectory(
             String fileName, Path filePath, String horizon, String checksum, String area, TrajectoryType trajectoryType) throws IOException {
-        
+
         String trajectoryFileName = getFileName(fileName, trajectoryType);
-        String createdBy = userService.getCurrentUserDetails() != null ? 
+        String createdBy = userService.getCurrentUserDetails() != null ?
                 userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         return TrajectoryEntity.builder()
