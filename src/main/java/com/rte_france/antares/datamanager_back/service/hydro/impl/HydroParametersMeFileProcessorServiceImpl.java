@@ -186,12 +186,10 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     }
 
     private static String findMissingNames(Set<String> names, Set<String> validNames) {
-        return names.stream()
+        return String.join(", ", names.stream()
                 .map(String::trim)
                 .filter(name -> !validNames.contains(normalizeName(name)))
-                .collect(Collectors.toCollection(TreeSet::new))
-                .stream()
-                .collect(Collectors.joining(", "));
+                .collect(Collectors.toCollection(TreeSet::new)));
     }
 
     private void parseAndInsertParamHydroMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Set<String> paramNodes) throws IOException {

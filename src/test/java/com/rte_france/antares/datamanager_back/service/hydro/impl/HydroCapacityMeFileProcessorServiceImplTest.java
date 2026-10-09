@@ -32,6 +32,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -805,6 +806,73 @@ class HydroCapacityMeFileProcessorServiceImplTest {
         String message = exception.getMessage();
         assertTrue(message.contains("from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory"),
                 "Exception message should contain the expected text. Message was: " + message);
+    }
+
+    @Test
+    void testProcessHydroCapacityMeFile_MultipleMissingAreas_reportsAllMissingAreasInArguments() throws IOException {
+        createExcelFileWithMultipleAreas(testExcelPath);
+        stubTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
+
+        assertTrue(exception.getMessage().contains("not present in AREAS_ME trajectory"));
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals(1, exception.getErrorMessageArguments().size());
+        String missingAreas = exception.getErrorMessageArguments().get(0);
+        assertTrue(missingAreas.contains("area_2"), "Missing areas should contain area_2: " + missingAreas);
+        assertTrue(missingAreas.contains("area_3"), "Missing areas should contain area_3: " + missingAreas);
+        assertFalse(missingAreas.contains("area_1"), "Present area must not be reported: " + missingAreas);
+    }
+
+    @Test
+    void testProcessHydroCapacityMeFile_SingleMissingArea_reportsOnlyThatArea() throws IOException {
+        createExcelFileWithNodes(testExcelPath, "AREA_1", "AREA_9");
+        stubTrajectorySave();
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
+
+        assertTrue(exception.getMessage().contains("not present in AREAS_ME trajectory"));
+        assertEquals(List.of("area_9"), exception.getErrorMessageArguments());
+    }
+
+    private void stubTrajectorySave() {
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private void createExcelFileWithNodes(Path excelPath, String... nodes) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet("2021");
+
+            var headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("Node");
+            headerRow.createCell(1).setCellValue("Reservoir Capacity [MWh]");
+            headerRow.createCell(2).setCellValue("Generating Pmax - timestep (daily/annual)");
+            headerRow.createCell(3).setCellValue("Generating Pmax [MW]");
+            headerRow.createCell(4).setCellValue("hours at generating Pmax");
+            headerRow.createCell(5).setCellValue("Pumping Pmax - timestep (daily/annual)");
+            headerRow.createCell(6).setCellValue("Pumping Pmax [MW]");
+            headerRow.createCell(7).setCellValue("hours at pumping Pmax");
+
+            for (int i = 0; i < nodes.length; i++) {
+                var dataRow = sheet.createRow(i + 1);
+                dataRow.createCell(0).setCellValue(nodes[i]);
+                dataRow.createCell(1).setCellValue(1000.0);
+                dataRow.createCell(2).setCellValue("annual");
+                dataRow.createCell(3).setCellValue(500.0);
+                dataRow.createCell(4).setCellValue(24.0);
+                dataRow.createCell(5).setCellValue("annual");
+                dataRow.createCell(6).setCellValue(300.0);
+                dataRow.createCell(7).setCellValue(12.0);
+            }
+
+            Files.createDirectories(excelPath.getParent());
+            try (var fos = Files.newOutputStream(excelPath)) {
+                workbook.write(fos);
+            }
+        }
     }
 
     private void createExcelFileWithDailyGeneratingTimestepAtPath(Path excelPath) throws IOException {
