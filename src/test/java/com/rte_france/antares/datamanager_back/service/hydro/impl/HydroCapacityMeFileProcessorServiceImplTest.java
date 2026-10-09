@@ -12,6 +12,8 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyCoherenceCheckServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -22,7 +24,10 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,7 +39,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class HydroMeFileProcessorServiceImplTest {
+@MockitoSettings(strictness = Strictness.LENIENT)
+class HydroCapacityMeFileProcessorServiceImplTest {
 
     @Mock(lenient = true)
     private TrajectoryRepository trajectoryRepository;
@@ -56,6 +62,8 @@ class HydroMeFileProcessorServiceImplTest {
 
     @Mock(lenient = true)
     private AreaRepository areaRepository;
+
+    private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @InjectMocks
     private HydroMeFileProcessorServiceImpl hydroMeFileProcessorService;
@@ -95,6 +103,17 @@ class HydroMeFileProcessorServiceImplTest {
         );
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
                 .thenReturn(mockAreas);
+        
+        // Create a spy of the real MultiEnergyCoherenceCheckService implementation
+        MultiEnergyCoherenceCheckService realService = new MultiEnergyCoherenceCheckServiceImpl(trajectoryRepository, areaRepository);
+        multiEnergyCoherenceCheckService = spy(realService);
+        
+        // Re-inject the spy into the service after @InjectMocks
+        ReflectionTestUtils.setField(hydroMeFileProcessorService, "multiEnergyCoherenceCheckService", multiEnergyCoherenceCheckService);
+        
+        // Configure the spy to return AREA_ME nodes (lowercase for validation)
+        java.util.Set<String> areaMeNodes = new java.util.HashSet<>(java.util.Arrays.asList("area_1", "area2", "area3"));
+        doReturn(areaMeNodes).when(multiEnergyCoherenceCheckService).extractNodesFromAreaMeTrajectory(anyInt());
         
         setupExcelFile();
     }
@@ -719,97 +738,73 @@ class HydroMeFileProcessorServiceImplTest {
         assertTrue(exception.getMessage().contains("Missing") && exception.getMessage().contains("Pumping Pmax"));
     }
 
-    private void createExcelFileWithDailyGeneratingTimestep() throws IOException {
-        try (Workbook workbook = new XSSFWorkbook()) {
-            var sheet = workbook.createSheet("2021");
-            
-            var headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("Node");
-            headerRow.createCell(1).setCellValue("Reservoir Capacity [MWh]");
-            headerRow.createCell(2).setCellValue("Generating Pmax - timestep (daily/annual)");
-            headerRow.createCell(3).setCellValue("Generating Pmax [MW]");
-            headerRow.createCell(4).setCellValue("hours at generating Pmax");
-            headerRow.createCell(5).setCellValue("Pumping Pmax - timestep (daily/annual)");
-            headerRow.createCell(6).setCellValue("Pumping Pmax [MW]");
-            headerRow.createCell(7).setCellValue("hours at pumping Pmax");
-            
-            var dataRow = sheet.createRow(1);
-            dataRow.createCell(0).setCellValue("AREA_1");
-            dataRow.createCell(1).setCellValue(1000.0);
-            dataRow.createCell(2).setCellValue("daily");
-            dataRow.createCell(3).setCellValue(500.0);
-            dataRow.createCell(4).setCellValue(24.0);
-            dataRow.createCell(5).setCellValue("annual");
-            dataRow.createCell(6).setCellValue(300.0);
-            dataRow.createCell(7).setCellValue(12.0);
-            
-            Files.createDirectories(testExcelPath.getParent());
-            try (var fos = Files.newOutputStream(testExcelPath)) {
-                workbook.write(fos);
-            }
-        }
+    @Test
+    void testProcessHydroCapacityMeFile_WithEmptyAreasMeTrajectory_shouldSucceed() throws IOException {
+        createValidExcelFile(testExcelPath);
+        
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
+        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(java.util.Collections.emptyList());
+        
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(testTrajectoryName)
+                .horizon(testHorizon)
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
+                .version(1)
+                .checksum("test_checksum")
+                .build();
+        
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(mockTrajectory);
+        
+        TrajectoryEntity result = hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1);
+        
+        assertNotNull(result);
+        assertEquals(testTrajectoryName, result.getFileName());
+        assertEquals(1, result.getVersion());
+        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
     }
 
-    private void createExcelFileWithDailyPumpingTimestep() throws IOException {
-        try (Workbook workbook = new XSSFWorkbook()) {
-            var sheet = workbook.createSheet("2021");
-            
-            var headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("Node");
-            headerRow.createCell(1).setCellValue("Reservoir Capacity [MWh]");
-            headerRow.createCell(2).setCellValue("Generating Pmax - timestep (daily/annual)");
-            headerRow.createCell(3).setCellValue("Generating Pmax [MW]");
-            headerRow.createCell(4).setCellValue("hours at generating Pmax");
-            headerRow.createCell(5).setCellValue("Pumping Pmax - timestep (daily/annual)");
-            headerRow.createCell(6).setCellValue("Pumping Pmax [MW]");
-            headerRow.createCell(7).setCellValue("hours at pumping Pmax");
-            
-            var dataRow = sheet.createRow(1);
-            dataRow.createCell(0).setCellValue("AREA_1");
-            dataRow.createCell(1).setCellValue(1000.0);
-            dataRow.createCell(2).setCellValue("annual");
-            dataRow.createCell(3).setCellValue(500.0);
-            dataRow.createCell(4).setCellValue(24.0);
-            dataRow.createCell(5).setCellValue("daily");
-            dataRow.createCell(6).setCellValue(300.0);
-            dataRow.createCell(7).setCellValue(12.0);
-            
-            Files.createDirectories(testExcelPath.getParent());
-            try (var fos = Files.newOutputStream(testExcelPath)) {
-                workbook.write(fos);
-            }
-        }
-    }
-
-    private void createExcelFileWithBothDailyTimesteps() throws IOException {
-        try (Workbook workbook = new XSSFWorkbook()) {
-            var sheet = workbook.createSheet("2021");
-            
-            var headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("Node");
-            headerRow.createCell(1).setCellValue("Reservoir Capacity [MWh]");
-            headerRow.createCell(2).setCellValue("Generating Pmax - timestep (daily/annual)");
-            headerRow.createCell(3).setCellValue("Generating Pmax [MW]");
-            headerRow.createCell(4).setCellValue("hours at generating Pmax");
-            headerRow.createCell(5).setCellValue("Pumping Pmax - timestep (daily/annual)");
-            headerRow.createCell(6).setCellValue("Pumping Pmax [MW]");
-            headerRow.createCell(7).setCellValue("hours at pumping Pmax");
-            
-            var dataRow = sheet.createRow(1);
-            dataRow.createCell(0).setCellValue("AREA_1");
-            dataRow.createCell(1).setCellValue(1000.0);
-            dataRow.createCell(2).setCellValue("daily");
-            dataRow.createCell(3).setCellValue(500.0);
-            dataRow.createCell(4).setCellValue(24.0);
-            dataRow.createCell(5).setCellValue("daily");
-            dataRow.createCell(6).setCellValue(300.0);
-            dataRow.createCell(7).setCellValue(12.0);
-            
-            Files.createDirectories(testExcelPath.getParent());
-            try (var fos = Files.newOutputStream(testExcelPath)) {
-                workbook.write(fos);
-            }
-        }
+    @Test
+    void testProcessHydroCapacityMeFile_MissingAreasInAreasMeTrajectory_throwsException() throws IOException {
+        createExcelFileWithMultipleAreas(testExcelPath);
+        
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
+        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
+                .thenReturn(java.util.Arrays.asList(
+                        AreaEntity.builder().name("AREA_1").build()
+                ));
+        
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        
+        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(testTrajectoryName)
+                .horizon(testHorizon)
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
+                .version(1)
+                .build();
+        
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(mockTrajectory);
+        
+        BusinessException exception = assertThrows(BusinessException.class, 
+                () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
+        
+        String message = exception.getMessage();
+        assertTrue(message.contains("from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory"),
+                "Exception message should contain the expected text. Message was: " + message);
     }
 
     private void createExcelFileWithDailyGeneratingTimestepAtPath(Path excelPath) throws IOException {
@@ -897,6 +892,40 @@ class HydroMeFileProcessorServiceImplTest {
             dataRow.createCell(5).setCellValue("daily");
             dataRow.createCell(6).setCellValue(300.0);
             dataRow.createCell(7).setCellValue(12.0);
+            
+            Files.createDirectories(excelPath.getParent());
+            try (var fos = Files.newOutputStream(excelPath)) {
+                workbook.write(fos);
+            }
+        }
+    }
+
+    private void createExcelFileWithMultipleAreas(Path excelPath) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet("2021");
+            
+            var headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("Node");
+            headerRow.createCell(1).setCellValue("Reservoir Capacity [MWh]");
+            headerRow.createCell(2).setCellValue("Generating Pmax - timestep (daily/annual)");
+            headerRow.createCell(3).setCellValue("Generating Pmax [MW]");
+            headerRow.createCell(4).setCellValue("hours at generating Pmax");
+            headerRow.createCell(5).setCellValue("Pumping Pmax - timestep (daily/annual)");
+            headerRow.createCell(6).setCellValue("Pumping Pmax [MW]");
+            headerRow.createCell(7).setCellValue("hours at pumping Pmax");
+            
+            // Add multiple data rows with different areas
+            for (int i = 1; i <= 3; i++) {
+                var dataRow = sheet.createRow(i);
+                dataRow.createCell(0).setCellValue("AREA_" + i);
+                dataRow.createCell(1).setCellValue(1000.0);
+                dataRow.createCell(2).setCellValue("annual");
+                dataRow.createCell(3).setCellValue(500.0);
+                dataRow.createCell(4).setCellValue(24.0);
+                dataRow.createCell(5).setCellValue("annual");
+                dataRow.createCell(6).setCellValue(300.0);
+                dataRow.createCell(7).setCellValue(12.0);
+            }
             
             Files.createDirectories(excelPath.getParent());
             try (var fos = Files.newOutputStream(excelPath)) {

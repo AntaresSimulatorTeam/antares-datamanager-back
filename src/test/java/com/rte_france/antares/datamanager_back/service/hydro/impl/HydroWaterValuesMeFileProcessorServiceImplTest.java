@@ -9,7 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.HydroCapacityMeReposit
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,14 +27,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
-import com.rte_france.antares.datamanager_back.util.Utils;
-import org.assertj.core.api.Assertions;
-import org.mockito.Spy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -67,6 +62,9 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
 
     @Mock(lenient = true)
     private AreaRepository areaRepository;
+
+    @Mock(lenient = true)
+        private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @TempDir
     Path tempDir;
@@ -118,7 +116,7 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
         // Manually inject it into hydroMeFileProcessorService
         hydroMeFileProcessorService = new HydroMeFileProcessorServiceImpl(
                 trajectoryRepository, userService, antaresDataManagerProperties, 
-                hydroCapacityMeRepository, trajectoryService, hydroReservoirLevelsMeFileProcessorService, areaRepository
+                hydroCapacityMeRepository, trajectoryService, hydroReservoirLevelsMeFileProcessorService, multiEnergyCoherenceCheckService
         );
 
         waterValuesDir = tempDir.resolve("trajectories/ME/hydro_ME/water_values/" + trajectoryName);

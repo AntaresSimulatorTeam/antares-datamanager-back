@@ -22,6 +22,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("HydroParametersMeFileProcessorServiceImpl Tests")
 class HydroParametersMeFileProcessorServiceImplTest {
 
@@ -80,6 +83,7 @@ class HydroParametersMeFileProcessorServiceImplTest {
         tempDir = Files.createTempDirectory("hydro_test_");
 
         when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        stubAreaMe("node_1", "node_2", "area_1");
         when(pathSecurityUtil.resolveSafePath(any(java.util.function.Function.class))).thenReturn(tempDir);
     }
 
@@ -477,195 +481,159 @@ class HydroParametersMeFileProcessorServiceImplTest {
     // ==================== Business Rule Validation Tests ====================
 
     @Test
-    @DisplayName("Should throw exception when area in load column is missing from AREA and HYDRO_ME Param (RG1)")
-    void testMissingAreaInLoadColumn() throws IOException {
-        createParamHydroMeFile();
-        createHydroAllocationMeFile();
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
-            TrajectoryEntity entity = invocation.getArgument(0);
-            entity.setId(trajectoryId);
-            return entity;
-        });
-        
-        // Mock with empty area and only one node (area_1 not found)
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of());
-        
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_2")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
+    @DisplayName("Should throw when a param_hydro_ME node is not present in AREAS_ME")
+    void testParamHydroNodeMissingFromAreaMe() throws IOException {
+        createBothFiles();
+        stubNewTrajectorySave();
+        stubAreaMe("node_1", "area_1");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
         );
 
-        assertTrue(exception.getMessage().contains("Missing Areas/nodes"));
-        assertTrue(exception.getMessage().contains("in AREA or HYDRO_ME Param trajectory"));
+        assertTrue(exception.getMessage().contains("Areas"));
+        assertTrue(exception.getMessage().contains("from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory"));
     }
 
     @Test
-    @DisplayName("RG1: Should throw exception when area from load column doesn't exist in AREA or HYDRO_ME Param")
-    void testRG1_MissingAreaNotInAreaOrHydroMeParam() throws IOException {
-        createParamHydroMeFile();
-        createHydroAllocationMeFile();
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
-            TrajectoryEntity entity = invocation.getArgument(0);
-            entity.setId(trajectoryId);
-            return entity;
-        });
-        
-        // Mock with NO areas so area_1 from load column is missing
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of());
-        
-        // Valid nodes in HYDRO_ME Param
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_2")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
+    @DisplayName("Should throw when a load area is present neither in AREAS_ME nor in AREA")
+    void testLoadAreaMissingFromAreaMeAndArea() throws IOException {
+        createBothFiles();
+        stubNewTrajectorySave();
+        stubAreaMe("node_1", "node_2");
+        stubArea();
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
         );
 
-        assertTrue(exception.getMessage().contains("Missing Areas/nodes"));
+        assertTrue(exception.getMessage().contains("from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME or AREA trajectory"));
     }
 
     @Test
-    @DisplayName("RG1: Should succeed when all areas/nodes from load column exist in AREA or HYDRO_ME Param")
-    void testRG1_SuccessWhenAreasValid() throws IOException {
+    @DisplayName("Should accept a load area that exists in AREA but not in AREAS_ME")
+    void testLoadAreaFoundInAreaOnly() throws IOException {
+        createBothFiles();
+        stubNewTrajectorySave();
+        stubAreaMe("node_1", "node_2");
+        stubArea("area_1");
 
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertEquals(trajectoryId, result.getId());
+    }
+
+    @Test
+    @DisplayName("Should throw when an allocation node column is not present in AREAS_ME")
+    void testAllocationNodeMissingFromAreaMe() throws IOException {
         createParamHydroMeFile();
-        createHydroAllocationMeFile();
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
-            TrajectoryEntity entity = invocation.getArgument(0);
-            entity.setId(trajectoryId);
-            return entity;
-        });
-        
-        // Mock with valid area area_1
-       AreaEntity area = AreaEntity.builder()
-                .id(1)
-                .name("area_1")
-                .build();
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
-        
-        // Valid nodes in HYDRO_ME Param
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_2")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
-
-        // Should not throw exception
-      TrajectoryEntity trajectory = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
-
-      assertNotNull(trajectory);
-      assertEquals(trajectoryId, trajectory.getId());
-    }
-
-    @Test
-    @DisplayName("Should throw exception when node in header is missing from HYDRO_ME Param (RG2)")
-    void testMissingNodeInHeader() throws IOException {
-        createParamHydroMeFile();
-        createHydroAllocationMeFile();
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
-            TrajectoryEntity entity = invocation.getArgument(0);
-            entity.setId(trajectoryId);
-            return entity;
-        });
-        
-        // Mock with valid area but missing node_2
-        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
-            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
-                .id(1)
-                .name("area_1")
-                .build();
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
-        
-        // Only include node_1, not node_2
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1));
-
-        BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
-        );
-
-        assertTrue(exception.getMessage().contains("Missing Nodes"));
-        assertTrue(exception.getMessage().contains("in HYDRO_ME Param trajectory"));
-    }
-
-    @Test
-    @DisplayName("RG2: Should throw exception when multiple nodes from header are missing from HYDRO_ME Param")
-    void testRG2_MultipleNodesNotInHydroMeParam() throws IOException {
-        createParamHydroMeFileWithThreeNodes();
         createHydroAllocationMeFileWithThreeNodes();
-
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
-            TrajectoryEntity entity = invocation.getArgument(0);
-            entity.setId(trajectoryId);
-            return entity;
-        });
-        
-        // Mock with valid area
-        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
-            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
-                .id(1)
-                .name("area_1")
-                .build();
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
-        
-        // Only include node_1, missing node_2 and node_3
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1));
+        stubNewTrajectorySave();
+        stubAreaMe("node_1", "node_2", "area_1");
+        stubArea();
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.processHydroParametersMeDirectory(trajectoryName, horizon, 1)
         );
 
-        assertTrue(exception.getMessage().contains("Missing Nodes"), 
-                "Exception message: " + exception.getMessage());
+        assertTrue(exception.getMessage().contains("Nodes"));
+        assertTrue(exception.getMessage().contains("from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory"));
     }
 
     @Test
-    @DisplayName("RG2: Should succeed when all nodes from header exist in HYDRO_ME Param")
-    void testRG2_SuccessWhenNodesValid() throws IOException {
-        createParamHydroMeFile();
-        createHydroAllocationMeFile();
+    @DisplayName("Should succeed when all param, load and allocation names exist in AREAS_ME or AREA")
+    void testValidationSuccess() throws IOException {
+        createBothFiles();
+        stubNewTrajectorySave();
+        stubAreaMe("node_1", "node_2", "area_1");
+        stubArea("area_1");
 
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertEquals(trajectoryId, result.getId());
+        assertEquals(1, result.getVersion());
+    }
+
+    @Test
+    @DisplayName("Should accept names differing only by case or surrounding spaces")
+    void testValidationIsCaseInsensitive() throws IOException {
+        createBothFiles();
+        stubNewTrajectorySave();
+        stubAreaMe(" NODE_1 ", "Node_2", "AREA_1");
+
+        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        assertEquals(trajectoryId, result.getId());
+    }
+
+    @Test
+    @DisplayName("Should report all missing param nodes in the error message")
+    void testValidateCoherenceReportsAllMissingNames() {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_a").build(),
+                HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_b").build()));
+        when(hydroAllocationMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of());
+        stubAreaMe("node_c");
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.validateHydroParametersMeCoherence(1, trajectory)
+        );
+
+        assertEquals(List.of("node_a, node_b"), exception.getErrorMessageArguments());
+    }
+
+    @Test
+    @DisplayName("Selection: should pass when persisted data references existing areas and nodes")
+    void testSelectionValidationSuccess() {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_1").build()));
+        when(hydroAllocationMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroAllocationMeEntity.builder().trajectoryId(trajectoryId).area("area_1").node("node_1").build()));
+        stubAreaMe("node_1", "area_1");
+        stubArea();
+
+        assertDoesNotThrow(() -> service.validateHydroParametersMeCoherence(1, trajectory));
+    }
+
+    @Test
+    @DisplayName("Selection: should throw when persisted load area is missing from AREAS_ME and AREA")
+    void testSelectionValidationLoadAreaMissing() {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_1").build()));
+        when(hydroAllocationMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroAllocationMeEntity.builder().trajectoryId(trajectoryId).area("area_1").node("node_1").build()));
+        stubAreaMe("node_1");
+        stubArea();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.validateHydroParametersMeCoherence(1, trajectory)
+        );
+
+        assertTrue(exception.getMessage().contains("AREAS_ME or AREA trajectory"));
+    }
+
+    @Test
+    @DisplayName("Selection: should throw when persisted allocation node is missing from AREAS_ME")
+    void testSelectionValidationNodeMissing() {
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(trajectoryId).build();
+        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroParametersMeEntity.builder().trajectoryId(trajectoryId).node("node_1").build()));
+        when(hydroAllocationMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
+                HydroAllocationMeEntity.builder().trajectoryId(trajectoryId).area("area_1").node("node_9").build()));
+        stubAreaMe("node_1", "area_1");
+        stubArea();
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.validateHydroParametersMeCoherence(1, trajectory)
+        );
+
+        assertTrue(exception.getMessage().contains("Nodes"));
+    }
+
+    private void stubNewTrajectorySave() {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(), any(), any()))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenAnswer(invocation -> {
@@ -673,30 +641,20 @@ class HydroParametersMeFileProcessorServiceImplTest {
             entity.setId(trajectoryId);
             return entity;
         });
-        
-        // Mock with valid area
-        com.rte_france.antares.datamanager_back.repository.model.AreaEntity area = 
-            com.rte_france.antares.datamanager_back.repository.model.AreaEntity.builder()
-                .id(1)
-                .name("area_1")
-                .build();
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(area));
-        
-        // All nodes present in HYDRO_ME Param
-        HydroParametersMeEntity hydroParam1 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_1")
-                .build();
-        HydroParametersMeEntity hydroParam2 = HydroParametersMeEntity.builder()
-                .trajectoryId(trajectoryId)
-                .node("node_2")
-                .build();
-        when(hydroParametersMeRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(hydroParam1, hydroParam2));
+    }
 
-        // Should not throw exception
-      TrajectoryEntity trajectory = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
-      assertNotNull(trajectory);
-      assertEquals(trajectoryId, trajectory.getId());
+    private void stubAreaMe(String... names) {
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name())).thenReturn(toAreas(names));
+    }
+
+    private void stubArea(String... names) {
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.name())).thenReturn(toAreas(names));
+    }
+
+    private List<AreaEntity> toAreas(String... names) {
+        return java.util.Arrays.stream(names)
+                .map(name -> AreaEntity.builder().id(1).name(name).build())
+                .toList();
     }
 
     // ==================== Existing Trajectory Tests ====================
@@ -1029,30 +987,6 @@ class HydroParametersMeFileProcessorServiceImplTest {
         dataRow.createCell(0).setCellValue("area_1");
         dataRow.createCell(1).setCellValue(0.5);
         dataRow.createCell(2).setCellValue(0.3);
-
-        try (var fos = new FileOutputStream(tempDir.resolve("hydroAllocation_ME.xlsx").toFile())) {
-            workbook.write(fos);
-        }
-        workbook.close();
-    }
-
-    private void createHydroAllocationMeFileWithAreaNotInDB() throws IOException {
-        var workbook = new XSSFWorkbook();
-        var sheet = workbook.createSheet(horizonYear);
-        var headerRow = sheet.createRow(0);
-        headerRow.createCell(0).setCellValue("load");
-        headerRow.createCell(1).setCellValue("node_1");
-        headerRow.createCell(2).setCellValue("node_2");
-
-        var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("area_1");
-        dataRow.createCell(1).setCellValue(0.5);
-        dataRow.createCell(2).setCellValue(0.3);
-
-        var dataRow2 = sheet.createRow(2);
-        dataRow2.createCell(0).setCellValue("area_2");
-        dataRow2.createCell(1).setCellValue(0.4);
-        dataRow2.createCell(2).setCellValue(0.2);
 
         try (var fos = new FileOutputStream(tempDir.resolve("hydroAllocation_ME.xlsx").toFile())) {
             workbook.write(fos);

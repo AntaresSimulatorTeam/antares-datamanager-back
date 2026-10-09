@@ -6,7 +6,8 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyCoherenceCheckServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -19,8 +20,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +36,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("ConstraintMeFileProcessorServiceImpl Tests")
 class ConstraintMeFileProcessorServiceImplTest {
 
@@ -60,8 +64,7 @@ class ConstraintMeFileProcessorServiceImplTest {
     @Mock(lenient = true)
     private AreaRepository areaRepository;
 
-    @Mock(lenient = true)
-    private HydroMeFileProcessorService hydroMeFileProcessorService;
+    private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @InjectMocks
     private ConstraintMeFileProcessorServiceImpl service;
@@ -90,10 +93,16 @@ class ConstraintMeFileProcessorServiceImplTest {
         when(areaRepository.findAllByStudyId(anyInt(), anyString()))
                 .thenReturn(mockAreas);
         
-        // Mock HydroMeFileProcessorService to return AREA_ME nodes (lowercase for validation)
+        // Create a spy of the real MultiEnergyCoherenceCheckService implementation
+        MultiEnergyCoherenceCheckService realService = new MultiEnergyCoherenceCheckServiceImpl(trajectoryRepository, areaRepository);
+        multiEnergyCoherenceCheckService = spy(realService);
+        
+        // Re-inject the spy into the service after @InjectMocks
+        ReflectionTestUtils.setField(service, "multiEnergyCoherenceCheckService", multiEnergyCoherenceCheckService);
+        
+        // Configure the spy to return AREA_ME nodes (lowercase for validation)
         Set<String> areaMeNodes = new HashSet<>(Arrays.asList("node1", "area1", "area2", "area3"));
-        when(hydroMeFileProcessorService.extractNodesFromAreaMeTrajectory(anyInt()))
-                .thenReturn(areaMeNodes);
+        doReturn(areaMeNodes).when(multiEnergyCoherenceCheckService).extractNodesFromAreaMeTrajectory(anyInt());
     }
 
     @AfterEach

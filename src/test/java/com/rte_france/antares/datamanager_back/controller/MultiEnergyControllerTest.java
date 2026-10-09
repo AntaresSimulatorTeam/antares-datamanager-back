@@ -4,6 +4,8 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
+import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroReservoirLevelsMeFileProcessorService;
@@ -63,6 +65,12 @@ class MultiEnergyControllerTest {
 
     @MockBean
     private HydroReservoirLevelsMeFileProcessorService hydroReservoirLevelsMeFileProcessorService;
+
+    @MockBean
+    private ConstraintMeFileProcessorService constraintMeFileProcessorService;
+
+    @MockBean
+    private EfficiencyMeFileProcessorService efficiencyMeFileProcessorService;
 
     @MockBean
     private PathSecurityUtil pathSecurityUtil;
@@ -697,6 +705,185 @@ class MultiEnergyControllerTest {
                 .andExpect(status().isCreated());
 
         verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("hydro_res_trajectory"));
+    }
+
+    // ==================== Constraint-ME Tests ====================
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsCreatedTrajectory() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(123);
+        entity.setFileName("constraint_me_test");
+        entity.setType(TrajectoryType.CONSTRAINT_ME.name());
+        entity.setVersion(1);
+        entity.setHorizon(HORIZON);
+
+        when(constraintMeFileProcessorService.processConstraintMeFile(
+                "constraint_me_test",
+                HORIZON,
+                STUDY_ID
+        )).thenReturn(entity);
+
+        executePathSecurityLambda();
+
+        mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "constraint_me_test")
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(123))
+                .andExpect(jsonPath("$.trajectoryName").value("constraint_me_test"))
+                .andExpect(jsonPath("$.type").value(TrajectoryType.CONSTRAINT_ME.name()))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.horizon").value(HORIZON));
+
+        verify(constraintMeFileProcessorService, times(1))
+                .processConstraintMeFile("constraint_me_test", HORIZON, STUDY_ID);
+        verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("constraint_me_test"));
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsBadRequestForInvalidHorizon() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "constraint_me_test")
+                        .param("horizon", "invalid-horizon")
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(constraintMeFileProcessorService);
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsBadRequestForMissingParams() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "constraint_me_test")
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(constraintMeFileProcessorService);
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_returnsBadRequestForTooLongTrajectoryName() throws Exception {
+        String tooLongName = "x".repeat(41);
+
+        mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", tooLongName)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(constraintMeFileProcessorService);
+    }
+
+    // ==================== Efficiency-ME Tests ====================
+
+    @Test
+    void uploadEfficiencyMeTrajectory_returnsCreatedTrajectory() throws Exception {
+        TrajectoryEntity entity = new TrajectoryEntity();
+        entity.setId(456);
+        entity.setFileName("efficiency_me_test");
+        entity.setType(TrajectoryType.EFFICIENCY_ME.name());
+        entity.setVersion(1);
+        entity.setHorizon(HORIZON);
+
+        when(efficiencyMeFileProcessorService.processEfficiencyMeFile(
+                "efficiency_me_test",
+                HORIZON,
+                STUDY_ID
+        )).thenReturn(entity);
+
+        executePathSecurityLambda();
+
+        mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "efficiency_me_test")
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(456))
+                .andExpect(jsonPath("$.trajectoryName").value("efficiency_me_test"))
+                .andExpect(jsonPath("$.type").value(TrajectoryType.EFFICIENCY_ME.name()))
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.horizon").value(HORIZON));
+
+        verify(efficiencyMeFileProcessorService, times(1))
+                .processEfficiencyMeFile("efficiency_me_test", HORIZON, STUDY_ID);
+        verify(pathSecurityUtil, times(1)).resolveSafePath(ArgumentMatchers.any(java.util.function.Function.class), eq("efficiency_me_test"));
+    }
+
+    @Test
+    void uploadEfficiencyMeTrajectory_returnsBadRequestForInvalidHorizon() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "efficiency_me_test")
+                        .param("horizon", "2020")
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(efficiencyMeFileProcessorService);
+    }
+
+    @Test
+    void uploadEfficiencyMeTrajectory_returnsBadRequestForMissingParams() throws Exception {
+        mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(efficiencyMeFileProcessorService);
+    }
+
+    @Test
+    void uploadEfficiencyMeTrajectory_returnsBadRequestForTooLongTrajectoryName() throws Exception {
+        String tooLongName = "x".repeat(41);
+
+        mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", tooLongName)
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(efficiencyMeFileProcessorService);
+    }
+
+    @Test
+    void uploadEfficiencyMeTrajectory_withDifferentValidHorizons_returns201() throws Exception {
+        String[] validHorizons = {"2020-2021", "2025-2026", "2030-2031"};
+
+        for (String horizon : validHorizons) {
+            TrajectoryEntity entity = new TrajectoryEntity();
+            entity.setId(456);
+            entity.setFileName("efficiency_me_test");
+            entity.setType(TrajectoryType.EFFICIENCY_ME.name());
+            entity.setVersion(1);
+            entity.setHorizon(horizon);
+
+            when(efficiencyMeFileProcessorService.processEfficiencyMeFile(
+                    "efficiency_me_test",
+                    horizon,
+                    STUDY_ID
+            )).thenReturn(entity);
+
+            mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .param("trajectoryToUse", "efficiency_me_test")
+                            .param("horizon", horizon)
+                            .param("studyId", STUDY_ID.toString()))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.horizon").value(horizon));
+
+            verify(efficiencyMeFileProcessorService, times(1))
+                    .processEfficiencyMeFile("efficiency_me_test", horizon, STUDY_ID);
+        }
     }
 
     // ==================== Helper ====================

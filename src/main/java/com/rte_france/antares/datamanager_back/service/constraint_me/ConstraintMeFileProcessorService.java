@@ -7,4 +7,5 @@ import java.io.IOException;
 public interface ConstraintMeFileProcessorService {
 
     TrajectoryEntity processConstraintMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
 }
