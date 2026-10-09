@@ -20,11 +20,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -82,13 +86,37 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
         trajectoryPath = reservoirLevelsPath.resolve(testTrajectoryName);
         Files.createDirectories(trajectoryPath);
 
-        Files.createFile(trajectoryPath.resolve("node1_reservoir_levels.xlsx"));
-        Files.createFile(trajectoryPath.resolve("node2_reservoir_levels.xlsx"));
+        // Extract the second part of horizon (e.g., "2021" from "2020-2021")
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        
+        createExcelFileWithSheet(trajectoryPath.resolve("node1_reservoir_levels.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(trajectoryPath.resolve("node2_reservoir_levels.xlsx"), secondPartOfHorizon);
+    }
+
+    private void createExcelFile(Path filePath) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            workbook.createSheet("Sheet1");
+            try (OutputStream out = Files.newOutputStream(filePath)) {
+                workbook.write(out);
+            }
+        }
+    }
+
+    private void createExcelFileWithSheet(Path filePath, String sheetName) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            workbook.createSheet(sheetName);
+            try (OutputStream out = Files.newOutputStream(filePath)) {
+                workbook.write(out);
+            }
+        }
     }
 
     @Test
     @DisplayName("Should successfully process hydro reservoir levels ME directory")
     void testProcessHydroReservoirLevelsMeFileSuccess() throws IOException {
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(Arrays.asList("node1", "node2"));
+
         TrajectoryEntity savedTrajectory = TrajectoryEntity.builder()
                 .id(1)
                 .fileName(testTrajectoryName)
@@ -96,9 +124,6 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
                 .horizon(testHorizon)
                 .version(1)
                 .build();
-
-        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
-                .thenReturn(Arrays.asList("node1", "node2"));
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 testTrajectoryName, testHorizon, TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name()))
@@ -177,16 +202,25 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
 
     @Test
     @DisplayName("Should throw BusinessException when no file matches valid nodes from HYDRO_CAPACITY_ME")
-    void testProcessWithNoValidNodes_throwsBusinessException() {
+    void testProcessWithNoValidNodes_throwsBusinessException() throws IOException {
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        
+        // Create files with node names that don't match valid nodes
+        String otherDir = "other_trajectory";
+        Path otherTrajPath = tempDir.resolve("trajectories/ME/hydro_ME/reservoir_levels").resolve(otherDir);
+        Files.createDirectories(otherTrajPath);
+        createExcelFileWithSheet(otherTrajPath.resolve("other_node1_reservoir_levels.xlsx"), secondPartOfHorizon);
+        createExcelFileWithSheet(otherTrajPath.resolve("other_node2_reservoir_levels.xlsx"), secondPartOfHorizon);
+
         when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
-                .thenReturn(Arrays.asList("other_node1", "other_node2"));
+                .thenReturn(Arrays.asList("node1", "node2"));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(testTrajectoryName, testHorizon, studyId));
+                hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(otherDir, testHorizon, studyId));
 
         assertEquals("No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Reservoir Levels trajectory {0}", exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertThat(exception.getErrorMessageArguments()).containsExactly(testTrajectoryName);
+        assertThat(exception.getErrorMessageArguments()).containsExactly(otherDir);
     }
 
     @Test
@@ -269,7 +303,7 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(emptyTrajectory, testHorizon, studyId));
 
-        assertEquals("No node files found in HYDRO_RESERVOIR_LEVELS_ME trajectory: {0}", exception.getMessage());
+        assertEquals("No Excel files found in the directory: {0}", exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertThat(exception.getErrorMessageArguments()).containsExactly(emptyTrajectory);
     }
@@ -306,6 +340,29 @@ class HydroReservoirLevelsMeFileProcessorServiceImplTest {
             assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
             assertThat(exception.getErrorMessageArguments()).containsExactly(testTrajectoryName);
         }
+    }
+
+    @Test
+    @DisplayName("Should throw BusinessException when Excel file is missing required sheet")
+    void testProcessWhenExcelMissingRequiredSheet_throwsBusinessException() throws IOException {
+        String secondPartOfHorizon = testHorizon.split("-")[1];
+        
+        // Create an Excel file without the required sheet
+        Path noSheetFilePath = tempDir.resolve("trajectories/ME/hydro_ME/reservoir_levels")
+                .resolve(testTrajectoryName)
+                .resolve("node3_reservoir_levels.xlsx");
+        createExcelFile(noSheetFilePath);  // Creates file with "Sheet1" instead of required sheet
+
+        when(hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId))
+                .thenReturn(Arrays.asList("node1", "node2", "node3"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                hydroReservoirLevelsMeFileProcessorService.processHydroReservoirLevelsMeFile(testTrajectoryName, testHorizon, studyId));
+
+        assertEquals("Missing horizon {0} in Reservoir Levels file for {1} in HYDRO_ME Reservoir Levels trajectory {2}", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertThat(exception.getErrorMessageArguments())
+                .contains(secondPartOfHorizon, "node3_reservoir_levels.xlsx", testTrajectoryName);
     }
 
     @Test

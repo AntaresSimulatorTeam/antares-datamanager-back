@@ -163,7 +163,8 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
         for (Row row : sheet) {
             if (row == null || isRowEmpty(row) || row.getRowNum() < 3) continue;
             if (row.getRowNum() == 3) {
-                for (int r = 0; r <= sheet.getLastRowNum(); r++) {
+                int lastCol = getRealLastColumn(row);
+                for (int r = 0; r <= lastCol; r++) {
                     columnNames.add(Objects.toString(getCellValue(row, r)));   
                 }
                 continue;

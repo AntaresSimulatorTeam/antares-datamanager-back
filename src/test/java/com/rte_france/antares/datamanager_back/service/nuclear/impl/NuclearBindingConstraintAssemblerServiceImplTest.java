@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -93,7 +94,8 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             createWeeklyXlsx(tsDir.resolve(TRAJ_NAME + "_weekly.xlsx"), NB_COLUMNS);
 
             when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean()))
-                    .thenReturn("arrow_hourly.arrow", "arrow_daily.arrow", "arrow_weekly.arrow");
+                    .thenReturn("arrow_hourly.arrow", "arrow_daily.arrow", "arrow_min_weekly.arrow",
+                            "arrow_max_weekly.arrow");
             when(nasFileService.countXlsxColumns(any(Path.class), any())).thenReturn(NB_COLUMNS);
         }
 
@@ -125,8 +127,8 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             assertThat(dto.yNucModulationClusters()).containsExactlyInAnyOrder(
                     "y_nuc_modulation_nuclear_cp0", "y_nuc_modulation_nuclear_epr");
 
-            assertThat(dto.constraints()).hasSize(3);
-            NuclearConstraintItemDTO limit = findConstraint(dto, "nuc_modulation_limit");
+            assertThat(dto.constraints()).hasSize(4);
+            NuclearConstraintItemDTO limit = findConstraint(dto, "nuc_modulation_hourly");
             assertThat(limit.type()).isEqualTo("hourly");
             assertThat(limit.includesPeak()).isTrue();
             assertThat(limit.coeff()).isEqualByComparingTo(new BigDecimal("1.00"));
@@ -136,10 +138,53 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             assertThat(daily.includesPeak()).isFalse();
             assertThat(daily.coeff()).isEqualByComparingTo(new BigDecimal("0.97"));
 
-            NuclearConstraintItemDTO weekly = findConstraint(dto, "nuc_modulation_weekly");
-            assertThat(weekly.type()).isEqualTo("weekly");
-            assertThat(weekly.includesPeak()).isFalse();
-            assertThat(weekly.coeff()).isEqualByComparingTo(new BigDecimal("0.93"));
+            NuclearConstraintItemDTO minWeekly = findConstraint(dto, "nuc_modulation_min_weekly");
+            assertThat(minWeekly.type()).isEqualTo("min_weekly");
+            assertThat(minWeekly.includesPeak()).isFalse();
+            assertThat(minWeekly.coeff()).isEqualByComparingTo(new BigDecimal("0.93"));
+            assertThat(minWeekly.series()).isEqualTo("arrow_min_weekly.arrow");
+
+            NuclearConstraintItemDTO maxWeekly = findConstraint(dto, "nuc_modulation_max_weekly");
+            assertThat(maxWeekly.type()).isEqualTo("max_weekly");
+            assertThat(maxWeekly.includesPeak()).isFalse();
+            assertThat(maxWeekly.coeff()).isEqualByComparingTo(new BigDecimal("0.95"));
+            assertThat(maxWeekly.series()).isEqualTo("arrow_max_weekly.arrow");
+        }
+
+        @Test
+        void assembleModulationBindingConstraints_shouldUseMinWeeklyWhenWeeklyIsAbsent() throws IOException {
+            Path tsDir = tempDir.resolve("INPUT")
+                    .resolve("specific_nuclear/Modulation")
+                    .resolve(TRAJ_NAME)
+                    .resolve("TS_modulation");
+            Files.delete(tsDir.resolve(TRAJ_NAME + "_weekly.xlsx"));
+            createWeeklyXlsx(tsDir.resolve(TRAJ_NAME + "_min_weekly.xlsx"), NB_COLUMNS);
+
+            TrajectoryEntity modulationTraj = modulationTrajectory();
+            mockCoefficients(modulationTraj.getId());
+
+            NuclearBindingConstraintGenerationDTO dto =
+                    assembler.assembleModulationBindingConstraints(study, modulationTraj, List.of());
+
+            ArgumentCaptor<Path> conversionPathCaptor = ArgumentCaptor.forClass(Path.class);
+            verify(nasFileService, times(4)).readAndSaveMatrixToNas(
+                    conversionPathCaptor.capture(), any(String.class), any(), anyBoolean());
+            assertThat(conversionPathCaptor.getAllValues()).containsExactly(
+                    tsDir.resolve(TRAJ_NAME + "_hourly.xlsx"),
+                    tsDir.resolve(TRAJ_NAME + "_daily.xlsx"),
+                    tsDir.resolve(TRAJ_NAME + "_min_weekly.xlsx"),
+                    tsDir.resolve(TRAJ_NAME + "_max_weekly.xlsx"));
+
+            ArgumentCaptor<Path> columnCountPathCaptor = ArgumentCaptor.forClass(Path.class);
+            verify(nasFileService).countXlsxColumns(columnCountPathCaptor.capture(), any());
+            assertThat(columnCountPathCaptor.getValue())
+                    .isEqualTo(tsDir.resolve(TRAJ_NAME + "_min_weekly.xlsx"));
+
+            assertThat(dto.constraints()).hasSize(4);
+            NuclearConstraintItemDTO minWeekly = findConstraint(dto, "nuc_modulation_min_weekly");
+            assertThat(minWeekly.type()).isEqualTo("min_weekly");
+            assertThat(minWeekly.coeff()).isEqualByComparingTo(new BigDecimal("0.93"));
+            assertThat(minWeekly.series()).isEqualTo("arrow_min_weekly.arrow");
         }
 
         @Test
@@ -167,7 +212,8 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
             when(nuclearModulationParameterRepository.findByTrajectoryId(trajectoryId)).thenReturn(List.of(
                     modParam("nucFR_modul_hourly", new BigDecimal("1.00")),
                     modParam("nucFR_modul_daily",  new BigDecimal("0.97")),
-                    modParam("nucFR_modul_weekly", new BigDecimal("0.93"))
+                    modParam("nucFR_modul_min_weekly", new BigDecimal("0.93")),
+                    modParam("nucFR_modul_max_weekly", new BigDecimal("0.95"))
             ));
         }
 

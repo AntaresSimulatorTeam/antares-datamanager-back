@@ -29,10 +29,11 @@ public class NuclearTestDataBuilder {
             String horizonYear = horizon.split("-")[1];
             headerRow.createCell(1).setCellValue(horizonYear);
 
-            // Add the three modulation types with values
+            // Add all required modulation types with values
             addParameterRow(sheet, 1, "nucFR_modul_hourly", 0.75);
             addParameterRow(sheet, 2, "nucFR_modul_daily", 0.85);
-            addParameterRow(sheet, 3, "nucFR_modul_weekly", 0.80);
+            addParameterRow(sheet, 4, "nucFR_modul_min_weekly", 0.78);
+            addParameterRow(sheet, 5, "nucFR_modul_max_weekly", 0.82);
 
             // Write to file
             try (OutputStream outputStream = Files.newOutputStream(filePath)) {
@@ -79,7 +80,8 @@ public class NuclearTestDataBuilder {
             // Add modulation parameters but for different year
             addParameterRow(sheet, 1, "nucFR_modul_hourly", 0.75);
             addParameterRow(sheet, 2, "nucFR_modul_daily", 0.85);
-            addParameterRow(sheet, 3, "nucFR_modul_weekly", 0.80);
+            addParameterRow(sheet, 3, "nucFR_modul_min_weekly", 0.80);
+
 
             // Write to file
             try (OutputStream outputStream = Files.newOutputStream(filePath)) {
@@ -175,4 +177,3 @@ public class NuclearTestDataBuilder {
         row.createCell(1).setCellValue(value);
     }
 }
-

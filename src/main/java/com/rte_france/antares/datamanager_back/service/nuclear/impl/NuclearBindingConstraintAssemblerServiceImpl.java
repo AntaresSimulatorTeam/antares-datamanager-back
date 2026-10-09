@@ -34,17 +34,21 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBindingConstraintAssemblerService {
 
-    private static final String COEFF_HOURLY = "nucFR_modul_hourly";
-    private static final String COEFF_DAILY = "nucFR_modul_daily";
-    private static final String COEFF_WEEKLY = "nucFR_modul_weekly";
+    private static final String COEFFICIENT_HOURLY = "nucFR_modul_hourly";
+    private static final String COEFFICIENT_DAILY = "nucFR_modul_daily";
+    private static final String COEFFICIENT_MIN_WEEKLY = "nucFR_modul_min_weekly";
+    private static final String COEFFICIENT_MAX_WEEKLY = "nucFR_modul_max_weekly";
     private static final String TS_MODULATION_SUBDIR = "TS_modulation";
     private static final String TS_HOURLY = "hourly";
     private static final String TS_DAILY = "daily";
-    private static final String TS_WEEKLY = "weekly";
-    private static final String CONSTRAINT_LIMIT = "nuc_modulation_limit";
+    private static final String TS_MIN_WEEKLY = "min_weekly";
+    private static final String TS_MAX_WEEKLY = "max_weekly";
+    private static final String CONSTRAINT_HOURLY = "nuc_modulation_hourly";
     private static final String CONSTRAINT_DAILY = "nuc_modulation_daily";
-    private static final String CONSTRAINT_WEEKLY = "nuc_modulation_weekly";
+    private static final String CONSTRAINT_MIN_WEEKLY = "nuc_modulation_min_weekly";
+    private static final String CONSTRAINT_MAX_WEEKLY = "nuc_modulation_max_weekly";
     private static final String CONSTRAINT_GROUP_NAME = "scenarised";
+
     private static final String XLSX_SUFFIX = ".xlsx";
     private static final List<String> TALON_PREFIX_CANDIDATES = List.of(
             NuclearFilePrefixes.TALON_FILE_PREFIX,
@@ -58,7 +62,7 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
 
     private record ClusterNameGroups(List<String> standard, List<String> peak, List<String> yNucModulation) {}
 
-    private record TsArrowFiles(String hourly, String daily, String weekly) {}
+    private record TsArrowFiles(String hourly, String daily, String minWeekly, String maxWeekly) {}
 
     @Override
     public NuclearBindingConstraintGenerationDTO assembleModulationBindingConstraints(StudyEntity studyEntity, TrajectoryEntity modulationTrajectory, List<String> frNuclearClusterNames) {
@@ -154,8 +158,9 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     private TsArrowFiles convertTsFiles(String trajectoryName, String horizonYear) throws IOException {
         String hourlyArrow = convertSingleTsFile(trajectoryName, TS_HOURLY, horizonYear);
         String dailyArrow = convertSingleTsFile(trajectoryName, TS_DAILY, horizonYear);
-        String weeklyArrow = convertSingleTsFile(trajectoryName, TS_WEEKLY, horizonYear);
-        return new TsArrowFiles(hourlyArrow, dailyArrow, weeklyArrow);
+        String minWeeklyArrow = convertSingleTsFile(trajectoryName, TS_MIN_WEEKLY, horizonYear);
+        String maxWeeklyArrow = convertSingleTsFile(trajectoryName, TS_MAX_WEEKLY, horizonYear);
+        return new TsArrowFiles(hourlyArrow, dailyArrow, minWeeklyArrow, maxWeeklyArrow);
     }
 
     private String convertSingleTsFile(String trajectoryName, String tsType, String horizonYear) throws IOException {
@@ -172,9 +177,9 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
     }
 
     private int countModulationTsColumns(String trajectoryName, String horizonYear) throws IOException {
-        Path weeklyRelativePath = buildTsRelativePath(trajectoryName, TS_WEEKLY);
-        Path weeklyPath = resolveValidatedNasPath(weeklyRelativePath, "Invalid nuclear TS modulation path: {0}");
-        return nasFileService.countXlsxColumns(weeklyPath, horizonYear);
+        Path minWeeklyRelativePath = buildTsRelativePath(trajectoryName, TS_MIN_WEEKLY);
+        Path minWeeklyPath = resolveValidatedNasPath(minWeeklyRelativePath, "Invalid nuclear TS modulation path: {0}");
+        return nasFileService.countXlsxColumns(minWeeklyPath, horizonYear);
     }
 
     private String extractHorizonYear(String horizon) {
@@ -183,9 +188,10 @@ public class NuclearBindingConstraintAssemblerServiceImpl implements NuclearBind
 
     private List<NuclearConstraintItemDTO> buildConstraints(Map<String, BigDecimal> coeffs, TsArrowFiles arrowFiles) {
         return List.of(
-                new NuclearConstraintItemDTO(CONSTRAINT_LIMIT, TS_HOURLY, coeffs.getOrDefault(COEFF_HOURLY, BigDecimal.ONE), true,  arrowFiles.hourly()),
-                new NuclearConstraintItemDTO(CONSTRAINT_DAILY, TS_DAILY,  coeffs.getOrDefault(COEFF_DAILY,  BigDecimal.ONE), false, arrowFiles.daily()),
-                new NuclearConstraintItemDTO(CONSTRAINT_WEEKLY, TS_WEEKLY, coeffs.getOrDefault(COEFF_WEEKLY, BigDecimal.ONE), false, arrowFiles.weekly())
+                new NuclearConstraintItemDTO(CONSTRAINT_HOURLY, TS_HOURLY, coeffs.getOrDefault(COEFFICIENT_HOURLY, BigDecimal.ONE), true,  arrowFiles.hourly()),
+                new NuclearConstraintItemDTO(CONSTRAINT_DAILY, TS_DAILY,  coeffs.getOrDefault(COEFFICIENT_DAILY,  BigDecimal.ONE), false, arrowFiles.daily()),
+                new NuclearConstraintItemDTO(CONSTRAINT_MIN_WEEKLY, TS_MIN_WEEKLY, coeffs.getOrDefault(COEFFICIENT_MIN_WEEKLY, BigDecimal.ONE), false, arrowFiles.minWeekly()),
+                new NuclearConstraintItemDTO(CONSTRAINT_MAX_WEEKLY, TS_MAX_WEEKLY, coeffs.getOrDefault(COEFFICIENT_MAX_WEEKLY, BigDecimal.ONE), false, arrowFiles.maxWeekly())
         );
     }
 
