@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
@@ -19,6 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
@@ -31,6 +33,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.ArgumentMatchers;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.function.Function;
 
 import static org.mockito.Mockito.*;
@@ -884,6 +887,64 @@ class MultiEnergyControllerTest {
             verify(efficiencyMeFileProcessorService, times(1))
                     .processEfficiencyMeFile("efficiency_me_test", horizon, STUDY_ID);
         }
+    }
+
+    @Test
+    void uploadConstraintMeTrajectory_whenServiceThrowsBusinessException_returns400WithErrorDetails() throws Exception {
+        when(constraintMeFileProcessorService.processConstraintMeFile("constraint_me_test", HORIZON, STUDY_ID))
+                .thenThrow(BusinessException.builder()
+                        .message("Areas {0} from CONSTRAINT_ME trajectory is (are) not present in AREAS_ME trajectory")
+                        .errorMessageArguments(List.of("area_9"))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+
+        executePathSecurityLambda();
+
+        mockMvc.perform(post("/v1/trajectory/constraint-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "constraint_me_test")
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("BUSINESS"))
+                .andExpect(jsonPath("$.errorMessageArguments[0]").value("area_9"));
+    }
+
+    @Test
+    void uploadEfficiencyMeTrajectory_whenServiceThrowsBusinessException_returns400WithErrorDetails() throws Exception {
+        when(efficiencyMeFileProcessorService.processEfficiencyMeFile("efficiency_me_test", HORIZON, STUDY_ID))
+                .thenThrow(BusinessException.builder()
+                        .message("Missing horizon 2021 in EFFICIENCY_ME trajectory efficiency_me_test")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build());
+
+        executePathSecurityLambda();
+
+        mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "efficiency_me_test")
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("BUSINESS"));
+    }
+
+    @Test
+    void uploadEfficiencyMeTrajectory_whenPathSecurityRejects_returns400AndDoesNotCallService() throws Exception {
+        doThrow(BusinessException.builder()
+                .message("Invalid trajectory path")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(pathSecurityUtil).resolveSafePath(ArgumentMatchers.<Function<AntaresDataManagerProperties, Path>>any(), any());
+
+        mockMvc.perform(post("/v1/trajectory/efficiency-me")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("trajectoryToUse", "efficiency_me_test")
+                        .param("horizon", HORIZON)
+                        .param("studyId", STUDY_ID.toString()))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(efficiencyMeFileProcessorService);
     }
 
     // ==================== Helper ====================
