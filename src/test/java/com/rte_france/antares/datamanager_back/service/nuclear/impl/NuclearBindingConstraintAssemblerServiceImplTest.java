@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -158,15 +159,26 @@ class NuclearBindingConstraintAssemblerServiceImplTest {
                     .resolve("TS_modulation");
             Files.delete(tsDir.resolve(TRAJ_NAME + "_weekly.xlsx"));
             createWeeklyXlsx(tsDir.resolve(TRAJ_NAME + "_min_weekly.xlsx"), NB_COLUMNS);
-            when(nasFileService.readAndSaveMatrixToNas(any(Path.class), any(String.class), any(), anyBoolean()))
-                    .thenReturn("arrow_hourly.arrow", "arrow_daily.arrow", "arrow_min_weekly.arrow",
-                            "arrow_max_weekly.arrow");
 
             TrajectoryEntity modulationTraj = modulationTrajectory();
             mockCoefficients(modulationTraj.getId());
 
             NuclearBindingConstraintGenerationDTO dto =
                     assembler.assembleModulationBindingConstraints(study, modulationTraj, List.of());
+
+            ArgumentCaptor<Path> conversionPathCaptor = ArgumentCaptor.forClass(Path.class);
+            verify(nasFileService, times(4)).readAndSaveMatrixToNas(
+                    conversionPathCaptor.capture(), any(String.class), any(), anyBoolean());
+            assertThat(conversionPathCaptor.getAllValues()).containsExactly(
+                    tsDir.resolve(TRAJ_NAME + "_hourly.xlsx"),
+                    tsDir.resolve(TRAJ_NAME + "_daily.xlsx"),
+                    tsDir.resolve(TRAJ_NAME + "_min_weekly.xlsx"),
+                    tsDir.resolve(TRAJ_NAME + "_max_weekly.xlsx"));
+
+            ArgumentCaptor<Path> columnCountPathCaptor = ArgumentCaptor.forClass(Path.class);
+            verify(nasFileService).countXlsxColumns(columnCountPathCaptor.capture(), any());
+            assertThat(columnCountPathCaptor.getValue())
+                    .isEqualTo(tsDir.resolve(TRAJ_NAME + "_min_weekly.xlsx"));
 
             assertThat(dto.constraints()).hasSize(4);
             NuclearConstraintItemDTO minWeekly = findConstraint(dto, "nuc_modulation_min_weekly");
