@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.util.HydroWaterValuesFileUtil;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -44,7 +45,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     private final HydroCapacityMeRepository hydroCapacityMeRepository;
     private final TrajectoryServiceImpl trajectoryService;
     private final HydroReservoirLevelsMeFileProcessorServiceImpl hydroReservoirLevelsMeFileProcessorService;
-    private final AreaRepository areaRepository;
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
 
     private static final String RESERVOIR_CAPACITY_COLUMN = "Reservoir Capacity [MWh]";
@@ -167,17 +168,13 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         processHorizonSheet(workbook, horizonYear, trajectory, trajectoryPath, studyId);
     }
 
-    public Set<String> extractNodesFromAreaMeTrajectory(Integer studyId) {
-      return  areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name()).stream()
-                .map(area -> area.getName().toLowerCase(Locale.ROOT))
-                .collect(Collectors.toSet());
-    }
+
     private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Path trajectoryPath, Integer studyId) throws IOException {
         Sheet sheet = workbook.getSheet(horizonYear);
         if (sheet == null) return;
 
         // Get all nodes from AREA_ME trajectory for the study
-        Set<String> areasMeNodes = extractNodesFromAreaMeTrajectory(studyId);
+        Set<String> areasMeNodes = multiEnergyCoherenceCheckService.extractNodesFromAreaMeTrajectory(studyId);
         
         Set<String> hydroMeNodes = new HashSet<>();
         boolean hasGeneratingDaily = false;

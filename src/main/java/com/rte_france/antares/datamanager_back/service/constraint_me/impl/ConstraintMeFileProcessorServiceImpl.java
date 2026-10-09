@@ -1,13 +1,14 @@
 package com.rte_france.antares.datamanager_back.service.constraint_me.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.dto.ConstraintRowData;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,9 +62,6 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private static final String MSG_PATH_TRAVERSAL = "Path is outside of the target directory";
     private static final String MSG_MISSING_TABS = "Missing tab {0} in CONSTRAINTS_ME trajectory {1}";
     private static final String MSG_AREA_NOT_IN_STUDY = "Area {0} in group {1} does not exist in study areas";
-    private static final String MSG_NODE_MUST_BELONG_AREA_ME = "Node {0} in {1} tab must belong to AREA_ME trajectory";
-    private static final String MSG_NODE_MUST_BELONG_AREA_DESC = "Node {0} in {1} tab must belong to listArea_desc tab";
-    private static final String MSG_CLUSTER_MUST_BELONG_DESC = "Cluster {0} in {1} tab must belong to listCluster_desc tab";
     private static final String MSG_TAB_EMPTY = "{0} Tab cant be empty in CONSTRAINTS_ME trajectory {1}";
     private static final String MSG_COLUMN_EMPTY = "{0} column in listArea_desc tab can't be empty in CONSTRAINTS_ME trajectory {1}";
     private static final String ENABLED_VALUE = "YES";
@@ -76,7 +74,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private final GroupClusterDescRepository groupClusterDescRepository;
     private final MeConstraintRepository meConstraintRepository;
     private final AreaRepository areaRepository;
-    private final HydroMeFileProcessorService hydroMeFileProcessorService;
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -286,7 +284,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         Sheet sheet = workbook.getSheet(horizonYear);
         if (sheet == null) return;
 
-        Set<String> areaMeNodes = hydroMeFileProcessorService.extractNodesFromAreaMeTrajectory(studyId);
+        Set<String> areaMeNodes = multiEnergyCoherenceCheckService.extractNodesFromAreaMeTrajectory(studyId);
 
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
@@ -295,8 +293,8 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
             if (isEmptyString(name)) continue;
             
             ConstraintRowData constraintData = extractConstraintRowData(row);
-            
-            validateConstraintData(constraintData, areaMeNodes, groupAreaNames, groupClusterNames, horizonYear);
+
+            multiEnergyCoherenceCheckService.validateConstraintData(constraintData, areaMeNodes, groupAreaNames, groupClusterNames, horizonYear);
             saveConstraint(constraintData, name, trajectory);
         }
     }
@@ -317,35 +315,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
                 .build();
     }
     
-    private void validateConstraintData(ConstraintRowData data, Set<String> areaMeNodes, 
-                                       Set<String> groupAreaNames, Set<String> groupClusterNames, String horizonYear) {
-        validateNode(data.getNoeud1Gauche(), areaMeNodes, horizonYear, MSG_NODE_MUST_BELONG_AREA_ME);
-        validateNode(data.getNoeud2Gauche(), areaMeNodes, horizonYear, MSG_NODE_MUST_BELONG_AREA_ME);
-        validateCluster(data.getClusterGauche(), groupClusterNames, horizonYear, MSG_CLUSTER_MUST_BELONG_DESC);
-        validateNode(data.getNoeud1Droite(), groupAreaNames, horizonYear, MSG_NODE_MUST_BELONG_AREA_DESC);
-        validateNode(data.getNoeud2Droite(), groupAreaNames, horizonYear, MSG_NODE_MUST_BELONG_AREA_DESC);
-        validateCluster(data.getClusterDroite(), groupClusterNames, horizonYear, MSG_CLUSTER_MUST_BELONG_DESC);
-    }
-    
-    private void validateNode(String node, Set<String> validNodes, String horizonYear, String errorMsg) {
-        if (!isEmptyString(node) && !validNodes.contains(node.trim().toLowerCase(Locale.ROOT))) {
-            throw BusinessException.builder()
-                    .message(errorMsg)
-                    .errorMessageArguments(List.of(node.trim(), horizonYear))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
-    
-    private void validateCluster(String cluster, Set<String> validClusters, String horizonYear, String errorMsg) {
-        if (!isEmptyString(cluster) && !validClusters.contains(cluster.trim().toLowerCase(Locale.ROOT))) {
-            throw BusinessException.builder()
-                    .message(errorMsg)
-                    .errorMessageArguments(List.of(cluster.trim(), horizonYear))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-    }
+
     
     private void saveConstraint(ConstraintRowData data, String name, TrajectoryEntity trajectory) {
         MeConstraintEntity constraint = MeConstraintEntity.builder()
@@ -546,22 +516,5 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
                 .type(TrajectoryType.CONSTRAINT_ME.name())
                 .creationDate(LocalDateTime.now())
                 .build();
-    }
-    
-    // Helper class to encapsulate constraint row data
-    @lombok.Data
-    @lombok.Builder
-    private static class ConstraintRowData {
-        private boolean enabled;
-        private String sign;
-        private String temporality;
-        private String type;
-        private String comments;
-        private String noeud1Gauche;
-        private String noeud2Gauche;
-        private String clusterGauche;
-        private String noeud1Droite;
-        private String noeud2Droite;
-        private String clusterDroite;
     }
 }

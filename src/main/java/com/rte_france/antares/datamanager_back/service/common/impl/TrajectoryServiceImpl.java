@@ -16,19 +16,15 @@ import com.rte_france.antares.datamanager_back.service.area_link.LinkMeCoherence
 import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
-import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
-import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.hydro.HydroTimeSeriesMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.impl.MiscFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal.*;
-import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -123,6 +119,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final HydroCoherenceCheckService hydroCoherenceCheckService;
 
     private final LinkMeCoherenceCheckService linkMeCoherenceCheckService;
+
+    private final HydroParametersMeFileProcessorService hydroParametersMeFileProcessorService;
+
+
 
     private static final String AREAS_PREFIX = "areas_";
     private static final String LINKS_PREFIX = "links_";
@@ -709,7 +709,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.HYDRO_SERIES,
                 TrajectoryType.HYDRO_TECHNICAL_PARAMETERS,
                 TrajectoryType.HYDRO_PSP_SERIES,
-                TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS
+                TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS,
+                TrajectoryType.HYDRO_CAPACITY_ME,
+                TrajectoryType.HYDRO_PARAMETERS_ME,
+                TrajectoryType.CONSTRAINT_ME
         );
         if (supportedTypes.contains(TrajectoryType.valueOf(trajectory.getType()))) {
             checkTrajectoryCoherence(studyId, warningMessageEntities, trajectory, userNni);
@@ -1494,13 +1497,16 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
             case "LOAD_ME" -> validateLoadMeAreasAgainstAreaMeForTrajectory(studyId, trajectory);
             case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS",
-                 "HYDRO_ALLOCATION", "HYDRO_PARAMETERS", "HYDRO_CAPACITY_ME",
+                 "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
                  "NUCLEAR_FR_TS_SMR",
                  "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER", "AREA_ME",
                  "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "THERMAL_CAPACITY_ME" ->
                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
                     log.info("No additional coherence check for Hydro trajectory type {} yet", type);
+            case "HYDRO_CAPACITY_ME" -> multiEnergyCoherenceCheckService.validateHydroCapacityMeCoherence(studyId, trajectory);
+            case "CONSTRAINT_ME" -> multiEnergyCoherenceCheckService.validateConstraintMeCoherence(studyId, trajectory);
+            case "HYDRO_PARAMETERS_ME" -> hydroParametersMeFileProcessorService.validateHydroParametersMeCoherence(studyId, trajectory);
 
             default -> throw TechnicalException.builder()
                     .message("Trajectory type {0} is not supported")

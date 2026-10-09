@@ -102,26 +102,99 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             TrajectoryEntity newTrajectory = buildNewHydroParametersMeTrajectory(trajectoryToUse, horizon, trajectoryDir, userNni);
             newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-
-            // Parse and insert data in single pass for each file
-            parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, savedTrajectory.getId());
-            parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
-
+            parseInsertAndValidate(paramHydroPath, hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
             return savedTrajectory;
         }
 
         // New trajectory
         TrajectoryEntity newTrajectory = buildNewHydroParametersMeTrajectory(trajectoryToUse, horizon, trajectoryDir, userNni);
         TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-
-        // Parse and insert data in single pass for each file
-        parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, savedTrajectory.getId());
-        parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
+        parseInsertAndValidate(paramHydroPath, hydroAllocationPath, trajectoryToUse, horizon, savedTrajectory.getId(), studyId);
 
         return savedTrajectory;
     }
 
-    private void parseAndInsertParamHydroMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId) throws IOException {
+    private void parseInsertAndValidate(Path paramHydroPath, Path hydroAllocationPath, String trajectoryToUse, String horizon,
+                                        Integer trajectoryId, Integer studyId) throws IOException {
+        Set<String> paramNodes = new HashSet<>();
+        Set<String> loadAreas = new HashSet<>();
+        Set<String> allocationNodes = new HashSet<>();
+
+        parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, trajectoryId, paramNodes);
+        parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, trajectoryId, loadAreas, allocationNodes);
+
+        validateHydroMeCoherence(studyId, paramNodes, loadAreas, allocationNodes);
+    }
+
+    @Override
+    public void validateHydroParametersMeCoherence(Integer studyId, TrajectoryEntity trajectory) {
+        Integer trajectoryId = trajectory.getId();
+        Set<String> paramNodes = hydroParametersMeRepository.findByTrajectoryId(trajectoryId).stream()
+                .map(HydroParametersMeEntity::getNode)
+                .collect(Collectors.toSet());
+        List<HydroAllocationMeEntity> allocations = hydroAllocationMeRepository.findByTrajectoryId(trajectoryId);
+        Set<String> loadAreas = allocations.stream()
+                .map(HydroAllocationMeEntity::getArea)
+                .collect(Collectors.toSet());
+        Set<String> allocationNodes = allocations.stream()
+                .map(HydroAllocationMeEntity::getNode)
+                .collect(Collectors.toSet());
+
+        validateHydroMeCoherence(studyId, paramNodes, loadAreas, allocationNodes);
+    }
+
+    private void validateHydroMeCoherence(Integer studyId, Set<String> paramNodes, Set<String> loadAreas, Set<String> allocationNodes) {
+        Set<String> areaMeNames = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name()).stream()
+                .map(area -> normalizeName(area.getName()))
+                .collect(Collectors.toSet());
+        Set<String> areaNames = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.name()).stream()
+                .map(area -> normalizeName(area.getName()))
+                .collect(Collectors.toSet());
+
+        String missingParamAreas = findMissingNames(paramNodes, areaMeNames);
+        if (!missingParamAreas.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Areas {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory")
+                    .errorMessageArguments(List.of(missingParamAreas))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        Set<String> areaMeOrArea = new HashSet<>(areaMeNames);
+        areaMeOrArea.addAll(areaNames);
+        String missingLoadAreas = findMissingNames(loadAreas, areaMeOrArea);
+        if (!missingLoadAreas.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Areas {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME or AREA trajectory")
+                    .errorMessageArguments(List.of(missingLoadAreas))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        String missingNodes = findMissingNames(allocationNodes, areaMeNames);
+        if (!missingNodes.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Nodes {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory")
+                    .errorMessageArguments(List.of(missingNodes))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private static String normalizeName(String name) {
+        return name.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String findMissingNames(Set<String> names, Set<String> validNames) {
+        return names.stream()
+                .map(String::trim)
+                .filter(name -> !validNames.contains(normalizeName(name)))
+                .collect(Collectors.toCollection(TreeSet::new))
+                .stream()
+                .collect(Collectors.joining(", "));
+    }
+
+    private void parseAndInsertParamHydroMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Set<String> paramNodes) throws IOException {
         String horizonYear = extractHorizonYear(horizon);
         List<HydroParametersMeEntity> entitiesToInsert = new ArrayList<>();
 
@@ -204,6 +277,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .powerToLevel(getBooleanCellValue(row.getCell(15)))
                         .build();
 
+                paramNodes.add(nodeName.trim());
                 entitiesToInsert.add(entity);
             }
         }
@@ -215,7 +289,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         }
     }
 
-    private void parseAndInsertHydroAllocationMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Integer studyId) throws IOException {
+    private void parseAndInsertHydroAllocationMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Set<String> loadAreas, Set<String> allocationNodes) throws IOException {
         String horizonYear = extractHorizonYear(horizon);
         List<HydroAllocationMeEntity> entitiesToInsert = new ArrayList<>();
 
@@ -242,20 +316,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .build();
             }
 
-            // Load all valid areas and nodes for validation
-            List<String> validAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
-                    .stream()
-                    .map(area -> area.getName().trim().toLowerCase(Locale.ROOT))
-                    .toList();
-
-            List<HydroParametersMeEntity> hydroParams = hydroParametersMeRepository.findByTrajectoryId(trajectoryId);
-            Set<String> validNodes = hydroParams.stream()
-                    .map(param -> param.getNode().trim().toLowerCase(Locale.ROOT))
-                    .collect(Collectors.toSet());
-
-            Set<String> missingAreasOrNodes = new HashSet<>();
-            Set<String> missingNodesInHeader = new HashSet<>();
-
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
@@ -272,11 +332,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                             .build();
                 }
 
-                // RG1: Validate that area/node from load column exists in AREA or HYDRO_ME Param
-                String area = areaName.trim().toLowerCase(Locale.ROOT);
-                if (!validAreas.contains(area) && !validNodes.contains(area)) {
-                    missingAreasOrNodes.add(area);
-                }
+                loadAreas.add(areaName.trim());
 
                 // Validate node columns (from B onwards) are numeric and build entities
                 for (int cellIndex = 1; cellIndex < row.getLastCellNum(); cellIndex++) {
@@ -296,11 +352,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
                         // Get node name from header
                         String nodeName = getCellStringValue(headerRow.getCell(cellIndex));
-
-                        // RG2: Validate that node from header is present in HYDRO_ME Param
-                        if (!validNodes.contains(nodeName.trim().toLowerCase(Locale.ROOT))) {
-                            missingNodesInHeader.add(nodeName.trim());
-                        }
+                        allocationNodes.add(nodeName.trim());
 
                         // Build entity
                         HydroAllocationMeEntity entity = HydroAllocationMeEntity.builder()
@@ -313,26 +365,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         entitiesToInsert.add(entity);
                     }
                 }
-            }
-
-            // Throw error if RG1 validation failed
-            if (!missingAreasOrNodes.isEmpty()) {
-                String missingNames = String.join(", ", missingAreasOrNodes);
-                throw BusinessException.builder()
-                        .message("Missing Areas/nodes {0} in AREA or HYDRO_ME Param trajectory in HYDRO_ME Param Allocation trajectory {1}")
-                        .errorMessageArguments(List.of(missingNames, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            // Throw error if RG2 validation failed
-            if (!missingNodesInHeader.isEmpty()) {
-                String missingNames = String.join(", ", missingNodesInHeader);
-                throw BusinessException.builder()
-                        .message("Missing Nodes {0} in HYDRO_ME Param trajectory in HYDRO_ME Param Allocation trajectory {1}")
-                        .errorMessageArguments(List.of(missingNames, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
             }
         }
 

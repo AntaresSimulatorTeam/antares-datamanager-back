@@ -5,5 +5,8 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import java.io.IOException;
 
 public interface HydroParametersMeFileProcessorService {
+
     TrajectoryEntity processHydroParametersMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
+
+    void validateHydroParametersMeCoherence(Integer studyId, TrajectoryEntity trajectory);
 }

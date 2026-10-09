@@ -7,8 +7,6 @@ import java.util.Set;
 
 public interface HydroMeFileProcessorService {
 
-    Set<String> extractNodesFromAreaMeTrajectory(Integer studyId);
-
     TrajectoryEntity processHydroCapacityMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
 
     TrajectoryEntity processHydroWaterValuesMeDirectory(String trajectoryToUse, String horizon, Integer studyId) throws IOException;
