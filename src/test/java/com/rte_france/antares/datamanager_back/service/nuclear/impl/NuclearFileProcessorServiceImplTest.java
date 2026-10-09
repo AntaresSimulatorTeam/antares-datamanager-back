@@ -586,7 +586,7 @@ class NuclearFileProcessorServiceImplTest {
     // ========== Tests for parameter parsing ==========
 
     @Test
-    void processNuclearModulationFile_savesFourModulationFiles() throws IOException {
+    void processNuclearModulationFile_savesFourModulationParameters() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithAllFiles();
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.NUCLEAR_FR_MODULATION.name()))
