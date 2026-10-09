@@ -33,6 +33,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.res.impl.ResCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -165,6 +166,9 @@ class TrajectoryServiceImplTest {
 
     @Mock
     private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
+
+    @Mock
+    private HydroParametersMeFileProcessorService hydroParametersMeFileProcessorService;
 
     @BeforeEach
     void setUp() {
@@ -932,6 +936,105 @@ class TrajectoryServiceImplTest {
         verify(linkFileProcessorService, times(1)).validateLinkAreas("FR-IT", List.of("FR", "CH", "IT"));
         verify(linkFileProcessorService, times(1)).checkConsistencyTrajectoryLinkAndArea(any(), any(), any(), any(), any(), any(), any());
         verify(warningRepository, times(1)).saveAll(warningMessages);
+    }
+
+    @Test
+    void checkTrajectoryCoherence_hydroCapacityMe_delegatesToMultiEnergyCoherenceCheck() throws IOException {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(10).type("HYDRO_CAPACITY_ME").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user");
+
+        verify(multiEnergyCoherenceCheckService, times(1)).validateHydroCapacityMeCoherence(studyId, trajectory);
+        verifyNoInteractions(hydroParametersMeFileProcessorService);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
+    }
+
+    @Test
+    void checkTrajectoryCoherence_hydroCapacityMe_propagatesBusinessExceptionAndSkipsWarningSave() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(10).type("HYDRO_CAPACITY_ME").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        doThrow(BusinessException.builder()
+                .message("Areas {0} from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory")
+                .errorMessageArguments(List.of("area_9"))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(multiEnergyCoherenceCheckService).validateHydroCapacityMeCoherence(studyId, trajectory);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user"));
+
+        assertEquals(List.of("area_9"), exception.getErrorMessageArguments());
+        verify(warningRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void checkTrajectoryCoherence_constraintMe_delegatesToMultiEnergyCoherenceCheck() throws IOException {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(11).type("CONSTRAINT_ME").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user");
+
+        verify(multiEnergyCoherenceCheckService, times(1)).validateConstraintMeCoherence(studyId, trajectory);
+        verifyNoInteractions(hydroParametersMeFileProcessorService);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
+    }
+
+    @Test
+    void checkTrajectoryCoherence_constraintMe_propagatesBusinessExceptionAndSkipsWarningSave() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(11).type("CONSTRAINT_ME").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        doThrow(BusinessException.builder()
+                .message("Areas {0} from CONSTRAINT_ME trajectory is (are) not present in AREA trajectory")
+                .errorMessageArguments(List.of("de"))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(multiEnergyCoherenceCheckService).validateConstraintMeCoherence(studyId, trajectory);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user"));
+
+        assertEquals(List.of("de"), exception.getErrorMessageArguments());
+        verify(warningRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void checkTrajectoryCoherence_hydroParametersMe_delegatesToHydroParametersService() throws IOException {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(12).type("HYDRO_PARAMETERS_ME").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user");
+
+        verify(hydroParametersMeFileProcessorService, times(1)).validateHydroParametersMeCoherence(studyId, trajectory);
+        verifyNoInteractions(multiEnergyCoherenceCheckService);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
+    }
+
+    @Test
+    void checkTrajectoryCoherence_hydroParametersMe_propagatesBusinessExceptionAndSkipsWarningSave() {
+        Integer studyId = 1;
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().id(12).type("HYDRO_PARAMETERS_ME").build();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+
+        doThrow(BusinessException.builder()
+                .message("Nodes {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory")
+                .errorMessageArguments(List.of("node_x"))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(hydroParametersMeFileProcessorService).validateHydroParametersMeCoherence(studyId, trajectory);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user"));
+
+        assertEquals(List.of("node_x"), exception.getErrorMessageArguments());
+        verify(warningRepository, never()).saveAll(any());
     }
 
     @Test
