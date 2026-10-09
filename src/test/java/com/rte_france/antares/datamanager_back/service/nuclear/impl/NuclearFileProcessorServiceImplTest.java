@@ -213,7 +213,7 @@ class NuclearFileProcessorServiceImplTest {
     }
 
     @Test
-    void processNuclearModulationFile_withMissingBothWeeklyVariants_throwsBusinessException() throws IOException {
+    void processNuclearModulationFile_withMissingMinWeeklyTimeSeriesFile_throwsBusinessException() throws IOException {
         Path trajectoryFolder = createTestTrajectoryFolderWithTSModulation();
 
         // Create parameters file
