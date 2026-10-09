@@ -3,11 +3,11 @@ package com.rte_france.antares.datamanager_back.service.sts.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -15,10 +15,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -34,6 +34,7 @@ class StStorageMeFileProcessorServiceImplTest {
     Path tempDir;
 
     private StStorageMeFileProcessorServiceImpl service;
+    private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
     private TrajectoryRepository trajectoryRepository;
     private AntaresDataManagerProperties properties;
     private UserService userService;
@@ -47,13 +48,15 @@ class StStorageMeFileProcessorServiceImplTest {
         userService = mock(UserService.class);
         warningRepository = mock(WarningRepository.class);
         studyRepository = mock(StudyRepository.class);
+        multiEnergyCoherenceCheckService = mock(MultiEnergyCoherenceCheckService.class);
 
         service = new StStorageMeFileProcessorServiceImpl(
                 properties,
                 trajectoryRepository,
                 userService,
                 warningRepository,
-                studyRepository);
+                studyRepository,
+                multiEnergyCoherenceCheckService);
 
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
         when(properties.getTrajectoryFilePath()).thenReturn("trajectories");
@@ -949,6 +952,47 @@ class StStorageMeFileProcessorServiceImplTest {
 
         assertThat(result).isNotNull();
         verify(warningRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowBusinessExceptionWhenAreaFromAreaMeIsNotPresentInStStorageMe() throws IOException {
+        Path xlsx = createValidMeWorkbook();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        doThrow(BusinessException.builder()
+                .message("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory")
+                .errorMessageArguments(List.of("BE", "STS_ME"))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(multiEnergyCoherenceCheckService)
+                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.STS_ME.name()), any(TrajectoryEntity.class));
+
+        assertThatThrownBy(() ->
+                service.processStStorageMeFile("me_test", "2029-2030", 1)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory")
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getErrorMessageArguments()).containsExactly("BE", "STS_ME");
+                });
+
+        verify(multiEnergyCoherenceCheckService).checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.STS_ME.name()), any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void shouldSuccessfullyProcessWhenAllAreasFromAreaMeArePresentInStStorageMe() throws IOException {
+        Path xlsx = createValidMeWorkbook();
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        TrajectoryEntity trajectory = new TrajectoryEntity();
+        trajectory.setHorizon("2030");
+        trajectory.setId(10);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+        verify(multiEnergyCoherenceCheckService).checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.STS_ME.name()), any(TrajectoryEntity.class));
     }
 
     @Test

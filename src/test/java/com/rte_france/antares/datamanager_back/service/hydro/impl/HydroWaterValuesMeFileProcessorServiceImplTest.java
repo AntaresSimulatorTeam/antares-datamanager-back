@@ -30,6 +30,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import com.rte_france.antares.datamanager_back.util.Utils;
+import org.assertj.core.api.Assertions;
+import org.mockito.Spy;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -52,6 +57,8 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
 
     @Mock(lenient = true)
     private TrajectoryServiceImpl trajectoryService;
+
+    private HydroReservoirLevelsMeFileProcessorServiceImpl hydroReservoirLevelsMeFileProcessorService;
 
     @InjectMocks
     private HydroMeFileProcessorServiceImpl hydroMeFileProcessorService;
@@ -88,6 +95,17 @@ class HydroWaterValuesMeFileProcessorServiceImplTest {
                     String trajectoryName = invocation.getArgument(0);
                     return tempDir.resolve("trajectories/ME/hydro_ME/water_values").resolve(trajectoryName);
                 });
+
+        // Initialize the real HydroReservoirLevelsMeFileProcessorServiceImpl with mocked dependencies
+        hydroReservoirLevelsMeFileProcessorService = new HydroReservoirLevelsMeFileProcessorServiceImpl(
+                trajectoryRepository, hydroCapacityMeRepository, userService, antaresDataManagerProperties
+        );
+
+        // Manually inject it into hydroMeFileProcessorService
+        hydroMeFileProcessorService = new HydroMeFileProcessorServiceImpl(
+                trajectoryRepository, userService, antaresDataManagerProperties, 
+                hydroCapacityMeRepository, trajectoryService, hydroReservoirLevelsMeFileProcessorService
+        );
 
         waterValuesDir = tempDir.resolve("trajectories/ME/hydro_ME/water_values/" + trajectoryName);
         Files.createDirectories(waterValuesDir);

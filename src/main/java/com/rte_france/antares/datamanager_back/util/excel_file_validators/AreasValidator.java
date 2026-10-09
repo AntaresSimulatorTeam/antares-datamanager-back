@@ -22,13 +22,14 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 public class AreasValidator {
 
     private static final int AREAS_MAX_LENGTH = 20;
+    private static final int AREAS_ME_MAX_LENGTH = 60;
     private static final int DISTRICT_MAX_LENGTH = 20;
 
     private AreasValidator() {
 
     }
 
-    public static void validateAreaColumns(Path path, String horizon) throws BusinessException {
+    public static void validateAreaColumns(Path path, String horizon, String trajectoryType) throws BusinessException {
         try (Workbook workbook = WorkbookFactory.create(Files.newInputStream(path))) {
             Sheet sheet = workbook.getSheet(horizon);
             if (sheet == null) {
@@ -40,13 +41,12 @@ public class AreasValidator {
             }
 
             checkColumnsRules(sheet, horizon, new ArrayList<>(), AreaColumns.getStringColumnNames(), AreaColumns.getNumericalColumnNames(), TrajectoryType.AREA.name());
-            checkColumnValueLength(sheet, horizon, AreaColumns.AREAS.getDisplayName(), AREAS_MAX_LENGTH);
+            checkColumnValueLength(sheet, horizon, AreaColumns.AREAS.getDisplayName(), trajectoryType.equals(TrajectoryType.AREA_ME.name()) ? AREAS_ME_MAX_LENGTH : AREAS_MAX_LENGTH);
             checkColumnValueLength(sheet, horizon, AreaColumns.DISTRICT.getDisplayName(), DISTRICT_MAX_LENGTH);
             checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), horizon, false, TrajectoryType.AREA.name());
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("Error reading file:  {0}")
-                    // .antaresErrorCode(antaresErrorCode.DASHBOARD_ERROR_001)
                     .errorMessageArguments(List.of(path.getFileName().toString()))
                     .cause(e.getCause())
                     .build();

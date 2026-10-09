@@ -10,7 +10,6 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -24,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -43,6 +41,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final HydroCapacityMeRepository hydroCapacityMeRepository;
     private final TrajectoryServiceImpl trajectoryService;
+    private final HydroReservoirLevelsMeFileProcessorServiceImpl hydroReservoirLevelsMeFileProcessorService;
 
     private static final String RESERVOIR_CAPACITY_COLUMN = "Reservoir Capacity [MWh]";
     private static final String GENERATING_PMAX_TIMESTEP_COLUMN = "Generating Pmax - timestep (daily/annual)";
@@ -54,6 +53,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private static final String GENERATING_PMAX_DAILY_TS_DIR = "Generating Pmax daily ts";
     private static final String PUMPING_PMAX_DAILY_TS_DIR = "Pumping Pmax daily ts";
+
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -148,64 +148,14 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     }
 
     private void validateHydroWaterValuesMeDirectory(Path trajectoryPath, String trajectoryName, Integer studyId , String horizon) throws IOException {
-        if (!Files.isDirectory(trajectoryPath)) {
-            throw BusinessException.builder()
-                    .message("Trajectory must be a directory: {0}")
-                    .errorMessageArguments(List.of(trajectoryName))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        // Get all Excel files (*.xlsx) in the directory
-        List<Path> excelFilePaths;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(trajectoryPath, "waterValues_*.xlsx")) {
-            excelFilePaths = new ArrayList<>();
-            stream.forEach(excelFilePaths::add);
-        }
-         if(excelFilePaths.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("No Excel files found in the directory: {0}")
-                    .errorMessageArguments(List.of(trajectoryName))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-        List<String> excelFiles = new ArrayList<>();
-        String secondPartOfHorizon = horizon.split("-")[1];
-
-        // Validate that each Excel file contains a sheet named with secondPartOfHorizon
-        for (Path excelFilePath : excelFilePaths) {
-            try (InputStream inputStream = Files.newInputStream(excelFilePath);
-                 Workbook workbook = WorkbookFactory.create(inputStream)) {
-                Sheet requiredSheet = workbook.getSheet(secondPartOfHorizon);
-                if (requiredSheet == null) {
-                    throw BusinessException.builder()
-                            .message(String.format("Excel file %s does not contain required sheet: %s", 
-                                    excelFilePath.getFileName().toString(), secondPartOfHorizon))
-                            .message("Missing horizon {0} in water values file for {1} in HYDRO_ME Water values trajectory {2}")
-                            .errorMessageArguments(List.of(secondPartOfHorizon, excelFilePath.getFileName().toString(), trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-                excelFiles.add(excelFilePath.getFileName().toString());
-            }
-        }
-
-        List<String> validNodes = hydroCapacityMeRepository.findDistinctNodesByStudyId(studyId);
-
-        if (!validNodes.isEmpty()) {
-            // Match the node portion, not the fixed Water Values filename text.
-            boolean hasAtLeastOneValidFile = excelFiles.stream()
-                    .anyMatch(fileName -> validNodes.stream()
-                            .anyMatch(nodeName -> HydroWaterValuesFileUtil.matchesNode(fileName, nodeName)));
-
-            if (!hasAtLeastOneValidFile) {
-                throw BusinessException.builder()
-                        .message("No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Water Values trajectory {0}")
-                        .errorMessageArguments(List.of(trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-        }
+        hydroReservoirLevelsMeFileProcessorService.validateHydroExcelDirectory(
+                trajectoryPath,
+                trajectoryName,
+                horizon,
+                studyId,
+       true,
+                HydroWaterValuesFileUtil::matchesNode
+        );
     }
 
     private void insertHydroCapacityMeData(Workbook workbook, String horizon, Path trajectoryPath, TrajectoryEntity trajectory) throws IOException {

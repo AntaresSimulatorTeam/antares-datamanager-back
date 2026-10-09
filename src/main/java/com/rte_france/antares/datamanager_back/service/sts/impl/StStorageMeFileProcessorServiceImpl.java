@@ -3,10 +3,12 @@ package com.rte_france.antares.datamanager_back.service.sts.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private final UserService userService;
     private final WarningRepository warningRepository;
     private final StudyRepository studyRepository;
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService; 
 
     private static final Integer SERIES_INDEX_ME = 10;
     private static final String EXCEL_EXTENSION = ".xlsx";
@@ -93,7 +96,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                         .build();
             }
        }
-        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon);
+        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon, studyId);
 
         saveMissingColumnWarning(study, savedTrajectory, missingFilesMeKeysMap);
 
@@ -101,7 +104,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private TrajectoryEntity saveTrajectoryImport(List<StStorageEntity> stStorageEntityList, Path trajectoryFilePath,
-                                                   String horizon) throws IOException {
+                                                   String horizon, Integer studyId) throws IOException {
         if (stStorageEntityList.isEmpty()) {
             throw createValidationError("No ST Storage data found in the file for horizon: {0}", List.of(horizon));
         }
@@ -113,6 +116,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
         stStorageEntityList.forEach(stStorageEntity -> stStorageEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
+        multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.STS_ME.name(), trajectoryEntity);
         return trajectoryRepository.save(trajectoryEntity);
     }
 

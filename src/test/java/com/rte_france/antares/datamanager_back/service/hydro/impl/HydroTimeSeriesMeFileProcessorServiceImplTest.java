@@ -330,7 +330,7 @@ class HydroTimeSeriesMeFileProcessorServiceImplTest {
                     hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(testTrajectoryName, testHorizon, studyId));
 
             assertNotNull(exception.getMessage());
-            assertTrue(exception.getMessage().contains("Directory already processed with same content"));
+            assertTrue(exception.getMessage().contains("File already processed with same content"));
         }
     }
 
