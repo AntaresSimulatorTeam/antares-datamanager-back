@@ -208,7 +208,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
                 .horizon(horizon)
                 .checksum(computeChecksumByType(trajectoryPath, TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME, horizon, null))
                 .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
-                .creationDate(LocalDateTime.now())
+                .creationDate(LocalDateTime.now(ZoneId.of("Europe/Zurich")))
                 .build();
     }
 

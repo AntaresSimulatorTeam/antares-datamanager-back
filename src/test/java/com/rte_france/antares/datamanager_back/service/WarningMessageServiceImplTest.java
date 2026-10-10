@@ -11,6 +11,8 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.WarningServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -101,7 +103,6 @@ class WarningMessageServiceImplTest {
     @Test
     void getWarningsForTrajectory_shouldReturnEmptyList_whenTrajectoryNotFound() {
         // Given
-        Integer trajectoryId = 1;
         Integer studyId = 1;
         when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
                 .thenReturn(Collections.emptySet());
@@ -115,24 +116,29 @@ class WarningMessageServiceImplTest {
     }
 
     @Test
-    void getWarningsForTrajectory_shouldReturnEmptyList_whenNoWarnings() {
-        // Given
-        Integer trajectoryId = 1;
-        Integer studyId = 1;
-        TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .id(trajectoryId)
-                .warningMessages(null)
+    void isWarningDependOnExistingLinkTrajectoryAndStudyTest() {
+        StudyEntity study = StudyEntity.builder()
+                .id(1)
                 .build();
 
-        when(warningRepository.findByTrajectoryTypeAndStudyId(any(), any()))
-                .thenReturn(Collections.emptySet());
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .id(1)
+                .build();
+
+        var warning = WarningMessageEntity.builder()
+                .study(study)
+                .trajectory(trajectory)
+                .secondTrajectory(null)
+                .build();
+
+        when(studyTrajectoryRepository.existsById(any(StudyTrajectoryKey.class))).thenReturn(false);
 
         // When
-        Set<WarningDTO> result = warningService.getWarningsForTrajectory(studyId, TrajectoryType.AREA);
+        var result = warningService.isWarningDependOnExistingLinkTrajectoryAndStudy(warning);
 
         // Then
-        assertTrue(result.isEmpty());
-        verify(warningRepository).findByTrajectoryTypeAndStudyId(studyId, TrajectoryType.AREA.name());
+        assertFalse(result);
+        verify(studyTrajectoryRepository).existsById(any(StudyTrajectoryKey.class));
     }
 
     @Test
@@ -306,8 +312,9 @@ class WarningMessageServiceImplTest {
         assertEquals(1, warningMessages.size());
     }
 
-    @Test
-    void addWarning_addsWarning_whenMultipleWarningsAndCode() {
+    @ParameterizedTest
+    @EnumSource(value = WarningCode.class, names = {"LOAD_MISSING_TRAJECTORY_FOR_AREAS", "LINKS_ALL_VALUES_ZERO", "DUPLICATION_MISSING_TRAJECTORIES"})
+    void addWarning_addsWarning_whenMultipleWarningsAndCode(WarningCode warningcode) {
         var warningMessages = new HashSet<WarningMessageEntity>();
         var study = StudyEntity.builder().id(1).build();
         var trajectory = TrajectoryEntity.builder()
@@ -316,10 +323,10 @@ class WarningMessageServiceImplTest {
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(), eq(2), eq(1)))
                 .thenReturn(false);
-        when(messageSource.getMessage(eq(WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS.value()), any(), any(), any()))
+        when(messageSource.getMessage(eq(warningcode.value()), any(), any(), any()))
                 .thenReturn("warning message");
 
-        warningService.addWarning(warningMessages, List.of("1", "2"), WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS, 1, "test", trajectory);
+        warningService.addWarning(warningMessages, List.of("1", "2"), warningcode, 1, "test", trajectory);
 
         assertEquals(1, warningMessages.size());
     }

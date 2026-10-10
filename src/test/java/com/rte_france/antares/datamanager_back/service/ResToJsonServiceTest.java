@@ -4,6 +4,9 @@ import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.service.study.impl.ResToJsonService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.List;
@@ -22,17 +25,12 @@ class ResToJsonServiceTest {
         assertTrue(result.isEmpty());
     }
 
-    @Test
-    void buildResDataMap_shouldReturnEmpty_whenAreaIsMissing() {
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"DE"})
+    void buildResDataMap_shouldReturnEmpty_whenAreaNotFound(String areaName) {
         Map<String, Map<String, ResClusterGenerationDto>> input = Map.of("FR", Map.of());
-        var result = service.buildResDataMap("", input);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void buildResDataMap_shouldReturnEmpty_whenAreaNotFound() {
-        Map<String, Map<String, ResClusterGenerationDto>> input = Map.of("FR", Map.of());
-        var result = service.buildResDataMap("DE", input);
+        var result = service.buildResDataMap(areaName, input);
         assertTrue(result.isEmpty());
     }
 

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.text.MessageFormat;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -65,15 +66,13 @@ public class WarningServiceImpl implements WarningService {
         Object[] messageArgs;
         if (warnings.size() == 1) {
             messageArgs = new Object[]{warnings.getFirst()};
-        } else if (warnings.size() > 1) {
+        } else {
             messageArgs = new Object[]{String.join(", ", warnings)};
             if (warningCode == WarningCode.LOAD_MISSING_TRAJECTORY_FOR_AREAS ||
                     warningCode == WarningCode.DUPLICATION_MISSING_TRAJECTORIES
             ) {
                 messageArgs = new Object[]{warnings.get(0), warnings.get(1)};
             }
-        } else {
-            return;
         }
         var messageContent = getMessage(warningCode.value(), messageArgs);
         boolean warningExists = warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(messageContent, trajectory.getId(), studyId);
@@ -85,7 +84,7 @@ public class WarningServiceImpl implements WarningService {
                     .warningCode(warningCode)
                     .study(study)
                     .trajectory(trajectory)
-                    .creationDate(LocalDateTime.now())
+                    .creationDate(LocalDateTime.now(ZoneId.of("Europe/Zurich")))
                     .createdBy(userNni)
                     .isAck(false)
                     .build();
