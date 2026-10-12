@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProc
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
@@ -65,6 +66,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public static final String OTHER_AREA = "OTHERS";
 
     private final AreaFileProcessorService areaFileProcessorService;
+
+    private final DsrFileProcessorService dsrFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
 
@@ -264,6 +267,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
+            case DSR -> dsrFileProcessorService.processDsrClusterFile(trajectoryToUse, horizon, studyId, false, OTHERS_AREA);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
