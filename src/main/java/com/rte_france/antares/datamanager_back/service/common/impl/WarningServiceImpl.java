@@ -84,7 +84,7 @@ public class WarningServiceImpl implements WarningService {
                     .warningCode(warningCode)
                     .study(study)
                     .trajectory(trajectory)
-                    .creationDate(LocalDateTime.now(ZoneId.of("Europe/Zurich")))
+                    .creationDate(LocalDateTime.now(ZoneId.systemDefault()))
                     .createdBy(userNni)
                     .isAck(false)
                     .build();

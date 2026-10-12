@@ -242,11 +242,11 @@ class DsrCapacityModulationFileProcessorServiceImplTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"cm_validation_test.xlsx", "validation_test.xlsx"})
+    @ValueSource(strings = {"cm_validation_test", "validation_test"})
     void validateDsrCapacityModulationCoherence_shouldReuseImportValidationRules(String fileName) throws IOException {
         List<String> clusters = List.of("DSR_industries");
 
-        Path xlsx = tempDir.resolve(fileName);
+        Path xlsx = tempDir.resolve(fileName + ".xlsx");
         Files.createFile(xlsx);
         createWorkbookWithHeadersAndData(clusters, xlsx);
 
