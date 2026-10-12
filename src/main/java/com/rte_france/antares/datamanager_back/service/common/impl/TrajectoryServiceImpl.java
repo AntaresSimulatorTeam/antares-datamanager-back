@@ -1506,7 +1506,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
                  "NUCLEAR_FR_TS_SMR",
                  "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER", "AREA_ME",
-                 "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "THERMAL_CAPACITY_ME" ->
+                 "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "THERMAL_CAPACITY_ME", "HYDRO_RESERVOIR_LEVELS_ME", "HYDRO_TIME_SERIES_ME", "HYDRO_WATER_VALUES_ME", "EFFICIENCY_ME" ->
                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
                     log.info("No additional coherence check for Hydro trajectory type {} yet", type);
             case "HYDRO_CAPACITY_ME" -> multiEnergyCoherenceCheckService.validateHydroCapacityMeCoherence(studyId, trajectory);
