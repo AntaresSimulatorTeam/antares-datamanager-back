@@ -267,7 +267,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case AREA, AREA_ME -> areaFileProcessorService.processAreaFile(trajectoryFilePath, horizon, trajectoryType);
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
-            case DSR -> dsrFileProcessorService.processDsrClusterFile(trajectoryToUse, horizon, studyId, false, OTHERS_AREA);
             default ->
                     throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
         };
