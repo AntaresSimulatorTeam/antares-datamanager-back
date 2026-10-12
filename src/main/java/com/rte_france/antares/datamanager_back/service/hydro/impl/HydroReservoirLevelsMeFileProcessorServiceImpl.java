@@ -46,7 +46,6 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
     private final UserService userService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
-    private static final String RESERVOIR_LEVELS_FILE = "reservoir_levels.xlsx";
     private static final String FILE_PATTERN_RESERVOIR_LEVELS = "*_reservoir_levels.xlsx";
     private static final String MISSING_HORIZON_RESERVOIR_LEVELS_MESSAGE = "Missing horizon {0} in Reservoir Levels file for {1} in HYDRO_ME Reservoir Levels trajectory {2}";
     private static final String NO_FILE_RELATED_TO_NODES_RESERVOIR_LEVELS_MESSAGE = "No file related to the nodes of the HYDRO_ME_CAPACITY trajectory in HYDRO_ME Reservoir Levels trajectory {0}";
