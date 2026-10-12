@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
+import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
 
 @Slf4j
 @Service
@@ -317,7 +318,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
-                if (row == null) continue;
+                if (row == null || isRowEmpty(row)) continue;
 
                 // Validate load column (A) - must be filled
                 Cell loadCell = row.getCell(0);
