@@ -26,6 +26,11 @@ public class DsrToJsonService {
             return Collections.emptyMap();
         }
 
+        if(areaName == null || areaName.isEmpty()){
+            log.info("dsrMapGenerator: missing areaName");
+            return Collections.emptyMap();
+        }
+
         Map<String, Object> dsrClusterMap = new LinkedHashMap<>();
 
         dsrClusterProps.entrySet().stream()
