@@ -78,7 +78,7 @@ class ThermalGroupMappingServiceTest {
     }
 
     @Test
-    void toGroup_foundCCGTAndH2_returnsEmpty() {
+    void toGroup_foundCCGTAndH2_returnEmpty() {
         when(repository.findByClusterIgnoreCase("CCGT H2")).thenReturn(Optional.empty());
         assertThat(service.toGroup("CCGT H2")).isEmpty();
     }

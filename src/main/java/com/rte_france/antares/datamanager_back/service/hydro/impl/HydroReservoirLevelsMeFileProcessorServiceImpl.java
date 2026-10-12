@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.BiPredicate;
-import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.computeChecksumByType;
 import static com.rte_france.antares.datamanager_back.util.Utils.isSameFileWithSameContent;
@@ -208,7 +207,7 @@ public class HydroReservoirLevelsMeFileProcessorServiceImpl implements HydroRese
                 .horizon(horizon)
                 .checksum(computeChecksumByType(trajectoryPath, TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME, horizon, null))
                 .type(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME.name())
-                .creationDate(LocalDateTime.now(ZoneId.of("Europe/Zurich")))
+                .creationDate(LocalDateTime.now(ZoneId.systemDefault()))
                 .build();
     }
 

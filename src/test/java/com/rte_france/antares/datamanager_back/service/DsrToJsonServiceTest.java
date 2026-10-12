@@ -97,8 +97,12 @@ class DsrToJsonServiceTest {
 
     @Test
     void buildDsrDataMap_ShouldReturnEmptyMapWhenAreaNameIsEmpty() {
+        // Given
+        DsrGenerationDTO dto = DsrGenerationDTO.builder().build();
+        Map<String, DsrGenerationDTO> dsrClusterProps = Map.of("EN_Cluster1", dto);
+
         // When
-        Map<String, Object> result = dsrToJsonService.buildDsrDataMap(null, Collections.emptyMap());
+        Map<String, Object> result = dsrToJsonService.buildDsrDataMap(null, dsrClusterProps);
 
         // Then
         assertTrue(result.isEmpty());
