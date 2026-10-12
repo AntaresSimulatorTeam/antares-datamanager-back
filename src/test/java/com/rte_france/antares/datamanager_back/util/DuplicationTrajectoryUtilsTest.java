@@ -467,7 +467,7 @@ class DuplicationTrajectoryUtilsTest {
                     BusinessException be = (BusinessException) e;
                     assertThat(be.getMessage()).isEqualTo("AREA_ME trajectory {0} does not exist for horizon {1}");
                     assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-                    assertThat(be.getErrorMessageArguments()).containsExactly("", "2045");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("area_me_existing.xlsx", "2045");
                 });
     }
 
