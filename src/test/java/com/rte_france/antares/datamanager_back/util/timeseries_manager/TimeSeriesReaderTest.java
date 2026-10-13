@@ -392,9 +392,11 @@ class TimeSeriesReaderTest {
     @Test
     void readColumnFromCsv_shouldReadTargetColumnWithCommaAndQuotes(@TempDir Path tempDir) throws IOException {
         Path file = tempDir.resolve("MB_MC_modulation.csv");
-        String content = "DATE_HEURE,Gas,H2\n" +
-                "01/07/2028 00:00,0.81,\"0,67\"\n" +
-                "01/07/2028 01:00,0.82,\"0,68\"\n";
+        String content = """
+                            DATE_HEURE,Gas,H2
+                            01/07/2028 00:00,0.81,"0,67"
+                            01/07/2028 01:00,0.82,"0,68"
+                            """;
         Files.writeString(file, content);
 
         TimeSeriesMatrix matrixH2 = timeSeriesReader.readColumnFromCsv(file, "H2");
@@ -414,9 +416,11 @@ class TimeSeriesReaderTest {
     @Test
     void readColumnFromCsv_shouldReadWithSemicolonDelimiter(@TempDir Path tempDir) throws IOException {
         Path file = tempDir.resolve("modulation_semicolon.csv");
-        String content = "date;Col1;Col2\n" +
-                "2026-01-01;12,5;42.0\n" +
-                "2026-01-02;13,5;43.0\n";
+        String content = """
+                            date;Col1;Col2
+                            2026-01-01;12,5;42.0
+                            2026-01-02;13,5;43.0
+                         """;
         Files.writeString(file, content);
 
         TimeSeriesMatrix matrix = timeSeriesReader.readColumnFromCsv(file, "Col1");
@@ -439,9 +443,11 @@ class TimeSeriesReaderTest {
     @Test
     void readColumnFromCsv_shouldReadMultipleColumnsGivenAsList(@TempDir Path tempDir) throws IOException {
         Path file = tempDir.resolve("MB_MC_modulation_list.csv");
-        String content = "DATE_HEURE,Gas,H2,Other\n" +
-                "01/07/2028 00:00,0.81,\"0,67\",10.0\n" +
-                "01/07/2028 01:00,0.82,\"0,68\",20.0\n";
+        String content = """
+                DATE_HEURE,Gas,H2,Other
+                01/07/2028 00:00,0.81,"0,67",10.0
+                01/07/2028 01:00,0.82,"0,68",20.0
+                """;
         Files.writeString(file, content);
 
         TimeSeriesMatrix matrix = timeSeriesReader.readColumnFromCsv(file, List.of("H2", "Gas"));
