@@ -563,7 +563,7 @@ class ConstraintMeFileProcessorServiceImplTest {
             service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1)
         );
         
-        assertTrue(exception.getMessage().contains("does not exist in study areas"));
+        assertTrue(exception.getMessage().contains("does not exist in the AREA trajectory"));
     }
 
     @Test
