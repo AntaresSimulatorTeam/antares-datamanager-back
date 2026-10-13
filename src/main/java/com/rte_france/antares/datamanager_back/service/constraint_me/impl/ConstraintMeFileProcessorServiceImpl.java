@@ -61,7 +61,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private static final String MSG_CONFIG_INCOMPLETE = "Antares path configuration is incomplete";
     private static final String MSG_PATH_TRAVERSAL = "Path is outside of the target directory";
     private static final String MSG_MISSING_TABS = "Missing tab {0} in CONSTRAINTS_ME trajectory {1}";
-    private static final String MSG_AREA_NOT_IN_STUDY = "Area {0} in group {1} does not exist in study areas";
+    private static final String MSG_AREA_NOT_IN_STUDY = "Area {0} in group {1} does not exist in the AREA trajectory";
     private static final String MSG_TAB_EMPTY = "{0} Tab cant be empty in CONSTRAINTS_ME trajectory {1}";
     private static final String MSG_COLUMN_EMPTY = "{0} column in listArea_desc tab can't be empty in CONSTRAINTS_ME trajectory {1}";
     private static final String ENABLED_VALUE = "YES";
