@@ -1503,4 +1503,119 @@ class ThermalPropertiesAssemblerServiceTest {
         ThermalMEClusterGenerationDto dto2 = result.get("FR_GAS_2");
         assertThat(dto2.getTsList()).containsExactly("arrow_mc_2.arrow", "arrow_cm_2.arrow");
     }
+
+    @Test
+    void extractCommonParams_skipsNonNullTechnology() {
+        // given
+        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
+        ThermalClusterRef refWithTech = ThermalClusterRef.builder().name("Gas1").thermalTechnology(tech).build();
+        ThermalClusterRef refWithoutTech = ThermalClusterRef.builder().name("Gas1").thermalTechnology(null).build();
+
+        var commonWithTech = params(refWithTech, 0.9, 1, 1, 0.33, 1.0);
+        var commonWithoutTech = params(refWithoutTech, 0.40, 3, 2, 0.415, 7.2);
+
+        var commonTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(commonWithTech, commonWithoutTech))
+                .build();
+
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(refWithoutTech, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(refWithoutTech, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+
+        // then
+        var key = new AreaClusterRefKey("FR", refWithoutTech);
+        assertThat(out).containsKey(key);
+        var dto = out.get(key);
+        // minStablePower should be computed from commonWithoutTech (0.40 * 100 = 40.0), not commonWithTech (0.9 * 100 = 90.0)
+        assertThat(dto.getMinStablePower()).isEqualTo(40.0);
+    }
+
+    @Test
+    void extractThermalCapacitiesByAreaClusterRef_whenSpecificTrajectoryExists_filtersGlobalCapacitiesForThatTechnologyAndArea() {
+        // given
+        ThermalTechnology techCcgt = ThermalTechnology.builder().name("CCGT").build();
+        ThermalTechnology techNuclear = ThermalTechnology.builder().name("NUCLEAR").build();
+
+        ThermalClusterRef refCcgtGlobal = ThermalClusterRef.builder().name("CCGT_old").thermalTechnology(techCcgt).build();
+        ThermalClusterRef refCcgtSpecific = ThermalClusterRef.builder().name("CCGT_new").thermalTechnology(techCcgt).build();
+        ThermalClusterRef refNuclear = ThermalClusterRef.builder().name("NUC_1").thermalTechnology(techNuclear).build();
+        ThermalClusterRef refCcgtBe = ThermalClusterRef.builder().name("CCGT_BE").thermalTechnology(techCcgt).build();
+
+        // Global capacity trajectory (technology = null) containing:
+        // - FR / CCGT (should be filtered out because a specific CCGT trajectory exists for FR)
+        // - FR / NUCLEAR (should be kept because no specific NUCLEAR trajectory exists for FR)
+        // - BE / CCGT (should be kept because no specific CCGT trajectory exists for BE)
+        var globalCapTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .technology(null)
+                .area(null)
+                .thermalClusterCapacities(List.of(
+                        cap(refCcgtGlobal, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(refCcgtGlobal, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(refNuclear, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(refNuclear, CategoryEnum.POWER, 200.0, true).toBuilder().area("FR").build(),
+                        cap(refCcgtBe, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("BE").build(),
+                        cap(refCcgtBe, CategoryEnum.POWER, 300.0, true).toBuilder().area("BE").build()
+                ))
+                .build();
+
+        // Specific capacity trajectory for FR with technology "CCGT"
+        var specificCapTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .technology("CCGT")
+                .area("FR")
+                .thermalClusterCapacities(List.of(
+                        cap(refCcgtSpecific, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build(),
+                        cap(refCcgtSpecific, CategoryEnum.POWER, 400.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // when
+        var result = ThermalPropertiesAssemblerServiceImpl.extractThermalCapacitiesByAreaClusterRef(
+                List.of(globalCapTraj, specificCapTraj)
+        );
+
+        // then
+        // FR - CCGT_old (global) was filtered out
+        assertThat(result).doesNotContainKey(new AreaClusterRefKey("FR", refCcgtGlobal));
+        // FR - CCGT_new (specific) was kept
+        assertThat(result).containsKey(new AreaClusterRefKey("FR", refCcgtSpecific));
+        // FR - NUC_1 (global, but technology NUCLEAR has no specific trajectory) was kept
+        assertThat(result).containsKey(new AreaClusterRefKey("FR", refNuclear));
+        // BE - CCGT_BE (global, area BE has no specific trajectory) was kept
+        assertThat(result).containsKey(new AreaClusterRefKey("BE", refCcgtBe));
+    }
+
+    @Test
+    void extractThermalCapacitiesByAreaClusterRef_whenOnlyGlobalTrajectories_keepsAllCapacities() {
+        // given
+        ThermalTechnology techCcgt = ThermalTechnology.builder().name("CCGT").build();
+        ThermalClusterRef refCcgt = ThermalClusterRef.builder().name("CCGT_1").thermalTechnology(techCcgt).build();
+
+        var globalCapTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .technology(null)
+                .thermalClusterCapacities(List.of(
+                        cap(refCcgt, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(refCcgt, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        // when
+        var result = ThermalPropertiesAssemblerServiceImpl.extractThermalCapacitiesByAreaClusterRef(List.of(globalCapTraj));
+
+        // then
+        assertThat(result).containsKey(new AreaClusterRefKey("FR", refCcgt));
+        assertThat(result.get(new AreaClusterRefKey("FR", refCcgt))).hasSize(2);
+    }
 }
