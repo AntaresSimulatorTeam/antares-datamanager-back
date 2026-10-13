@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalContr
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalCommonParamColumns;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,9 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.REQUIRED_COMMON_PARAM_HEADER_COLUMNS;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
-import static com.rte_france.antares.datamanager_back.util.Utils.isSameFileWithDifferentContent;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
@@ -776,8 +775,9 @@ class ThermalFileProcessorServiceImplTest {
 
     private static void createHeader(XSSFSheet sheet) {
         var header = sheet.createRow(4);
-        for (int i = 0; i < REQUIRED_COMMON_PARAM_HEADER_COLUMNS.size(); i++) {
-            header.createCell(i).setCellValue(REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i));
+        var allColumnNames = ThermalCommonParamColumns.getAllColumnNames();
+        for (int i = 0; i < allColumnNames.size(); i++) {
+            header.createCell(i).setCellValue(allColumnNames.get(i));
         }
     }
 
