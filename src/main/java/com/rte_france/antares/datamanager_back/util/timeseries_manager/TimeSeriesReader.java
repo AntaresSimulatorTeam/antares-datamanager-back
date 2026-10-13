@@ -50,6 +50,7 @@ import javax.xml.parsers.ParserConfigurationException;
 public final class TimeSeriesReader {
   private static final int MAX_ROWS_PER_YEAR = 8784;
   private static final String COLUMN_PREFIX = "Column";
+  private static final String CSV_BOM = "\uFEFF";
 
   public TimeSeriesMatrix readFromTxt(Path filePath) throws IOException {
     return readFromTxt(filePath, true);
@@ -77,7 +78,7 @@ public final class TimeSeriesReader {
       } else {
         // Peek at the first line to determine a separator without consuming it if possible,
         // clean the first line to remove BOM if present "\uFEFF"
-        var firstLine = allLines.get(0).replace("\uFEFF", "").trim();
+        var firstLine = allLines.get(0).replace(CSV_BOM, "").trim();
         separator = firstLine.contains(";") ? ";" : "\\s+";
         var firstLineValues = firstLine.split(separator);
         headerValues = new String[firstLineValues.length];
@@ -153,7 +154,7 @@ public final class TimeSeriesReader {
       }
 
       var iterator = allLines.iterator();
-      var firstLine = iterator.next().replace("\uFEFF", "").trim();
+      var firstLine = iterator.next().replace(CSV_BOM, "").trim();
       char delimiter = detectDelimiter(firstLine);
       List<String> headerTokens = parseCsvLine(firstLine, delimiter);
 
@@ -169,7 +170,7 @@ public final class TimeSeriesReader {
       }
 
       for (int rowIndex = 0; iterator.hasNext() && rowIndex < actualRows; rowIndex++) {
-        String line = iterator.next().replace("\uFEFF", "").trim();
+        String line = iterator.next().replace(CSV_BOM, "").trim();
         if (line.isEmpty()) {
           continue;
         }
@@ -406,7 +407,7 @@ public final class TimeSeriesReader {
   private static void fillDataList(Iterator<String> iterator, double[][] data, String separator) {
     var rowLimit = data.length > 0 ? data[0].length : 0;
     for (var rowIndex = 0; iterator.hasNext() && rowIndex < rowLimit; rowIndex++) {
-      String line = iterator.next().replace("\uFEFF", "").trim();
+      String line = iterator.next().replace(CSV_BOM, "").trim();
       String[] values = line.split(separator);
       for (var j = 0; j < values.length && j < data.length; j++) {
         data[j][rowIndex] = parseStringNumber(values[j]);
@@ -586,10 +587,12 @@ public final class TimeSeriesReader {
         throw TechnicalException.builder().message("Excel sheet is empty").build();
       }
 
-      var columns = new ArrayList<TimeSeriesMatrixColumn>(selectedHeaders.size());
-      for (Map.Entry<Integer, String> entry : selectedHeaders.entrySet()) {
-        columns.add(new TimeSeriesMatrixColumn(entry.getValue(), toPrimitiveArray(dataByColumnIndex.get(entry.getKey()))));
-      }
+      var columns = selectedHeaders.entrySet().stream()
+              .map(entry -> new TimeSeriesMatrixColumn(
+                      entry.getValue(),
+                      toPrimitiveArray(dataByColumnIndex.get(entry.getKey()))
+              ))
+              .collect(Collectors.toCollection(ArrayList::new));
       return new TimeSeriesMatrix(columns);
     }
   }
@@ -618,10 +621,12 @@ public final class TimeSeriesReader {
   }
 
   private static TimeSeriesMatrix buildMatrix(Map<Integer, String> headers, Map<Integer, double[]> dataByColIndex) {
-    List<TimeSeriesMatrixColumn> columns = new ArrayList<>(headers.size());
-    for (Map.Entry<Integer, String> entry : headers.entrySet()) {
-      columns.add(new TimeSeriesMatrixColumn(entry.getValue(), dataByColIndex.get(entry.getKey())));
-    }
+    List<TimeSeriesMatrixColumn> columns = headers.entrySet().stream()
+            .map(entry -> new TimeSeriesMatrixColumn(
+                    entry.getValue(),
+                    dataByColIndex.get(entry.getKey())
+            ))
+            .collect(Collectors.toCollection(ArrayList::new));
     return new TimeSeriesMatrix(columns);
   }
 

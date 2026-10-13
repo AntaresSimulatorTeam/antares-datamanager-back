@@ -1362,8 +1362,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         assertThat(studyMap).containsKey("p2g");
         Map<String, Object> p2g = mapper.convertValue(studyMap.get("p2g"), new TypeReference<>() {});
-        assertThat(p2g).containsKeys("market_modulation", "base", "marg", "methanation", "asservi");
-        assertThat(p2g).containsEntry("market_modulation", "MB_MC_modulation_FE60_liv_same_2027.arrow");
+        assertThat(p2g).containsKeys("market_modulation", "base", "marg", "methanation", "asservi").containsEntry("market_modulation", "MB_MC_modulation_FE60_liv_same_2027.arrow");
 
         Map<String, Object> base = mapper.convertValue(p2g.get("base"), new TypeReference<>() {});
         Map<String, Object> baseLinks = mapper.convertValue(base.get("links"), new TypeReference<>() {});
