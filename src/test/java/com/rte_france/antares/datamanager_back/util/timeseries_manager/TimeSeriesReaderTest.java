@@ -388,4 +388,97 @@ class TimeSeriesReaderTest {
 
         assertThrows(TechnicalException.class, () -> timeSeriesReader.listSheetNames(file));
     }
+
+    @Test
+    void readColumnFromCsv_shouldReadTargetColumnWithCommaAndQuotes(@TempDir Path tempDir) throws IOException {
+        Path file = tempDir.resolve("MB_MC_modulation.csv");
+        String content = "DATE_HEURE,Gas,H2\n" +
+                "01/07/2028 00:00,0.81,\"0,67\"\n" +
+                "01/07/2028 01:00,0.82,\"0,68\"\n";
+        Files.writeString(file, content);
+
+        TimeSeriesMatrix matrixH2 = timeSeriesReader.readColumnFromCsv(file, "H2");
+        assertEquals(1, matrixH2.columns().size());
+        assertEquals("H2", matrixH2.columns().getFirst().name());
+        assertEquals(2, matrixH2.getRowCount());
+        assertEquals(0.67, matrixH2.columns().getFirst().values()[0], 1e-6);
+        assertEquals(0.68, matrixH2.columns().getFirst().values()[1], 1e-6);
+
+        TimeSeriesMatrix matrixGas = timeSeriesReader.readColumnFromCsv(file, "gas");
+        assertEquals(1, matrixGas.columns().size());
+        assertEquals("Gas", matrixGas.columns().getFirst().name());
+        assertEquals(0.81, matrixGas.columns().getFirst().values()[0], 1e-6);
+        assertEquals(0.82, matrixGas.columns().getFirst().values()[1], 1e-6);
+    }
+
+    @Test
+    void readColumnFromCsv_shouldReadWithSemicolonDelimiter(@TempDir Path tempDir) throws IOException {
+        Path file = tempDir.resolve("modulation_semicolon.csv");
+        String content = "date;Col1;Col2\n" +
+                "2026-01-01;12,5;42.0\n" +
+                "2026-01-02;13,5;43.0\n";
+        Files.writeString(file, content);
+
+        TimeSeriesMatrix matrix = timeSeriesReader.readColumnFromCsv(file, "Col1");
+        assertEquals(1, matrix.columns().size());
+        assertEquals("Col1", matrix.columns().getFirst().name());
+        assertEquals(2, matrix.getRowCount());
+        assertEquals(12.5, matrix.columns().getFirst().values()[0], 1e-6);
+        assertEquals(13.5, matrix.columns().getFirst().values()[1], 1e-6);
+    }
+
+    @Test
+    void readColumnFromCsv_shouldReturnEmptyMatrixWhenColumnNotFound(@TempDir Path tempDir) throws IOException {
+        Path file = tempDir.resolve("modulation.csv");
+        Files.writeString(file, "ColA,ColB\n1.0,2.0\n");
+
+        TimeSeriesMatrix matrix = timeSeriesReader.readColumnFromCsv(file, "ColC");
+        assertTrue(matrix.columns().isEmpty());
+    }
+
+    @Test
+    void readColumnFromCsv_shouldReadMultipleColumnsGivenAsList(@TempDir Path tempDir) throws IOException {
+        Path file = tempDir.resolve("MB_MC_modulation_list.csv");
+        String content = "DATE_HEURE,Gas,H2,Other\n" +
+                "01/07/2028 00:00,0.81,\"0,67\",10.0\n" +
+                "01/07/2028 01:00,0.82,\"0,68\",20.0\n";
+        Files.writeString(file, content);
+
+        TimeSeriesMatrix matrix = timeSeriesReader.readColumnFromCsv(file, List.of("H2", "Gas"));
+        assertEquals(2, matrix.columns().size());
+        assertEquals("Gas", matrix.columns().get(0).name());
+        assertEquals("H2", matrix.columns().get(1).name());
+        assertEquals(0.81, matrix.columns().get(0).values()[0], 1e-6);
+        assertEquals(0.82, matrix.columns().get(0).values()[1], 1e-6);
+        assertEquals(0.67, matrix.columns().get(1).values()[0], 1e-6);
+        assertEquals(0.68, matrix.columns().get(1).values()[1], 1e-6);
+    }
+
+    @Test
+    void readSelectedColumnsFromCsv_shouldReturnRequestedColumnsOnly(@TempDir Path tempDir) throws IOException {
+        Path file = tempDir.resolve("multi_columns.csv");
+        Files.writeString(file, "Col1,Col2,Col3\n1.0,2.0,3.0\n4.0,5.0,6.0\n");
+
+        TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromCsv(file, Set.of("Col1", "Col3"));
+        assertEquals(2, matrix.columns().size());
+        assertEquals("Col1", matrix.columns().get(0).name());
+        assertEquals("Col3", matrix.columns().get(1).name());
+        assertEquals(1.0, matrix.columns().get(0).values()[0]);
+        assertEquals(3.0, matrix.columns().get(1).values()[0]);
+    }
+
+    @Test
+    void readColumnFromCsv_shouldThrowWhenFileEmpty(@TempDir Path tempDir) throws IOException {
+        Path file = tempDir.resolve("empty.csv");
+        Files.createFile(file);
+
+        assertThrows(TechnicalException.class, () -> timeSeriesReader.readColumnFromCsv(file, "Col1"));
+    }
+
+    @Test
+    void readColumnFromCsv_shouldThrowWhenFileNotFound(@TempDir Path tempDir) {
+        Path file = tempDir.resolve("not_found.csv");
+
+        assertThrows(TechnicalException.class, () -> timeSeriesReader.readColumnFromCsv(file, "Col1"));
+    }
 }

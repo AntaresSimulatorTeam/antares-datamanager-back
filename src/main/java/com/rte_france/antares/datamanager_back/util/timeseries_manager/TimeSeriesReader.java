@@ -29,14 +29,16 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -56,17 +58,7 @@ public final class TimeSeriesReader {
   public TimeSeriesMatrix readFromTxt(Path filePath, boolean hasHeader) throws IOException {
     Objects.requireNonNull(filePath);
 
-    Path parent = filePath.getParent();
-    String filename = filePath.getFileName().toString();
-
-    Path actualPath;
-
-    try (Stream<Path> files = Files.list(parent)) {
-      actualPath = files
-              .filter(p -> p.getFileName().toString().equalsIgnoreCase(filename))
-              .findFirst()
-              .orElseThrow(() -> new IOException(filename));
-    }
+    Path actualPath = resolveExistingPath(filePath);
 
     try (var lines = Files.lines(actualPath)) {
       var allLines = lines.toList();
@@ -111,6 +103,92 @@ public final class TimeSeriesReader {
   }
 
   /**
+   * Reads columns from a CSV file and produces a TimeSeriesMatrix.
+   *
+   * @param filePath    path to the CSV file
+   * @param columnNames names of the columns to extract
+   * @return TimeSeriesMatrix containing the requested columns, or empty matrix if not found
+   * @throws IOException on I/O error
+   */
+  public TimeSeriesMatrix readColumnFromCsv(Path filePath, List<String> columnNames) throws IOException {
+    Objects.requireNonNull(columnNames, "columnNames must not be null");
+    return readSelectedColumnsFromCsv(filePath, new LinkedHashSet<>(columnNames));
+  }
+
+  /**
+   * Reads a single column from a CSV file and produces a TimeSeriesMatrix.
+   *
+   * @param filePath   path to the CSV file
+   * @param columnName name of the column to extract
+   * @return TimeSeriesMatrix containing the requested column, or empty matrix if not found
+   * @throws IOException on I/O error
+   */
+  public TimeSeriesMatrix readColumnFromCsv(Path filePath, String columnName) throws IOException {
+    Objects.requireNonNull(columnName, "columnName must not be null");
+    return readColumnFromCsv(filePath, List.of(columnName));
+  }
+
+  /**
+   * Reads selected columns from a CSV file and produces a TimeSeriesMatrix.
+   *
+   * @param filePath             path to the CSV file
+   * @param requiredColumnNames  names of the columns to extract (case-insensitive)
+   * @return TimeSeriesMatrix containing the requested columns
+   * @throws IOException on I/O error
+   */
+  public TimeSeriesMatrix readSelectedColumnsFromCsv(Path filePath, Set<String> requiredColumnNames) throws IOException {
+    Objects.requireNonNull(filePath, "filePath must not be null");
+
+    Set<String> requiredLower = normalizeRequiredColumnNames(requiredColumnNames);
+    if (requiredLower.isEmpty()) {
+      return new TimeSeriesMatrix(List.of());
+    }
+
+    Path actualPath = resolveExistingPath(filePath);
+
+    try (var lines = Files.lines(actualPath)) {
+      var allLines = lines.toList();
+      if (allLines.isEmpty()) {
+        throw TechnicalException.builder().message("File is empty").build();
+      }
+
+      var iterator = allLines.iterator();
+      var firstLine = iterator.next().replace("\uFEFF", "").trim();
+      char delimiter = detectDelimiter(firstLine);
+      List<String> headerTokens = parseCsvLine(firstLine, delimiter);
+
+      Map<Integer, String> selectedHeaders = filterSelectedHeaders(headerTokens, requiredLower);
+      if (selectedHeaders.isEmpty()) {
+        return new TimeSeriesMatrix(List.of());
+      }
+
+      int actualRows = Math.min(MAX_ROWS_PER_YEAR, allLines.size() - 1);
+      Map<Integer, double[]> dataByColIndex = new HashMap<>();
+      for (Integer colIdx : selectedHeaders.keySet()) {
+        dataByColIndex.put(colIdx, new double[actualRows]);
+      }
+
+      for (int rowIndex = 0; iterator.hasNext() && rowIndex < actualRows; rowIndex++) {
+        String line = iterator.next().replace("\uFEFF", "").trim();
+        if (line.isEmpty()) {
+          continue;
+        }
+        List<String> values = parseCsvLine(line, delimiter);
+        for (Map.Entry<Integer, double[]> entry : dataByColIndex.entrySet()) {
+          int colIdx = entry.getKey();
+          if (colIdx < values.size()) {
+            entry.getValue()[rowIndex] = parseStringNumber(values.get(colIdx));
+          } else {
+            entry.getValue()[rowIndex] = 0.0;
+          }
+        }
+      }
+
+      return buildMatrix(selectedHeaders, dataByColIndex);
+    }
+  }
+
+  /**
    * Reads a time series matrix from the specified sheet of an Excel file (.xlsx).
    * Each column in the sheet is interpreted as a series, and up to 8784 rows are read
    * (366 days x 24 hours, for leap years -> regular years only use 8760).
@@ -143,15 +221,7 @@ public final class TimeSeriesReader {
       throws IOException {
     Objects.requireNonNull(xlsxPath);
 
-    Set<String> requiredLower = requiredColumnNames == null
-        ? Set.of()
-        : requiredColumnNames.stream()
-            .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .map(s -> s.toLowerCase(Locale.ROOT))
-            .collect(Collectors.toSet());
-
+    Set<String> requiredLower = normalizeRequiredColumnNames(requiredColumnNames);
     if (requiredLower.isEmpty()) {
       return new TimeSeriesMatrix(List.of());
     }
@@ -223,6 +293,27 @@ public final class TimeSeriesReader {
     }
   }
 
+  private static Path resolveExistingPath(Path filePath) throws IOException {
+    Objects.requireNonNull(filePath);
+    if (Files.exists(filePath)) {
+      return filePath;
+    }
+    Path parent = filePath.getParent();
+    if (parent != null && Files.exists(parent)) {
+      String filename = filePath.getFileName().toString();
+      try (Stream<Path> files = Files.list(parent)) {
+        Optional<Path> match = files
+            .filter(p -> p.getFileName().toString().equalsIgnoreCase(filename))
+            .findFirst();
+        if (match.isPresent()) {
+          return match.get();
+        }
+      }
+    }
+    requireFileExists(filePath);
+    return filePath;
+  }
+
   private static void requireFileExists(Path xlsxPath) {
     if (!Files.exists(xlsxPath)) {
       throw TechnicalException.builder()
@@ -258,12 +349,52 @@ public final class TimeSeriesReader {
         .build();
   }
 
+  private static char detectDelimiter(String line) {
+    if (line.contains(";")) {
+      return ';';
+    } else if (line.contains(",")) {
+      return ',';
+    } else if (line.contains("\t")) {
+      return '\t';
+    }
+    return ' ';
+  }
+
+  private static List<String> parseCsvLine(String line, char delimiter) {
+    if (delimiter == ' ') {
+      return Arrays.asList(line.split("\\s+"));
+    }
+    List<String> tokens = new ArrayList<>();
+    StringBuilder sb = new StringBuilder();
+    boolean inQuotes = false;
+    for (int i = 0; i < line.length(); i++) {
+      char c = line.charAt(i);
+      if (c == '"') {
+        inQuotes = !inQuotes;
+      } else if (c == delimiter && !inQuotes) {
+        tokens.add(sb.toString().trim());
+        sb.setLength(0);
+      } else {
+        sb.append(c);
+      }
+    }
+    tokens.add(sb.toString().trim());
+    return tokens;
+  }
+
+  private static String unquote(String s) {
+    if (s != null && s.startsWith("\"") && s.endsWith("\"") && s.length() >= 2) {
+      return s.substring(1, s.length() - 1).trim();
+    }
+    return s;
+  }
+
   /**
    * Parses string to double, handling null/empty/format errors
    */
   private static double parseStringNumber(String s) {
     if (s == null) return 0.0;
-    s = s.trim();
+    s = unquote(s.trim());
     if (s.isEmpty()) return 0.0;
     try {
       return Double.parseDouble(s.replace(',', '.'));
@@ -381,10 +512,7 @@ public final class TimeSeriesReader {
         throw TechnicalException.builder().message("Excel sheet is empty").build();
       var columns = new ArrayList<TimeSeriesMatrixColumn>(headerNames.size());
       for (int i = 0; i < headerNames.size(); i++) {
-        List<Double> vals = columnData.get(i);
-        double[] arr = new double[vals.size()];
-        for (int j = 0; j < arr.length; j++) arr[j] = vals.get(j);
-        columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), arr));
+        columns.add(new TimeSeriesMatrixColumn(headerNames.get(i), toPrimitiveArray(columnData.get(i))));
       }
       return new TimeSeriesMatrix(columns);
     }
@@ -445,11 +573,8 @@ public final class TimeSeriesReader {
 
     private void initializeSelectedHeaders() {
       for (Map.Entry<Integer, String> entry : currentRowValues.entrySet()) {
-        String header = entry.getValue() != null ? entry.getValue().trim() : "";
-        if (header.isEmpty()) {
-          continue;
-        }
-        if (requiredLower.contains(header.toLowerCase(Locale.ROOT))) {
+        String header = entry.getValue() != null ? unquote(entry.getValue().trim()) : "";
+        if (!header.isEmpty() && requiredLower.contains(header.toLowerCase(Locale.ROOT))) {
           selectedHeaders.put(entry.getKey(), header);
           dataByColumnIndex.put(entry.getKey(), new ArrayList<>(MAX_ROWS_PER_YEAR));
         }
@@ -463,14 +588,51 @@ public final class TimeSeriesReader {
 
       var columns = new ArrayList<TimeSeriesMatrixColumn>(selectedHeaders.size());
       for (Map.Entry<Integer, String> entry : selectedHeaders.entrySet()) {
-        List<Double> values = dataByColumnIndex.get(entry.getKey());
-        double[] doubleValues = new double[values.size()];
-        for (int i = 0; i < values.size(); i++) {
-          doubleValues[i] = values.get(i);
-        }
-        columns.add(new TimeSeriesMatrixColumn(entry.getValue(), doubleValues));
+        columns.add(new TimeSeriesMatrixColumn(entry.getValue(), toPrimitiveArray(dataByColumnIndex.get(entry.getKey()))));
       }
       return new TimeSeriesMatrix(columns);
     }
+  }
+
+  private static Set<String> normalizeRequiredColumnNames(Set<String> requiredColumnNames) {
+    if (requiredColumnNames == null) {
+      return Set.of();
+    }
+    return requiredColumnNames.stream()
+        .filter(Objects::nonNull)
+        .map(String::trim)
+        .filter(s -> !s.isEmpty())
+        .map(s -> s.toLowerCase(Locale.ROOT))
+        .collect(Collectors.toSet());
+  }
+
+  private static Map<Integer, String> filterSelectedHeaders(List<String> headerTokens, Set<String> requiredLower) {
+    Map<Integer, String> selectedHeaders = new LinkedHashMap<>();
+    for (int i = 0; i < headerTokens.size(); i++) {
+      String rawHeader = unquote(headerTokens.get(i).trim());
+      if (!rawHeader.isEmpty() && requiredLower.contains(rawHeader.toLowerCase(Locale.ROOT))) {
+        selectedHeaders.put(i, rawHeader);
+      }
+    }
+    return selectedHeaders;
+  }
+
+  private static TimeSeriesMatrix buildMatrix(Map<Integer, String> headers, Map<Integer, double[]> dataByColIndex) {
+    List<TimeSeriesMatrixColumn> columns = new ArrayList<>(headers.size());
+    for (Map.Entry<Integer, String> entry : headers.entrySet()) {
+      columns.add(new TimeSeriesMatrixColumn(entry.getValue(), dataByColIndex.get(entry.getKey())));
+    }
+    return new TimeSeriesMatrix(columns);
+  }
+
+  private static double[] toPrimitiveArray(List<Double> values) {
+    if (values == null) {
+      return new double[0];
+    }
+    double[] arr = new double[values.size()];
+    for (int i = 0; i < arr.length; i++) {
+      arr[i] = values.get(i);
+    }
+    return arr;
   }
 }

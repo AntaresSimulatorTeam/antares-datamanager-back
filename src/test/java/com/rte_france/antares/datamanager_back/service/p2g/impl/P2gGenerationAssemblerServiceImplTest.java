@@ -16,7 +16,11 @@ import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCostEntit
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParametersEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
 import com.rte_france.antares.datamanager_back.service.adequacy.impl.AdequacySettingsAssemblerServiceImpl;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +38,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -45,7 +52,9 @@ class P2gGenerationAssemblerServiceImplTest {
     @Mock private P2GParametersRepository p2gParametersRepository;
     @Mock private ResGenerationAssemblerService resGenerationAssemblerService;
     @Mock private AdequacySettingsAssemblerService adequacySettingsAssemblerService;
+    @Mock private NasFileService nasFileService;
     @Mock private AntaresDataManagerProperties properties;
+    @Mock private TimeSeriesReader timeSeriesReader;
 
     private P2gGenerationAssemblerServiceImpl assembler;
 
@@ -55,16 +64,26 @@ class P2gGenerationAssemblerServiceImplTest {
     private final TrajectoryEntity marketModulationTrajectory = trajectory(2, "FE60_liv_same");
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         assembler = new P2gGenerationAssemblerServiceImpl(
                 p2gCapacityRepository, p2gCostRepository, p2gParametersRepository, resGenerationAssemblerService,
-                adequacySettingsAssemblerService, properties);
+                adequacySettingsAssemblerService, nasFileService, properties, timeSeriesReader);
 
         lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl()
                         .resolveMode(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
                 .when(adequacySettingsAssemblerService).resolveMode(any(), any(), any());
 
+        when(properties.getNasDirectory()).thenReturn("/nas");
+        when(properties.getTrajectoryFilePath()).thenReturn("input");
         when(properties.getP2gMarketModulationDirectory()).thenReturn("thermal/economic parameters/market_bid_marg_cost_modulation");
+        when(properties.getThermalMeModulationOutputDirectory()).thenReturn("output/thermal_me");
+
+        TimeSeriesMatrix modulationMatrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("H2", new double[]{0.67, 0.67}),
+                new TimeSeriesMatrixColumn("Gaz", new double[]{0.81, 0.81})
+        ));
+        when(timeSeriesReader.readColumnFromCsv(any(), anyList())).thenReturn(modulationMatrix);
+        when(nasFileService.saveMatrixToNas(eq(modulationMatrix), any(), any())).thenReturn("MB_MC_modulation_FE60_liv_same_2027.arrow");
 
         when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
                 capacity("AT", 2.0, 100.0, 90.0, 50.0, 30.0, 20.0),
@@ -91,13 +110,7 @@ class P2gGenerationAssemblerServiceImplTest {
     void assembleP2g_happyPath_shouldBuildCorrectDto() {
         P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
 
-        String expectedPath = Paths.get(
-                "thermal/economic parameters/market_bid_marg_cost_modulation",
-                "FE60_liv_same",
-                "MB_MC_modulation_FE60_liv_same_2027.csv"
-        ).toString();
-        assertThat(dto.marketModulation()).isEqualTo(expectedPath);
-
+        assertThat(dto.marketModulation()).isEqualTo("MB_MC_modulation_FE60_liv_same_2027.arrow");
         assertBaseCluster(dto);
         assertMargCluster(dto);
         assertMethanationCluster(dto);
@@ -130,12 +143,14 @@ class P2gGenerationAssemblerServiceImplTest {
     private static void assertMethanationCluster(P2gGenerationDTO dto) {
         assertThat(dto.methanation().properties().nominalCapacity()).isEqualTo(40.0);
         assertThat(dto.methanation().properties().adequacyPatchMode()).isNull();
+        assertThat(dto.methanation().modulation()).isEqualTo("H2");
         assertThat(dto.methanation().links()).hasSize(2);
     }
 
     private static void assertAsserviCluster(P2gGenerationDTO dto) {
         assertThat(dto.asservi().properties().nominalCapacity()).isEqualTo(20.0);
         assertThat(dto.asservi().properties().adequacyPatchMode()).isNull();
+        assertThat(dto.asservi().modulation()).isEqualTo("H2");
         assertThat(dto.asservi().links()).hasSize(1);
         assertThat(dto.asservi().links()).doesNotContainKey("BE");
         assertThat(dto.asservi().parameters().fcElectrolyseur()).isEqualTo(0.5);
@@ -235,6 +250,45 @@ class P2gGenerationAssemblerServiceImplTest {
                     TechnicalException te = (TechnicalException) ex;
                     assertThat(te.getMessage()).contains("Duplicate P2G cost entry found for type {0} in trajectory {1}");
                     assertThat(te.getErrorMessageArguments()).containsExactly("Base", "P2G_traj");
+                });
+    }
+
+    @Test
+    void assembleP2g_whenNoModulationSpecified_shouldNotGenerateArrow() {
+        when(p2gCostRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                cost("Base", null, 78.0),
+                cost("Marginal", "", 78.0),
+                cost("Methanation", null, 78.0),
+                cost("Asservi", null, 78.0)
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        assertThat(dto.marketModulation()).isNull();
+    }
+
+    @Test
+    void assembleP2g_shouldThrowBusinessException_whenModulationColumnNotFound() throws Exception {
+        when(timeSeriesReader.readColumnFromCsv(any(), anyList())).thenReturn(new TimeSeriesMatrix(List.of()));
+
+        assertThatThrownBy(() -> assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getMessage()).contains("Column {0} not found in file {1} for P2G market modulation trajectory {2}");
+                    assertThat(be.getErrorMessageArguments()).containsExactly("H2, Gaz", "MB_MC_modulation_FE60_liv_same_2027.csv", "FE60_liv_same");
+                });
+    }
+
+    @Test
+    void assembleP2g_shouldThrowTechnicalException_whenTimeSeriesReaderThrowsIOException() throws Exception {
+        when(timeSeriesReader.readColumnFromCsv(any(), anyList())).thenThrow(new IOException("Disk error"));
+
+        assertThatThrownBy(() -> assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory))
+                .isInstanceOf(TechnicalException.class)
+                .satisfies(ex -> {
+                    TechnicalException te = (TechnicalException) ex;
+                    assertThat(te.getMessage()).contains("Failed to read and save P2G market modulation matrix");
                 });
     }
 
