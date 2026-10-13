@@ -1341,7 +1341,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Collections.emptyMap());
 
         var p2gDto = new P2gGenerationDTO(
-                "FE60_liv_same/MB_MC_modulation_FE60_liv_same_2027.csv",
+                "MB_MC_modulation_FE60_liv_same_2027.arrow",
                 new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(140.0, 78.0, "inside", "4000.0", "0.0"), "H2",
                         Map.of("AT", new P2gClusterGenerationDTO.Link(90.0, 2.0)), null),
                 new P2gClusterGenerationDTO(new P2gPropertiesGenerationDTO(50.0, 78.0, null, "4000.0", "0.0"), "Gaz",
@@ -1363,6 +1363,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         assertThat(studyMap).containsKey("p2g");
         Map<String, Object> p2g = mapper.convertValue(studyMap.get("p2g"), new TypeReference<>() {});
         assertThat(p2g).containsKeys("market_modulation", "base", "marg", "methanation", "asservi");
+        assertThat(p2g).containsEntry("market_modulation", "MB_MC_modulation_FE60_liv_same_2027.arrow");
 
         Map<String, Object> base = mapper.convertValue(p2g.get("base"), new TypeReference<>() {});
         Map<String, Object> baseLinks = mapper.convertValue(base.get("links"), new TypeReference<>() {});

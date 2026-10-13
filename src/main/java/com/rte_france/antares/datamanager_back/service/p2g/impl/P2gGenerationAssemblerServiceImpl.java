@@ -18,13 +18,18 @@ import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityE
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCostEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParametersEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
+import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -67,13 +72,15 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             new ZoneCapacityColumns(P2GCapacityEntity::getMethanationCapacity, P2GCapacityEntity::getMethanationCapacity, false);
     private static final ZoneCapacityColumns ASSERVI_COLUMNS =
             new ZoneCapacityColumns(P2GCapacityEntity::getAsserviCapacity, P2GCapacityEntity::getAsserviCapacity, false);
-
+    
     private final P2GCapacityRepository p2gCapacityRepository;
     private final P2GCostRepository p2gCostRepository;
     private final P2GParametersRepository p2gParametersRepository;
     private final ResGenerationAssemblerService resGenerationAssemblerService;
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
+    private final NasFileService nasFileService;
     private final AntaresDataManagerProperties properties;
+    private final TimeSeriesReader timeSeriesReader;
 
     private record P2gRawData(List<P2GCapacityEntity> capacities, Map<String, P2GCostEntity> costsByType,
                                List<P2GParametersEntity> parameters) {}
@@ -109,8 +116,17 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         P2gClusterGenerationDTO asservi = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_ASSERVI, trajectoryName),
                 ASSERVI_COLUMNS, asserviParameters,
                 adequacySettingsAssemblerService.resolveMode(ZONE_ASSERVI, adequacyTrajectory, adequacyModeByArea).orElse(null));
+        
+        // si aucune modulation n'est spécifiée pour aucun type => pas de génération de fichier arrow
+        List<String> modulationColumns = data.costsByType().values().stream()
+                .map(P2GCostEntity::getModulation)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(m -> !m.isEmpty())
+                .distinct()
+                .toList();
 
-        String marketModulation = resolveMarketModulationPath(study, marketModulationTrajectory);
+        String marketModulation = resolveMarketModulationArrow(study, marketModulationTrajectory, modulationColumns);
 
         return new P2gGenerationDTO(marketModulation, base, marg, methanation, asservi);
     }
@@ -218,11 +234,44 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         }
     }
 
-    private String resolveMarketModulationPath(StudyEntity study, TrajectoryEntity marketModulationTrajectory) {
+    private String resolveMarketModulationArrow(StudyEntity study, TrajectoryEntity marketModulationTrajectory, List<String> columns) {
+        if (columns == null || columns.isEmpty() || marketModulationTrajectory == null) {
+            return null;
+        }
         String horizonYear = extractHorizonYear(study.getHorizon());
         String folderName = marketModulationTrajectory.getFileName();
         String fileName = P2gFilePrefixes.MODULATION_PREFIX + "_" + folderName + "_" + horizonYear + ".csv";
-        return Paths.get(properties.getP2gMarketModulationDirectory(), folderName, fileName).toString();
+
+        Path path = buildMarketModulationPath(folderName, fileName);
+        String outputDir = properties.getP2gMarketModulationOutputDirectory();
+        try {
+            TimeSeriesMatrix matrix = timeSeriesReader.readColumnFromCsv(path, columns);
+            if (matrix.columns().isEmpty()) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(String.join(", ", columns), fileName, folderName))
+                        .message("Column {0} not found in file {1} for P2G market modulation trajectory {2}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            return nasFileService.saveMatrixToNas(matrix, fileName, outputDir);
+        } catch (IOException e) {
+            throw TechnicalException.builder()
+                    .errorMessageArguments(List.of(fileName, folderName))
+                    .message("Failed to read and save P2G market modulation matrix for file {0} in trajectory {1}")
+                    .cause(e)
+                    .build();
+        }
+    }
+
+    private Path buildMarketModulationPath(String folderName, String fileName) {
+        Path path = Path.of(properties.getNasDirectory());
+        if (properties.getTrajectoryFilePath() != null && !properties.getTrajectoryFilePath().isBlank()) {
+            path = path.resolve(properties.getTrajectoryFilePath());
+        }
+        if (properties.getP2gMarketModulationDirectory() != null && !properties.getP2gMarketModulationDirectory().isBlank()) {
+            path = path.resolve(properties.getP2gMarketModulationDirectory());
+        }
+        return path.resolve(folderName).resolve(fileName);
     }
 
     private String extractHorizonYear(String horizon) {
