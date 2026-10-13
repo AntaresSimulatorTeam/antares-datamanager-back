@@ -7,11 +7,11 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.ThermalCostTypeRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModulationService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalCostAssembler;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalGroupMappingService;
-import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
 import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalPropertiesAssemblerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
@@ -1617,5 +1619,253 @@ class ThermalPropertiesAssemblerServiceTest {
         // then
         assertThat(result).containsKey(new AreaClusterRefKey("FR", refCcgt));
         assertThat(result.get(new AreaClusterRefKey("FR", refCcgt))).hasSize(2);
+    }
+
+    @Test
+    void assembleForTrajectories_whenStudyIsNull_returnsEmptyMap() {
+        assertThat(service.assembleForTrajectories(null)).isEmpty();
+    }
+
+    @Test
+    void assembleForTrajectories_whenTrajectoriesNull_throwsNPE() {
+        StudyEntity study = StudyEntity.builder().trajectories(null).build();
+        assertThrows(NullPointerException.class, () -> service.assembleForTrajectories(study));
+    }
+
+    @Test
+    void assembleForTrajectories_withModulationParamTsFiles_populatesParamModulationTsList() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        var study = StudyEntity.builder().trajectories(Set.of(capTraj)).build();
+
+        String matchingFile = "MR_BP23_T2_2022_dsr_AFL_2026-2027_FR_Gas1.csv.uuid.arrow";
+        String nonMatchingFile = "MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Gas1.csv.uuid.arrow";
+
+        when(paramModulationService.createMatrixParamModulationTsFiles(study))
+                .thenReturn(List.of(matchingFile, nonMatchingFile));
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var result = service.assembleForTrajectories(study);
+
+        // then
+        var key = new AreaClusterRefKey("FR", gasRef);
+        assertThat(result).containsKey(key);
+        assertThat(result.get(key).getParamModulationTsList()).containsExactly(matchingFile);
+    }
+
+    @Test
+    void assembleForTrajectories_withEconomicEnerContentMwhtGj_setsTrajectory() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        var enerContentMwht = ThermalEconomicEnerContentEntity.builder()
+                .unit("mwht/gj")
+                .build();
+        var enerContentOther = ThermalEconomicEnerContentEntity.builder()
+                .unit("other")
+                .build();
+
+        var econTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
+                .thermalEconomicEnerContents(List.of(enerContentOther, enerContentMwht))
+                .build();
+
+        var study = StudyEntity.builder().trajectories(Set.of(capTraj, econTraj)).build();
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var result = service.assembleForTrajectories(study);
+
+        // then
+        assertThat(result).containsKey(new AreaClusterRefKey("FR", gasRef));
+        assertThat(enerContentMwht.getTrajectory()).isSameAs(econTraj);
+    }
+
+    @Test
+    void assembleThermalMeProperties_whenIOExceptionThrown_throwsTechnicalException() throws IOException {
+        String trajectoryFileName = "traj_me_ioe";
+        Path baseDir = tempDir.resolve("nas/trajectories/thermal_me");
+        Path mcDir = baseDir.resolve("marginal_cost_modulation");
+        Files.createDirectories(mcDir);
+
+        Path mcFile = mcDir.resolve("marginal_cost_modulation_" + trajectoryFileName + ".xlsx");
+        Files.createFile(mcFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.resolve("nas").toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getThermalMeDirectory()).thenReturn("thermal_me");
+        when(antaresDataManagerProperties.getThermalMeMarginalCostModulationDirectory()).thenReturn("marginal_cost_modulation");
+
+        ThermalMeEntity entity = ThermalMeEntity.builder()
+                .node("FR")
+                .clusterName("gas_1")
+                .groupName("GAS")
+                .enabled(true)
+                .marginalCostTimestep("hourly")
+                .build();
+
+        TrajectoryEntity trajectoryEntity = TrajectoryEntity.builder()
+                .fileName(trajectoryFileName)
+                .horizon("2025-2026")
+                .thermalMeEntities(List.of(entity))
+                .build();
+
+        when(paramModulationService.createThermalMeModulationArrowFile(eq("2026"), any(), eq(mcFile), eq(trajectoryFileName)))
+                .thenThrow(new IOException("Simulated disk error"));
+
+        TechnicalException ex = assertThrows(TechnicalException.class, () -> service.assembleThermalMeProperties(trajectoryEntity));
+        assertThat(ex.getMessage()).isEqualTo("Failed to create thermal ME modulation arrow files");
+    }
+
+    @Test
+    void assembleThermalMeProperties_marketBidAndMustRunModulationFiles() throws IOException {
+        String trajectoryFileName = "traj_me_all";
+        Path baseDir = tempDir.resolve("nas/trajectories/thermal_me");
+        Path bidDir = baseDir.resolve("market_bid_cost_modulation");
+        Path mrDir = baseDir.resolve("must_run_modulation");
+        Files.createDirectories(bidDir);
+        Files.createDirectories(mrDir);
+
+        Path bidFile = bidDir.resolve("market_bid_cost_modulation_" + trajectoryFileName + ".xlsx");
+        Path mrFile = mrDir.resolve("must_run_modulation_" + trajectoryFileName + ".xlsx");
+        Files.createFile(bidFile);
+        Files.createFile(mrFile);
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.resolve("nas").toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getThermalMeDirectory()).thenReturn("thermal_me");
+        when(antaresDataManagerProperties.getThermalMeMarketBidCostModulationDirectory()).thenReturn("market_bid_cost_modulation");
+        when(antaresDataManagerProperties.getThermalMeMustRunModulationDirectory()).thenReturn("must_run_modulation");
+
+        ThermalMeEntity entity = ThermalMeEntity.builder()
+                .node("FR")
+                .clusterName("gas_bid")
+                .groupName("GAS")
+                .enabled(true)
+                .marginalCostTimestep("annual")
+                .cmTimestep("annual")
+                .marketBidCostTimestep("hourly")
+                .mrTimestep("hourly")
+                .build();
+
+        TrajectoryEntity trajectoryEntity = TrajectoryEntity.builder()
+                .fileName(trajectoryFileName)
+                .horizon("2028")
+                .thermalMeEntities(List.of(entity))
+                .build();
+
+        when(paramModulationService.createThermalMeModulationArrowFile("2028", List.of("FR_GAS_BID"), bidFile, trajectoryFileName))
+                .thenReturn(Map.of("FR_GAS_BID", List.of("arrow_bid.arrow")));
+        when(paramModulationService.createThermalMeModulationArrowFile("2028", List.of("FR_GAS_BID"), mrFile, trajectoryFileName))
+                .thenReturn(Map.of("FR_GAS_BID", List.of("arrow_mr.arrow")));
+
+        Map<String, ThermalMEClusterGenerationDto> result = service.assembleThermalMeProperties(trajectoryEntity);
+
+        assertThat(result).containsKey("FR_GAS_BID");
+        assertThat(result.get("FR_GAS_BID").getTsList()).containsExactly("arrow_bid.arrow", "arrow_mr.arrow");
+    }
+
+    @Test
+    void extractModulationParamTsFilesByAreaClusterRefKey_whenThermalClusterRefNull_usesNullSegment() {
+        AreaClusterRefKey keyWithNullRef = new AreaClusterRefKey("FR", null);
+        List<String> files = List.of(
+                "modulation_FR_null.csv.arrow",
+                "modulation_FR_gas.csv.arrow"
+        );
+
+        List<String> matched = ThermalPropertiesAssemblerServiceImpl.extractModulationParamTsFilesByAreaClusterRefKey(files, keyWithNullRef);
+        assertThat(matched).containsExactly("modulation_FR_null.csv.arrow");
+    }
+
+    @Test
+    void extractThermalCapacitiesByAreaClusterRef_whenListNullOrEmpty_returnsEmptyMap() {
+        assertThat(ThermalPropertiesAssemblerServiceImpl.extractThermalCapacitiesByAreaClusterRef(null)).isEmpty();
+        assertThat(ThermalPropertiesAssemblerServiceImpl.extractThermalCapacitiesByAreaClusterRef(List.of())).isEmpty();
+    }
+
+    @Test
+    void extractThermalCapacitiesByAreaClusterRef_handlesBlankAndNullAreasAndTechnologies() {
+        ThermalTechnology tech = ThermalTechnology.builder().name("CCGT").build();
+        ThermalClusterRef ref = ThermalClusterRef.builder().name("CCGT").thermalTechnology(tech).build();
+
+        var trajBlankTech = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .technology("   ")
+                .area("   ")
+                .thermalClusterCapacities(List.of(
+                        cap(ref, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        var trajNullCapacities = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .technology("CCGT")
+                .thermalClusterCapacities(null)
+                .build();
+
+        var result = ThermalPropertiesAssemblerServiceImpl.extractThermalCapacitiesByAreaClusterRef(
+                Arrays.asList(trajBlankTech, trajNullCapacities, null)
+        );
+
+        assertThat(result).containsKey(new AreaClusterRefKey("FR", ref));
+    }
+
+    @Test
+    void buildFromClusterCapacity_whenNoPowerCategory_enabledIsFalseAndNominalCapacityNull() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, CategoryEnum.NUMBER, 2.0, true).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var result = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
+
+        // then
+        var key = new AreaClusterRefKey("FR", gasRef);
+        assertThat(result).containsKey(key);
+        assertThat(result.get(key).getNominalCapacity()).isNull();
+        assertThat(result.get(key).getEnabled()).isFalse();
+        assertThat(result.get(key).getUnitCount()).isEqualTo(2);
+    }
+
+    @Test
+    void buildFromClusterCapacity_whenToUseIsFalse_enabledIsFalse() {
+        // given
+        var capTraj = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, false).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.POWER, 100.0, false).toBuilder().area("FR").build()
+                ))
+                .build();
+
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+
+        // when
+        var result = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
+
+        // then
+        var key = new AreaClusterRefKey("FR", gasRef);
+        assertThat(result).containsKey(key);
+        assertThat(result.get(key).getEnabled()).isFalse();
     }
 }

@@ -299,10 +299,10 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
     }
 
     public static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> extractThermalCapacitiesByAreaClusterRef(List<TrajectoryEntity> capacityTrajs) {
-        log.info("Extracting thermal capacities by area and cluster ref from {} trajectories", capacityTrajs.size());
         if (capacityTrajs == null || capacityTrajs.isEmpty()) {
             return new LinkedHashMap<>();
         }
+        log.info("Extracting thermal capacities by area and cluster ref from {} trajectories", capacityTrajs.size());
 
         Map<String, Set<String>> specificTechnologiesByArea = new HashMap<>();
         for (TrajectoryEntity traj : capacityTrajs) {
