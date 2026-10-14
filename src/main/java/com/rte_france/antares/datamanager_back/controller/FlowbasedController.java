@@ -33,7 +33,7 @@ public class FlowbasedController {
     @PostMapping("/flowbased")
     public ResponseEntity<TrajectoryDTO> uploadFlowbasedTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName  String trajectoryToUse,
-            @RequestParam(value = "studyId", required = false) Integer studyId,
+            @RequestParam("studyId") Integer studyId,
             @RequestParam("horizon") String horizon) {
 
         String[] parts = trajectoryToUse.split("###");
