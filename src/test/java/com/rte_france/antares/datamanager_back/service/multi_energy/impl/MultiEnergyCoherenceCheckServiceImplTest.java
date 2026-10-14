@@ -7,11 +7,13 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaConfigEntity;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.EfficiencyMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.GroupAreaDescEntity;
 import com.rte_france.antares.datamanager_back.repository.model.HydroCapacityMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.ListAreaDescEntity;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
+import com.rte_france.antares.datamanager_back.repository.model.ThermalMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -246,21 +248,103 @@ class MultiEnergyCoherenceCheckServiceImplTest {
     }
 
     @Test
+    void checkAreaMETrajectoryConsistency_whenThermalCapacityMeContainsAllAreaMeAreas_shouldPass() {
+        TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR", "BE");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        ThermalMeEntity thermal1 = ThermalMeEntity.builder().node("FR").build();
+        ThermalMeEntity thermal2 = ThermalMeEntity.builder().node(" BE ").build();
+        TrajectoryEntity thermalMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY_ME.name())
+                .thermalMeEntities(List.of(thermal1, thermal2))
+                .build();
+
+        assertDoesNotThrow(() ->
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.THERMAL_CAPACITY_ME.name(), thermalMeTrajectory)
+        );
+    }
+
+    @Test
+    void checkAreaMETrajectoryConsistency_whenThermalCapacityMeIsMissingArea_shouldThrowBusinessException() {
+        TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR", "BE");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        ThermalMeEntity thermal1 = ThermalMeEntity.builder().node("FR").build();
+        TrajectoryEntity thermalMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY_ME.name())
+                .thermalMeEntities(List.of(thermal1))
+                .build();
+
+        assertThatThrownBy(() ->
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.THERMAL_CAPACITY_ME.name(), thermalMeTrajectory)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessage("Areas {0} from AREA_ME trajectory is (are) not present in {1} trajectory")
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("BE", "THERMAL_ME");
+                });
+    }
+
+    @Test
+    void checkAreaMETrajectoryConsistency_whenEfficiencyMeContainsAllAreaMeAreas_shouldPass() {
+        TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR", "BE");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        EfficiencyMeEntity eff1 = EfficiencyMeEntity.builder().nodeCluster("FR").build();
+        EfficiencyMeEntity eff2 = EfficiencyMeEntity.builder().nodeCluster(" BE ").build();
+        TrajectoryEntity efficiencyMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .efficiencyMeEntities(List.of(eff1, eff2))
+                .build();
+
+        assertDoesNotThrow(() ->
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.EFFICIENCY_ME.name(), efficiencyMeTrajectory)
+        );
+    }
+
+    @Test
+    void checkAreaMETrajectoryConsistency_whenEfficiencyMeIsMissingArea_shouldThrowBusinessException() {
+        TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR", "BE");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        EfficiencyMeEntity eff1 = EfficiencyMeEntity.builder().nodeCluster("FR").build();
+        TrajectoryEntity efficiencyMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .efficiencyMeEntities(List.of(eff1))
+                .build();
+
+        assertThatThrownBy(() ->
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.EFFICIENCY_ME.name(), efficiencyMeTrajectory)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessage("Areas {0} from AREA_ME trajectory is (are) not present in {1} trajectory")
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("BE", TrajectoryType.EFFICIENCY_ME.name());
+                });
+    }
+
+    @Test
     void checkAreaMETrajectoryConsistency_whenTrajectoryTypeIsOther_andAreaMeNotEmpty_shouldThrowException() {
         TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR");
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
                 .thenReturn(List.of(areaMeTrajectory));
 
-        TrajectoryEntity thermalTrajectory = TrajectoryEntity.builder()
-                .type(TrajectoryType.THERMAL_CAPACITY_ME.name())
+        TrajectoryEntity otherTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.CONSTRAINT_ME.name())
                 .build();
 
         assertThatThrownBy(() ->
-                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.THERMAL_CAPACITY_ME.name(), thermalTrajectory)
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.CONSTRAINT_ME.name(), otherTrajectory)
         ).isInstanceOf(BusinessException.class)
                 .satisfies(e -> {
                     BusinessException be = (BusinessException) e;
-                    assertThat(be.getErrorMessageArguments()).containsExactly("FR", TrajectoryType.THERMAL_CAPACITY_ME.name());
+                    assertThat(be.getErrorMessageArguments()).containsExactly("FR", TrajectoryType.CONSTRAINT_ME.name());
                 });
     }
 
