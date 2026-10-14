@@ -76,7 +76,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         // Given
         String trajectoryName = "test_trajectory";
         String horizon = "2023-2024";
-        Path trajectoryFile = createTestExcelFile(trajectoryName, horizon);
+        createTestExcelFile(trajectoryName, horizon);
 
         TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -101,13 +101,13 @@ class EfficiencyMeFileProcessorServiceImplTest {
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
         verify(efficiencyMeRepository, atLeastOnce()).save(any(EfficiencyMeEntity.class));
         verify(multiEnergyCoherenceCheckService, times(1))
-                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.EFFICIENCY_ME.name()), eq(newTrajectory));
+                .checkAreaMETrajectoryConsistency(1, TrajectoryType.EFFICIENCY_ME.name(), newTrajectory);
         assertNotNull(newTrajectory.getEfficiencyMeEntities());
         assertFalse(newTrajectory.getEfficiencyMeEntities().isEmpty());
     }
 
     @Test
-    void saveEfficiencyMeTrajectoryInDb_withNullHorizon_throwsException() throws IOException {
+    void saveEfficiencyMeTrajectoryInDb_withNullHorizon_throwsException() {
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             service.saveEfficiencyMeTrajectoryInDb("trajectory", null, 1);
@@ -171,7 +171,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         assertEquals(1, result.getVersion());
         verify(trajectoryRepository, times(1)).save(argThat(t -> t.getVersion() == 1));
         verify(multiEnergyCoherenceCheckService, times(1))
-                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.EFFICIENCY_ME.name()), eq(newTrajectory));
+                .checkAreaMETrajectoryConsistency(1, TrajectoryType.EFFICIENCY_ME.name(), newTrajectory);
     }
 
     @Test
