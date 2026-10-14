@@ -166,3 +166,7 @@ databaseChangeLog:
           file: classpath*:db/changelog/1.1.0/V79-alter-thermal-me-unique-constraint.sql 
   - include:
       file: classpath*:db/changelog/1.1.0/V80-alter-nuclear-modulation-type-check.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V81-create_areas_fb.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V82-create-flowbased-constraint-restriction-tables.sql

@@ -71,8 +71,6 @@ public class ThermalToJsonService {
             Map<String, Object> clusterData = new LinkedHashMap<>();
             clusterData.put(PROPERTIES, propertiesMap);
             clusterData.put(SERIES, seriesOverrides.getOrDefault(clusterName, MATRIX_HASH));
-            clusterData.put("fuel_cost", MATRIX_HASH);
-            clusterData.put("co2_cost", MATRIX_HASH);
             clusterData.put(DATA, dataMap);
             clusterData.put(MODULATION, dto.getParamModulationTsList());
 

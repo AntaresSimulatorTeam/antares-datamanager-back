@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.study.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.repository.FlowbasedLinkCapacityRepository;
+import com.rte_france.antares.datamanager_back.repository.FlowbasedAreasRepository;
 import com.rte_france.antares.datamanager_back.repository.FlowbasedTypeDaysRepository;
 import com.rte_france.antares.datamanager_back.repository.FlowbasedVirtualNodesRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -30,6 +31,8 @@ class FlowbasedToJsonServiceTest {
     private FlowbasedTypeDaysRepository flowbasedTypeDaysRepository;
     @Mock
     private FlowbasedLinkCapacityRepository flowbasedLinkCapacityRepository;
+    @Mock
+    private FlowbasedAreasRepository flowbasedAreasRepository;
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
     @InjectMocks
@@ -70,6 +73,8 @@ class FlowbasedToJsonServiceTest {
 
         when(flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(1))
                 .thenReturn(List.of(link));
+        when(flowbasedAreasRepository.findAreasByTrajectoryId(1))
+                .thenReturn(List.of("FR", "BE"));
 
         when(antaresDataManagerProperties.getFlowbasedDirectory())
                 .thenReturn("/flowbased");
@@ -82,6 +87,7 @@ class FlowbasedToJsonServiceTest {
         assertTrue(result.containsKey("type_days"));
         assertTrue(result.containsKey("virtual_nodes"));
         assertTrue(result.containsKey("links"));
+        assertEquals(List.of("FR", "BE"), result.get("areas_necessary"));
 
         assertEquals(
                 "/flowbased/study/trajectory.txt",

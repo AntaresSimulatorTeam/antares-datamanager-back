@@ -111,6 +111,14 @@ class FlowbasedControllerTest {
     }
 
     @Test
+    void uploadFlowbasedTrajectory_withMissingStudyId_shouldReturnBadRequest() throws Exception {
+        this.mockMvc.perform(post("/v1/trajectory/flowbased")
+                .param("trajectoryToUse", "repo1###repo2")
+                .param("horizon", "2030-2031"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void uploadFlowbasedTrajectory_whenServiceThrowsBusinessException_shouldReturnBadRequest() throws Exception {
         when(flowbasedFileProcessorService.processFlowbasedFiles(
                 any(), any(String.class), anyInt(), any(String.class)))
