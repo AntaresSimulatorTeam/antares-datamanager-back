@@ -288,11 +288,12 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.0.0-M9</version>
       </plugin>
+      <!-- Git information exposed by Spring Boot Actuator -->
       <plugin>
-        <!-- Add git info to /actuator/info endpoint -->
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>
         <version>8.0.2</version>
+
         <executions>
           <execution>
             <id>get-the-git-infos</id>
@@ -302,45 +303,35 @@
             <phase>initialize</phase>
           </execution>
         </executions>
+
         <configuration>
+          <!-- Generate git.properties in target/classes -->
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
-          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-          <includeOnlyProperties>
-            <includeOnlyProperty>^git.build.(time|version)$</includeOnlyProperty>
-            <includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
-            <includeOnlyProperty>^git.branch$</includeOnlyProperty>
-          </includeOnlyProperties>
-          <commitIdGenerationMode>full</commitIdGenerationMode>
-          <useNativeGit>true</useNativeGit>
+          <generateGitPropertiesFilename>
+            ${project.build.outputDirectory}/git.properties
+          </generateGitPropertiesFilename>
+
+          <!-- Use the Git repository of the project -->
           <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
-          <offline>true</offline>
-          <failOnNoGitDirectory>false</failOnNoGitDirectory>
-          <replacementProperties>
-            <replacementProperty>
-              <property>git.branch</property>
-              <token>^$|HEAD|[a-f0-9]{40}</token>
-              <value>${env.CI_COMMIT_BRANCH}</value>
-              <regex>true</regex>
-            </replacementProperty>
-            <replacementProperty>
-              <property>git.branch</property>
-              <token>^$|HEAD|[a-f0-9]{40}</token>
-              <value>${env.BRANCH_NAME}</value>
-              <regex>true</regex>
-            </replacementProperty>
-            <replacementProperty>
-              <property>git.branch</property>
-              <token>^$|HEAD|[a-f0-9]{40}</token>
-              <value>${env.CI_COMMIT_REF_NAME}</value>
-              <regex>true</regex>
-            </replacementProperty>
-            <replacementProperty>
-              <property>git.branch</property>
-              <token>^$|HEAD|[a-f0-9]{40}</token>
-              <value>${env.GIT_BRANCH}</value>
-              <regex>true</regex>
-            </replacementProperty>
-          </replacementProperties>
+          <useNativeGit>true</useNativeGit>
+
+          <!-- Fail if Git metadata cannot be generated -->
+          <failOnNoGitDirectory>true</failOnNoGitDirectory>
+
+          <!-- Keep the complete commit hash -->
+          <commitIdGenerationMode>full</commitIdGenerationMode>
+
+          <!-- Properties exposed through Actuator -->
+          <includeOnlyProperties>
+            <includeOnlyProperty>^git.branch$</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+            <includeOnlyProperty>^git.commit.id.full$</includeOnlyProperty>
+            <includeOnlyProperty>^git.build.time$</includeOnlyProperty>
+            <includeOnlyProperty>^git.build.version$</includeOnlyProperty>
+          </includeOnlyProperties>
+
+          <!-- Do not replace Git values with CI environment variables -->
         </configuration>
       </plugin>
     </plugins>
