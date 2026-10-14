@@ -681,7 +681,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createValidThermalMeExcelFile(trajectoryName, horizon, "annual");
 
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
-                eq(trajectoryName), eq(horizon), eq(TrajectoryType.THERMAL_CAPACITY_ME.name())))
+                trajectoryName, horizon, TrajectoryType.THERMAL_CAPACITY_ME.name()))
                 .thenReturn(Optional.empty());
 
         doThrow(BusinessException.builder()
