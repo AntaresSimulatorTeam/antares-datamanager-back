@@ -323,7 +323,12 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
             }
         }
 
-        return capacityTrajs.stream()
+        return filterCapacityTrajectoriesByArea(capacityTrajs, specificTechnologiesByArea);
+    }
+    
+    private static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> filterCapacityTrajectoriesByArea(List<TrajectoryEntity> capacityTrajectories, Map<String, Set<String>> specificTechnologiesByArea) {
+
+        return capacityTrajectories.stream()
                 .filter(Objects::nonNull)
                 .flatMap(t -> {
                     boolean isGlobalTrajectory = (t.getTechnology() == null || t.getTechnology().isBlank());

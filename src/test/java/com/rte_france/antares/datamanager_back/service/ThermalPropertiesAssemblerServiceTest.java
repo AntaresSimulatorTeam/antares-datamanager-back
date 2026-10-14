@@ -1495,9 +1495,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         Map<String, ThermalMEClusterGenerationDto> result = service.assembleThermalMeProperties(trajectoryEntity);
 
-        assertThat(result).hasSize(2);
-        assertThat(result).containsKey("FR_GAS_1");
-        assertThat(result).containsKey("FR_GAS_2");
+        assertThat(result).hasSize(2).containsKey("FR_GAS_1").containsKey("FR_GAS_2");
 
         ThermalMEClusterGenerationDto dto1 = result.get("FR_GAS_1");
         assertThat(dto1.getTsList()).containsExactly("arrow_mc_1.arrow");
@@ -1589,13 +1587,13 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         // FR - CCGT_old (global) was filtered out
-        assertThat(result).doesNotContainKey(new AreaClusterRefKey("FR", refCcgtGlobal));
+        assertThat(result).doesNotContainKey(new AreaClusterRefKey("FR", refCcgtGlobal))
         // FR - CCGT_new (specific) was kept
-        assertThat(result).containsKey(new AreaClusterRefKey("FR", refCcgtSpecific));
+        .containsKey(new AreaClusterRefKey("FR", refCcgtSpecific))
         // FR - NUC_1 (global, but technology NUCLEAR has no specific trajectory) was kept
-        assertThat(result).containsKey(new AreaClusterRefKey("FR", refNuclear));
+        .containsKey(new AreaClusterRefKey("FR", refNuclear))
         // BE - CCGT_BE (global, area BE has no specific trajectory) was kept
-        assertThat(result).containsKey(new AreaClusterRefKey("BE", refCcgtBe));
+        .containsKey(new AreaClusterRefKey("BE", refCcgtBe));
     }
 
     @Test
