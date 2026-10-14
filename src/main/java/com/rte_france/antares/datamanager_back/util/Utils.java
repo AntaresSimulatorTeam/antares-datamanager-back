@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -1394,7 +1395,8 @@ public class Utils {
 
             String[] requiredFiles = {
                     "Flowbased_nodes_links.xlsx",
-                    "IdTypDays.csv"
+                    "IdTypDays.csv",
+                    "areas_necessary.xlsx"
             };
 
             for (String fileName : requiredFiles) {
@@ -1420,6 +1422,20 @@ public class Utils {
                     while ((bytesRead = is.read(buffer)) != -1) {
                         digest.update(buffer, 0, bytesRead);
                     }
+                }
+            }
+            Path restrictionsDirectory = canonicalBaseDirectory.resolve("restriction_ahc");
+            if (!Files.notExists(restrictionsDirectory, LinkOption.NOFOLLOW_LINKS)) {
+                if (!restrictionsDirectory.toRealPath().startsWith(canonicalBaseDirectory)) {
+                    throw TechnicalException.builder()
+                            .message(ERROR_FILE_PATH_OUTSIDE)
+                            .build();
+                }
+                String restrictionsFileName = "restriction_ahc/contrainte_restriction_ahc.xlsx";
+                if (!Files.notExists(canonicalBaseDirectory.resolve(restrictionsFileName), LinkOption.NOFOLLOW_LINKS)) {
+                    Path restrictionsFile = resolveAndValidateFile(canonicalBaseDirectory, restrictionsFileName);
+                    digest.update(restrictionsFileName.getBytes(StandardCharsets.UTF_8));
+                    digestEntireFile(digest, restrictionsFile);
                 }
             }
             return HexFormat.of().formatHex(digest.digest());

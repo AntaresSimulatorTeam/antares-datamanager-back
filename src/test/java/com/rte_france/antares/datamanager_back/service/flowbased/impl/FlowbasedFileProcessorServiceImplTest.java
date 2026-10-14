@@ -4,8 +4,13 @@ import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedAreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedConstraintsRestrictionEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkListEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
@@ -40,7 +45,13 @@ class FlowbasedFileProcessorServiceImplTest {
     private TrajectoryRepository trajectoryRepository;
 
     @Mock
+    private AreaRepository areaRepository;
+
+    @Mock
     private UserService userService;
+
+    @Mock
+    private FlowbasedConstraintsRestrictionsFileProcessorService restrictionsFileProcessorService;
 
     @InjectMocks
     private FlowbasedFileProcessorServiceImpl flowbasedFileProcessorService;
@@ -48,6 +59,10 @@ class FlowbasedFileProcessorServiceImplTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
+        when(restrictionsFileProcessorService.readRestrictions(any(Path.class), anyString()))
+                .thenReturn(new FlowbasedConstraintsRestrictionsFileProcessorService.RestrictionsData(List.of(), List.of()));
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.name()))
+                .thenReturn(List.of(AreaEntity.builder().name("FR").build()));
     }
 
     @Test
@@ -153,8 +168,70 @@ class FlowbasedFileProcessorServiceImplTest {
             assertEquals("trajectory", result.getFileName());
             assertEquals(TrajectoryType.FLOWBASED.name(), result.getType());
             assertEquals(1, result.getVersion());
+            assertEquals(List.of("FR"), result.getFlowbasedAreas().stream().map(FlowbasedAreaEntity::getArea).toList());
+            assertTrue(result.getFlowbasedConstraintsRestrictions().isEmpty());
+            assertTrue(result.getFlowbasedLinkLists().isEmpty());
             verify(trajectoryRepository, times(2)).save(any(TrajectoryEntity.class));
         }
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldAttachRestrictionsToSavedTrajectory(@TempDir Path tempDir) throws IOException {
+        createAllRequiredFilesWithContent(tempDir);
+        var constraint = FlowbasedConstraintsRestrictionEntity.builder()
+                .name("restriction_ahc").enabled(true).listLinks("listLinks1").build();
+        var link = FlowbasedLinkListEntity.builder()
+                .listName("listLinks1").link("ch-fr").position(0).build();
+        when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027"))
+                .thenReturn(new FlowbasedConstraintsRestrictionsFileProcessorService.RestrictionsData(
+                        List.of(constraint), List.of(link)));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = flowbasedFileProcessorService.processFlowbasedFiles(tempDir, "trajectory", 1, "2026-2027");
+
+        assertEquals(List.of(constraint), result.getFlowbasedConstraintsRestrictions());
+        assertEquals(List.of(link), result.getFlowbasedLinkLists());
+        assertSame(result, constraint.getTrajectory());
+        assertSame(result, link.getTrajectory());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldNotPersistWhenRestrictionsAreInvalid(@TempDir Path tempDir) throws IOException {
+        createAllRequiredFilesWithContent(tempDir);
+        var invalidRestrictions = BusinessException.builder()
+                .message("Missing listLinks1 in restrictions workbook")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+        when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027"))
+                .thenThrow(invalidRestrictions);
+
+        assertSame(invalidRestrictions, assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(tempDir, "trajectory", 1, "2026-2027")));
+        verify(trajectoryRepository, never()).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldRejectAreasNotFoundInStudy(@TempDir Path tempDir) throws Exception {
+        createAllRequiredFilesWithContent(tempDir);
+        createAreasNecessarySheet(tempDir.resolve("areas_necessary.xlsx"), "NL");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(tempDir, "trajectory", 1, "2025-2026"));
+
+        assertEquals("Mandatory Areas {0} in Flowbased trajectory are missing in AREA trajectory", exception.getMessage());
+        assertEquals(List.of("NL"), exception.getErrorMessageArguments());
+        verify(trajectoryRepository, never()).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void buildAreasNecessaryList_shouldRejectInvalidHeader(@TempDir Path tempDir) throws IOException {
+        createAreasNecessarySheet(tempDir.resolve("areas_necessary.xlsx"), "FR", "area");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.buildAreasNecessaryList(tempDir));
+
+        assertTrue(exception.getMessage().contains("expected one column with header 'areas'"));
     }
 
     @Test
@@ -406,7 +483,8 @@ class FlowbasedFileProcessorServiceImplTest {
                 "IdTypDays.csv",
                 "second_member.txt",
                 "weight.txt",
-                "ts.txt"
+                "ts.txt",
+                "areas_necessary.xlsx"
         };
 
         for (String fileName : requiredFiles) {
@@ -415,6 +493,8 @@ class FlowbasedFileProcessorServiceImplTest {
                 Files.writeString(filePath, "clustering;id_type_day;class_day\nCluster1;1;Day1\n");
             } else if (fileName.equals("Flowbased_nodes_links.xlsx")) {
                 createLinksSheet(filePath);
+            } else if (fileName.equals("areas_necessary.xlsx")) {
+                createAreasNecessarySheet(filePath, "FR");
             } else {
                 Files.createFile(filePath);
             }
@@ -427,13 +507,27 @@ class FlowbasedFileProcessorServiceImplTest {
                 "IdTypDays.csv",
                 "second_member.txt",
                 "weight.txt",
-                "ts.txt"
+                "ts.txt",
+                "areas_necessary.xlsx"
         };
 
         var excludeSet = java.util.Set.of(excludeFiles);
         for (String fileName : requiredFiles) {
             if (!excludeSet.contains(fileName)) {
                 Files.createFile(tempDir.resolve(fileName));
+            }
+        }
+    }
+
+    private void createAreasNecessarySheet(Path excelPath, String... areas) throws IOException {
+        try (var workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet("areas");
+            sheet.createRow(0).createCell(0).setCellValue("areas");
+            for (int i = 0; i < areas.length; i++) {
+                sheet.createRow(i + 1).createCell(0).setCellValue(areas[i]);
+            }
+            try (var outputStream = new FileOutputStream(excelPath.toFile())) {
+                workbook.write(outputStream);
             }
         }
     }
@@ -839,4 +933,3 @@ class FlowbasedFileProcessorServiceImplTest {
         }
     }
 }
-

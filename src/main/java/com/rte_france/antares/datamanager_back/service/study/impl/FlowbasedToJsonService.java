@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.study.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.repository.*;
+import com.rte_france.antares.datamanager_back.repository.FlowbasedAreasRepository;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
@@ -22,6 +23,7 @@ public class FlowbasedToJsonService {
     private final FlowbasedVirtualNodesRepository flowbasedVirtualNodesRepository;
     private final FlowbasedTypeDaysRepository flowbasedTypeDaysRepository;
     private final FlowbasedLinkCapacityRepository flowbasedLinkCapacityRepository;
+    private final FlowbasedAreasRepository flowbasedAreasRepository;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     /**
@@ -36,6 +38,7 @@ public class FlowbasedToJsonService {
         List<FlowbasedTypeDayEntity> dayTypesParams = flowbasedTypeDaysRepository.findEntitiesByTrajectoryId(trajectoryId);
         List<FlowbasedVirtualNodesEntity> virtualNodesParams = flowbasedVirtualNodesRepository.findEntitiesByTrajectoryId(trajectoryId);
         List<FlowbasedLinkCapacityEntity> linksParams = flowbasedLinkCapacityRepository.findEntitiesByTrajectoryId(trajectoryId);
+        List<String> areasNecessary = flowbasedAreasRepository.findAreasByTrajectoryId(trajectoryId);
         
         flowbased.put("recalculate_ts", recalculate);
         
@@ -49,6 +52,9 @@ public class FlowbasedToJsonService {
         
         if (!linksParams.isEmpty()) {
             flowbased.put("links", buildLinksMap(linksParams));
+        }
+        if (!areasNecessary.isEmpty()) {
+            flowbased.put("areas_necessary", areasNecessary);
         }
         
         flowbased.put("ts_path", getFlowbasedTrajectoryPath(trajectory.getFileName()));
