@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +24,6 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -38,14 +37,15 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
     private final UserService userService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final EfficiencyMeRepository efficiencyMeRepository;
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processEfficiencyMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return saveEfficiencyMeTrajectoryInDb(trajectoryToUse, horizon);
+        return saveEfficiencyMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
     }
 
-    public TrajectoryEntity saveEfficiencyMeTrajectoryInDb(String trajectoryToUse, String horizon) throws IOException {
+    public TrajectoryEntity saveEfficiencyMeTrajectoryInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         if (horizon == null) {
             throw BusinessException.builder()
                     .message("Horizon must not be null")
@@ -99,17 +99,19 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
             TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.EFFICIENCY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
             insertEfficiencyMeData(workbook, horizon, savedTrajectory);
+            multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.EFFICIENCY_ME.name(), savedTrajectory);
             return savedTrajectory;
         }
     }
 
-    private void insertEfficiencyMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory) throws IOException {
+    private void insertEfficiencyMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory) {
         String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
         processHorizonSheet(workbook, horizonYear, trajectory);
     }
 
     private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory) {
         Sheet sheet = workbook.getSheet(horizonYear);
+        List<EfficiencyMeEntity> efficiencyMeEntities = new ArrayList<>();
         if (sheet == null) return;
 
         for (Row row : sheet) {
@@ -131,7 +133,9 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
                     .build();
             
             efficiencyMeRepository.save(efficiencyMe);
+            efficiencyMeEntities.add(efficiencyMe);
         }
+        trajectory.setEfficiencyMeEntities(efficiencyMeEntities);
     }
 
     private String getCellStringValue(Row row, int cellIndex) {

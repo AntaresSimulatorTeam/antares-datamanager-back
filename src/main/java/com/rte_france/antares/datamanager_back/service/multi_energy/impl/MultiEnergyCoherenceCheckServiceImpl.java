@@ -6,7 +6,6 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
-import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +43,8 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
                 .collect(Collectors.toSet());
 
         if (!missingAreas.isEmpty()) {
-            throw createValidationError(List.of(String.join(", ", missingAreas), trajectoryType));
+            String typeToUse = trajectoryType.equalsIgnoreCase(TrajectoryType.THERMAL_CAPACITY_ME.name() )? "THERMAL_ME" : trajectoryType;
+            throw createValidationError(List.of(String.join(", ", missingAreas), typeToUse));
         }
     }
 
@@ -78,7 +78,9 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
         return switch (TrajectoryType.valueOf(trajectoryType)) {
             case LOAD_ME -> extractAreas(trajectory.getLoadEntities(), LoadEntity::getArea);
             case STS_ME  -> extractAreas(trajectory.getStStorageEntities(), StStorageEntity::getArea);
-            default      -> Collections.emptySet();
+            case THERMAL_CAPACITY_ME  -> extractAreas(trajectory.getThermalMeEntities(), ThermalMeEntity::getNode);
+            case EFFICIENCY_ME  -> extractAreas(trajectory.getEfficiencyMeEntities(), EfficiencyMeEntity::getNodeCluster);
+            default -> Collections.emptySet();
         };
     }
 
