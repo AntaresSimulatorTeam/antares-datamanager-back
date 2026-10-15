@@ -51,19 +51,19 @@ public class ThermalMEClusterGenerationDto {
 
     @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("marginal_cost_modulation")
-    private Integer marginalCostModulation;
+    private Double marginalCostModulation;
 
     @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("market_bid_modulation")
-    private Integer marketBidModulation;
+    private Double marketBidModulation;
 
     @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("capacity_modulation")
-    private Integer capacityModulation;
+    private Double capacityModulation;
     
     @JsonView(ThermalClusterViews.Modulation.class)
     @JsonProperty("must_run_modulation")
-    private Integer mustRunModulation;
+    private Double mustRunModulation;
     
     @JsonView(ThermalClusterViews.Series.class)
     @JsonProperty("series")

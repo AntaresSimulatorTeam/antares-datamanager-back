@@ -48,7 +48,7 @@ public class ThermalMeEntity {
     private String marginalCostTimestep;
 
     @Column(name = "marginal_cost_modulation")
-    private Integer marginalCostModulation;
+    private Double marginalCostModulation;
     
     @Column(name = "market_bid_cost")
     private Double marketBidCost;
@@ -57,10 +57,10 @@ public class ThermalMeEntity {
     private String marketBidCostTimestep;
 
     @Column(name = "market_bid_cost_modulation")
-    private Integer marketBidCostModulation;
+    private Double marketBidCostModulation;
 
     @Column(name = "mr_modulation")
-    private Integer mrModulation;
+    private Double mrModulation;
 
     @Column(name = "must_run", length = 10)
     private Boolean mustRun;
@@ -69,7 +69,7 @@ public class ThermalMeEntity {
     private String mrTimestep;
 
     @Column(name = "cm_modulation")
-    private Integer cmModulation;
+    private Double cmModulation;
 
     @Column(name = "cm_timestep", length = 10)
     private String cmTimestep;
