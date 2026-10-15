@@ -15,7 +15,6 @@ public interface FlowbasedLinkListRepository extends JpaRepository<FlowbasedLink
             SELECT linkList FROM FlowbasedLinkListEntity linkList
             WHERE linkList.trajectory.id = :trajectoryId
               AND linkList.listName = :listName
-            ORDER BY linkList.position ASC
             """)
     List<FlowbasedLinkListEntity> findEntitiesByTrajectoryIdAndListName(
             @Param("trajectoryId") Integer trajectoryId, @Param("listName") String listName);

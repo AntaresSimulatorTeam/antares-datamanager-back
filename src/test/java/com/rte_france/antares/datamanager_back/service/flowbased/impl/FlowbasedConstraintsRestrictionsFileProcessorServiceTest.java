@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service.flowbased.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedConstraintsRestrictionEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkListEntity;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,6 +37,35 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
     }
 
     @Test
+    void absentWorkbookReturnsModifiableCollections() {
+        var result = processor.readRestrictions(tempDir, "2027");
+
+        result.constraints().clear();
+        result.links().clear();
+        result.constraints().add(new FlowbasedConstraintsRestrictionEntity());
+        result.links().add(new FlowbasedLinkListEntity());
+
+        assertThat(result.constraints()).hasSize(1);
+        assertThat(result.links()).hasSize(1);
+    }
+
+    @Test
+    void parsedWorkbookReturnsModifiableCollections() throws IOException {
+        createWorkbook("2027");
+        var result = processor.readRestrictions(tempDir, "2026-2027");
+        var constraints = new ArrayList<>(result.constraints());
+        var links = new ArrayList<>(result.links());
+
+        result.constraints().clear();
+        result.links().clear();
+        result.constraints().addAll(constraints);
+        result.links().addAll(links);
+
+        assertThat(result.constraints()).containsExactlyElementsOf(constraints);
+        assertThat(result.links()).containsExactlyElementsOf(links);
+    }
+
+    @Test
     void mapsConstraintsAndSharesReferencedLists() throws IOException {
         createWorkbook("2027");
 
@@ -51,20 +82,19 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         assertThat(constraint.getSecondMember()).isEqualTo("ts10GW");
         assertThat(result.constraints().get(1).getEnabled()).isFalse();
         assertThat(result.links()).extracting(FlowbasedLinkListEntity::getLink)
-                .containsExactly("ch-fr", "fr-itn", "fr-zz_flowbased");
+                .containsExactlyInAnyOrder("ch-fr", "fr-itn", "fr-zz_flowbased");
         assertThat(result.links()).extracting(FlowbasedLinkListEntity::getListName)
                 .containsOnly("listLinks1");
-        assertThat(result.links()).extracting(FlowbasedLinkListEntity::getPosition)
-                .containsExactly(0, 1, 2);
     }
 
     @Test
     void rejectsWrongHorizonInsteadOfUsingAnotherSheet() throws IOException {
         createWorkbook("2021");
 
-        assertThatThrownBy(() -> processor.readRestrictions(tempDir, "2027"))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("2027");
+        var exception = org.junit.jupiter.api.Assertions.assertThrows(BusinessException.class,
+                () -> processor.readRestrictions(tempDir, "2027"));
+        assertThat(exception.getErrorMessageArguments()).contains("2027");
+        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test

@@ -10,10 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "fb_link_list",
-        uniqueConstraints = @UniqueConstraint(
-                name = "fb_link_list_trajectory_list_position_uk",
-                columnNames = {"trajectory_id", "list_name", "position"}),
+@Table(name = "fb_link_list_for_constraints",
         indexes = @Index(name = "fb_link_list_trajectory_list_idx",
                 columnList = "trajectory_id, list_name"))
 public class FlowbasedLinkListEntity {
@@ -29,9 +26,6 @@ public class FlowbasedLinkListEntity {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String link;
-
-    @Column(nullable = false)
-    private Integer position;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id", nullable = false)
