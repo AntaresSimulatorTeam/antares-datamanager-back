@@ -282,6 +282,9 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
 
             // Get header row
             Row headerRow = sheet.getRow(0);
+            if (headerRow == null) {
+                throw new IOException("Header row not found in 'links' sheet of Flowbased_nodes_links.xlsx");
+            }
             Map<String, Integer> columnIndexMap = buildColumnIndexMap(headerRow);
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {

@@ -23,21 +23,18 @@ CREATE SEQUENCE fb_constraints_restrictions_sequence
     NO MAXVALUE
     CACHE 1;
 
-CREATE TABLE fb_link_list
+CREATE TABLE fb_link_list_for_constraints
 (
     id            INTEGER PRIMARY KEY,
     trajectory_id INTEGER NOT NULL,
     list_name     TEXT NOT NULL,
     link          TEXT NOT NULL,
-    position      INTEGER NOT NULL,
     CONSTRAINT fb_link_list_trajectory_fk
-        FOREIGN KEY (trajectory_id) REFERENCES trajectory (id),
-    CONSTRAINT fb_link_list_trajectory_list_position_uk
-        UNIQUE (trajectory_id, list_name, position)
+        FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
 
 CREATE INDEX fb_link_list_trajectory_list_idx
-    ON fb_link_list (trajectory_id, list_name);
+    ON fb_link_list_for_constraints (trajectory_id, list_name);
 
 CREATE SEQUENCE fb_link_list_sequence
     START WITH 1
