@@ -26,10 +26,10 @@ public class ThermalMeMapper {
                 .nominalCapacity(Optional.ofNullable(entity.getNominalCapacity()).map(Number::doubleValue).orElse(0.0))
                 .marginalCost(Optional.ofNullable(entity.getMarginalCost()).map(Number::doubleValue).orElse(0.0))
                 .marketBidCost(Optional.ofNullable(entity.getMarketBidCost()).map(Number::doubleValue).orElse(0.0))
-                .marginalCostModulation(isMarginalCostAnnual ? Optional.ofNullable(entity.getMarginalCostModulation()).map(Number::intValue).orElse(null) : null)
-                .marketBidModulation(isMarketBidCostAnnual ? Optional.ofNullable(entity.getMarketBidCostModulation()).map(Number::intValue).orElse(null) : null)
-                .capacityModulation(isCapacityAnnual ? Optional.ofNullable(entity.getCmModulation()).map(Number::intValue).orElse(null) : null)
-                .mustRunModulation(isMinGenAnnual ? Optional.ofNullable(entity.getMrModulation()).map(Number::intValue).orElse(null) : null)
+                .marginalCostModulation(isMarginalCostAnnual ? Optional.ofNullable(entity.getMarginalCostModulation()).map(Number::doubleValue).orElse(null) : null)
+                .marketBidModulation(isMarketBidCostAnnual ? Optional.ofNullable(entity.getMarketBidCostModulation()).map(Number::doubleValue).orElse(null) : null)
+                .capacityModulation(isCapacityAnnual ? Optional.ofNullable(entity.getCmModulation()).map(Number::doubleValue).orElse(null) : null)
+                .mustRunModulation(isMinGenAnnual ? Optional.ofNullable(entity.getMrModulation()).map(Number::doubleValue).orElse(null) : null)
                 .build();
     }
 }
