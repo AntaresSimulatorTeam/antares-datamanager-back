@@ -1013,7 +1013,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             return null;
         }
 
-        return bd.setScale(2, RoundingMode.HALF_UP).doubleValue();
+        return bd.doubleValue();
     }
 
     private Number parseNumericValue(
