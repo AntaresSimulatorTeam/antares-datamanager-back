@@ -28,10 +28,10 @@ public class FlowbasedConstraintsRestrictionEntity {
     private String sign;
 
     @Column(columnDefinition = "TEXT")
-    private String temporality;
-
-    @Column(name = "type", columnDefinition = "TEXT")
     private String type;
+
+    @Column(name = "constraint_type", columnDefinition = "TEXT")
+    private String constraintType;
 
     @Column(name = "list_links", columnDefinition = "TEXT")
     private String listLinks;

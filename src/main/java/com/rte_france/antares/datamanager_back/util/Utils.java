@@ -1372,6 +1372,9 @@ public class Utils {
         }
     }
 
+    private record FlowbasedRestrictionFile(String relativePath, Path canonicalPath) {
+    }
+
     public static String calculateFlowbasedFilesChecksum(Path directory)
             throws IOException, TechnicalException {
 
@@ -1426,16 +1429,63 @@ public class Utils {
             }
             Path restrictionsDirectory = canonicalBaseDirectory.resolve("restriction_ahc");
             if (!Files.notExists(restrictionsDirectory, LinkOption.NOFOLLOW_LINKS)) {
-                if (!restrictionsDirectory.toRealPath().startsWith(canonicalBaseDirectory)) {
+                Path canonicalRestrictionsDirectory = restrictionsDirectory.toRealPath();
+                if (!canonicalRestrictionsDirectory.startsWith(canonicalBaseDirectory)) {
                     throw TechnicalException.builder()
                             .message(ERROR_FILE_PATH_OUTSIDE)
                             .build();
                 }
-                String restrictionsFileName = "restriction_ahc/contrainte_restriction_ahc.xlsx";
-                if (!Files.notExists(canonicalBaseDirectory.resolve(restrictionsFileName), LinkOption.NOFOLLOW_LINKS)) {
-                    Path restrictionsFile = resolveAndValidateFile(canonicalBaseDirectory, restrictionsFileName);
-                    digest.update(restrictionsFileName.getBytes(StandardCharsets.UTF_8));
-                    digestEntireFile(digest, restrictionsFile);
+                if (Files.isSymbolicLink(restrictionsDirectory)) {
+                    throw TechnicalException.builder()
+                            .message("Error processing file: directory symbolic links are not allowed")
+                            .build();
+                }
+                if (!Files.isDirectory(canonicalRestrictionsDirectory)) {
+                    throw new IOException("restriction_ahc is not a directory");
+                }
+
+                List<FlowbasedRestrictionFile> restrictionFiles = new ArrayList<>();
+                try (Stream<Path> paths = Files.walk(canonicalRestrictionsDirectory)) {
+                    for (Path path : paths.toList()) {
+                        if (path.equals(canonicalRestrictionsDirectory)) {
+                            continue;
+                        }
+
+                        Path canonicalPath = path.toRealPath();
+                        if (!canonicalPath.startsWith(canonicalBaseDirectory)) {
+                            throw TechnicalException.builder()
+                                    .message(ERROR_FILE_PATH_OUTSIDE)
+                                    .build();
+                        }
+                        if (Files.isSymbolicLink(path)) {
+                            if (Files.isDirectory(canonicalPath)) {
+                                throw TechnicalException.builder()
+                                        .message("Error processing file: directory symbolic links are not allowed")
+                                        .build();
+                            }
+                        } else if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+                            continue;
+                        }
+
+                        if (!Files.isRegularFile(canonicalPath)) {
+                            throw new IOException("restriction_ahc contains a non-regular file: " + path);
+                        }
+
+                        String relativePath = canonicalBaseDirectory.relativize(path)
+                                .toString()
+                                .replace(path.getFileSystem().getSeparator(), "/");
+                        restrictionFiles.add(new FlowbasedRestrictionFile(relativePath, canonicalPath));
+                    }
+                } catch (UncheckedIOException e) {
+                    throw e.getCause();
+                }
+
+                restrictionFiles.sort((left, right) -> Arrays.compareUnsigned(
+                        left.relativePath().getBytes(StandardCharsets.UTF_8),
+                        right.relativePath().getBytes(StandardCharsets.UTF_8)));
+                for (FlowbasedRestrictionFile restrictionFile : restrictionFiles) {
+                    digest.update(restrictionFile.relativePath().getBytes(StandardCharsets.UTF_8));
+                    digestEntireFile(digest, restrictionFile.canonicalPath());
                 }
             }
             return HexFormat.of().formatHex(digest.digest());

@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedAreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.AREA;
@@ -39,6 +41,8 @@ import static com.rte_france.antares.datamanager_back.service.thermal.impl.Therm
 @Service
 @RequiredArgsConstructor
 public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessorService {
+
+    private static final Pattern HVDC_NODE_PATTERN = Pattern.compile("z_([^_\\s]+)_([^_\\s]+)", Pattern.CASE_INSENSITIVE);
 
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
@@ -89,6 +93,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         List<FlowbasedAreaEntity> areas = buildAreasNecessaryList(trajectoryFilePath);
         validateAreasExistInStudy(areas, studyId);
         List<FlowbasedVirtualNodesEntity> virtualNodes = buildFlowbasedVirtualNodesList(trajectoryFilePath);
+        validateVirtualNodesHvdcLinks(virtualNodes, studyId);
         List<FlowbasedLinkCapacityEntity> linkCapacities = buildFlowbasedLinkCapacityList(trajectoryFilePath);
         List<FlowbasedTypeDayEntity> typeDays = buildFlowbasedTypeDayList(trajectoryFilePath);
         var restrictions = restrictionsFileProcessorService.readRestrictions(trajectoryFilePath, horizon);
@@ -265,6 +270,53 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         }
 
         return result;
+    }
+
+    @Override
+    public void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, Integer studyId) {
+        Map<String, List<String>> nodePairs = new LinkedHashMap<>();
+        for (FlowbasedVirtualNodesEntity node : virtualNodes) {
+            var matcher = HVDC_NODE_PATTERN.matcher(node.getName());
+            if (matcher.matches()) {
+                nodePairs.put(node.getName(), countryPair(matcher.group(1), matcher.group(2)));
+            }
+        }
+        if (nodePairs.isEmpty()) {
+            return;
+        }
+
+        Set<List<String>> hvdcPairs = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream()
+                .flatMap(trajectory -> trajectory.getLinkEntities().stream())
+                .filter(link -> isNonZeroCapacity(link.getHvdcMwDirect()) && isNonZeroCapacity(link.getHvdcMwIndirect()))
+                .map(LinkEntity::getName)
+                .filter(Objects::nonNull)
+                .map(name -> name.split("-", -1))
+                .filter(parts -> parts.length == 2)
+                .map(parts -> countryPair(parts[0], parts[1]))
+                .collect(Collectors.toSet());
+
+        List<String> invalidNodes = nodePairs.entrySet().stream()
+                .filter(entry -> !hvdcPairs.contains(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        if (!invalidNodes.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Virtual nodes {0} in Flowbased trajectory require a matching link in the LINK trajectory associated with the study, with both hvdc_mw_direct and hvdc_mw_indirect non-null and different from zero")
+                    .errorMessageArguments(List.of(String.join(", ", invalidNodes)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private boolean isNonZeroCapacity(Double capacity) {
+        return capacity != null && capacity != 0;
+    }
+
+    private List<String> countryPair(String country1, String country2) {
+        return java.util.stream.Stream.of(country1, country2)
+                .map(country -> country.trim().toUpperCase(Locale.ROOT))
+                .sorted()
+                .toList();
     }
 
     @Override

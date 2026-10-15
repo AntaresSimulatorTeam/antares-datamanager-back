@@ -3,15 +3,15 @@
 
 CREATE TABLE fb_constraints_restrictions
 (
-    id            INTEGER PRIMARY KEY,
-    trajectory_id INTEGER NOT NULL,
-    name          TEXT,
-    enabled       BOOLEAN,
-    sign          TEXT,
-    temporality   TEXT,
-    type          TEXT,
-    list_links    TEXT,
-    second_member TEXT,
+    id                  INTEGER PRIMARY KEY,
+    trajectory_id       INTEGER NOT NULL,
+    name                TEXT,
+    enabled             BOOLEAN,
+    sign                TEXT,
+    type                TEXT,
+    constraint_type     TEXT,
+    list_links          TEXT,
+    second_member       TEXT,
     CONSTRAINT fb_constraints_restrictions_trajectory_fk
         FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );
@@ -29,6 +29,7 @@ CREATE TABLE fb_link_list_for_constraints
     trajectory_id INTEGER NOT NULL,
     list_name     TEXT NOT NULL,
     link          TEXT NOT NULL,
+    poids         DOUBLE PRECISION NOT NULL,
     CONSTRAINT fb_link_list_trajectory_fk
         FOREIGN KEY (trajectory_id) REFERENCES trajectory (id)
 );

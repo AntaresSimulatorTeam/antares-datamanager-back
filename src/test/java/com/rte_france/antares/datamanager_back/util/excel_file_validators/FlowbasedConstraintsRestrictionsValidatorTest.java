@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.FlowbasedConstraintsRestrictionsValidator.ParsedRestrictions;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.FlowbasedConstraintsRestrictionsValidator.RestrictionRow;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.FlowbasedConstraintsRestrictionsValidator.WeightedLink;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.FlowbasedConstraintsRestrictionsColumns;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.FormulaError;
@@ -43,9 +44,13 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
         constraint(1, "Restriction", "YES", "listLinks1");
         lists = workbook.createSheet("listLinks");
         lists.createRow(0).createCell(0).setCellValue("listLinks1");
+        lists.getRow(0).createCell(1).setCellValue("PoIdS");
         lists.createRow(1).createCell(0).setCellValue("ch-fr");
+        lists.getRow(1).createCell(1).setCellValue(-1);
         lists.createRow(2).createCell(0).setCellValue("fr-itn");
+        lists.getRow(2).createCell(1).setCellValue(1);
         lists.createRow(3).createCell(0).setCellValue("fr-zz_flowbased");
+        lists.getRow(3).createCell(1).setCellValue(0);
     }
 
     @AfterEach
@@ -68,7 +73,8 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
 
         assertEquals(List.of(new RestrictionRow("Ma Contrainte", true, "<=", "Une Temporalité",
                 "arbitrary Type", "listLinks1", "ts10GW")), result.constraints());
-        assertEquals(Map.of("listLinks1", List.of("ch-fr", "fr-itn", "fr-zz_flowbased")), result.linkLists());
+        assertEquals(Map.of("listLinks1", List.of(new WeightedLink("ch-fr", -1),
+                new WeightedLink("fr-itn", 1), new WeightedLink("fr-zz_flowbased", 0))), result.linkLists());
         assertNotNull(workbook.getSheet("2027"));
     }
 
@@ -76,14 +82,20 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     void preservesOptionalNullsAndSharesOnlyReferencedListsInConstraintOrder() {
         constraint(3, "Other", " nO ", "listLinks1");
         constraint(4, "Third", "yEs", "Second LIST");
-        lists.getRow(0).createCell(2).setCellValue(" Second LIST ");
-        lists.getRow(1).createCell(2).setCellValue(" FR->IT_N ");
-        lists.getRow(0).createCell(4).setCellValue("unused");
-        lists.getRow(1).createCell(4).setCellValue("not imported");
-        lists.getRow(0).createCell(5).setCellValue("unused empty");
+        lists.getRow(0).createCell(4).setCellValue(" Second LIST ");
+        lists.getRow(1).createCell(4).setCellValue(" FR->IT_N ");
+        lists.getRow(0).createCell(5).setCellValue("poids");
+        lists.getRow(1).createCell(5).setCellValue("-0.25");
+        lists.getRow(0).createCell(6).setCellValue("unused");
+        lists.getRow(0).createCell(7).setCellValue("poids");
+        lists.getRow(1).createCell(6).setCellValue("not imported");
+        lists.getRow(1).createCell(7).setCellValue(7);
         lists.getRow(2).getCell(0).setBlank();
+        lists.getRow(2).getCell(1).setBlank();
         lists.getRow(3).getCell(0).setCellValue(" ch-fr ");
+        lists.getRow(3).getCell(1).setCellValue(2);
         lists.createRow(5).createCell(0).setCellValue("éA/ZZ_+");
+        lists.getRow(5).createCell(1).setCellValue(3);
         lists.createRow(4).createCell(0).setCellValue("   ");
 
         ParsedRestrictions result = parse("2026-2027");
@@ -92,8 +104,9 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
         assertEquals(new RestrictionRow("Other", false, null, null, null, "listLinks1", null),
                 result.constraints().get(1));
         assertEquals(List.of("listLinks1", "Second LIST"), List.copyOf(result.linkLists().keySet()));
-        assertEquals(List.of("ch-fr", "ch-fr", "éA/ZZ_+"), result.linkLists().get("listLinks1"));
-        assertEquals(List.of("FR->IT_N"), result.linkLists().get("Second LIST"));
+        assertEquals(List.of(new WeightedLink("ch-fr", -1), new WeightedLink("ch-fr", 2),
+                new WeightedLink("éA/ZZ_+", 3)), result.linkLists().get("listLinks1"));
+        assertEquals(List.of(new WeightedLink("FR->IT_N", -0.25)), result.linkLists().get("Second LIST"));
     }
 
     @Test
@@ -207,7 +220,9 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     @Test
     void acceptsDistinctCaseSensitiveDynamicListNames() {
         lists.getRow(0).createCell(2).setCellValue("LISTLINKS1");
+        lists.getRow(0).createCell(3).setCellValue("poids");
         lists.getRow(1).createCell(2).setCellValue("Second");
+        lists.getRow(1).createCell(3).setCellValue(2);
         constraint(2, "Other", "NO", "LISTLINKS1");
         assertEquals(2, parse("2027").linkLists().size());
     }
@@ -216,6 +231,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     void rejectsReferencedEmptyList() {
         for (int i = 1; i <= 3; i++) {
             lists.getRow(i).getCell(0).setCellValue(" ");
+            lists.getRow(i).getCell(1).setBlank();
         }
         assertInvalid("2027", "2027", 2, 6, "Referenced list is absent or empty");
     }
@@ -223,15 +239,23 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     @Test
     void rejectsDuplicateListHeadersEvenWhenUnusedAndTrimmed() {
         lists.getRow(0).createCell(2).setCellValue(" unused ");
+        lists.getRow(0).createCell(3).setCellValue("Poids");
         lists.getRow(0).createCell(4).setCellValue("unused");
+        lists.getRow(0).createCell(5).setCellValue("poids");
         assertInvalid("2027", "listLinks", 1, 4, "Duplicate list header: unused");
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 8})
+    @ValueSource(ints = {3, 8})
     void rejectsDataUnderUnnamedColumnsIncludingBeyondLastHeader(int column) {
         lists.getRow(1).createCell(column).setCellValue("link");
         assertInvalid("2027", "listLinks", 2, column, "Data under an unnamed list column");
+    }
+
+    @Test
+    void rejectsNumericDataUnderUnnamedColumnBeyondLastHeader() {
+        lists.getRow(1).createCell(8).setCellValue(0);
+        assertInvalid("2027", "listLinks", 2, 8, "Data under an unnamed list column");
     }
 
     @Test
@@ -269,7 +293,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     }
 
     @Test
-    void readsEvaluatedFormulasAndFormattedNumbersAsText() {
+    void readsEvaluatedFormulaTextAndPreservesFormattedLinkNames() {
         constraints.getRow(0).getCell(0).setCellFormula("\"nom\"");
         constraints.getRow(1).getCell(1).setCellFormula("\"yEs\"");
         constraints.getRow(1).createCell(7).setCellFormula("10*2");
@@ -279,9 +303,91 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
         style.setDataFormat(workbook.createDataFormat().getFormat("000"));
         number.setCellStyle(style);
         lists.getRow(2).getCell(0).setCellFormula("\" FR->CH \"");
+        lists.getRow(2).getCell(1).setCellFormula("2/3");
         ParsedRestrictions result = parse("2027");
         assertEquals("20", result.constraints().getFirst().secondMember());
-        assertEquals(List.of("007", "FR->CH", "fr-zz_flowbased"), result.linkLists().get("listLinks1"));
+        assertEquals(List.of(new WeightedLink("007", -1), new WeightedLink("FR->CH", 2.0 / 3.0),
+                new WeightedLink("fr-zz_flowbased", 0)), result.linkLists().get("listLinks1"));
+    }
+
+    @Test
+    void readsUnderlyingNumericPrecisionAndNumericStringsIndependentlyOfLocale() {
+        lists.getRow(1).getCell(1).setCellValue(1.234567891234);
+        var rounded = workbook.createCellStyle();
+        rounded.setDataFormat(workbook.createDataFormat().getFormat("0.0"));
+        lists.getRow(1).getCell(1).setCellStyle(rounded);
+        lists.getRow(2).getCell(1).setCellValue("-0.125");
+        lists.getRow(3).getCell(1).setCellFormula("1/3");
+        lists.getRow(3).getCell(1).setCellStyle(rounded);
+
+        List<WeightedLink> links = parse("2027").linkLists().get("listLinks1");
+
+        assertEquals(1.234567891234, links.get(0).weight(), 0);
+        assertEquals(-0.125, links.get(1).weight(), 0);
+        assertEquals(1.0 / 3.0, links.get(2).weight(), 0);
+    }
+
+    @Test
+    void allowsNegativeZeroAndValidatesUnreferencedPairs() {
+        lists.getRow(1).getCell(1).setCellValue("-0.0");
+        lists.getRow(0).createCell(4).setCellValue("unreferenced");
+        lists.getRow(0).createCell(5).setCellValue(" PoIdS ");
+        lists.getRow(1).createCell(4).setCellValue("extra-link");
+        lists.getRow(1).createCell(5).setCellValue(0.125);
+
+        ParsedRestrictions result = parse("2027");
+
+        assertEquals(Double.doubleToRawLongBits(-0.0),
+                Double.doubleToRawLongBits(result.linkLists().get("listLinks1").getFirst().weight()));
+        assertEquals(List.of("listLinks1"), List.copyOf(result.linkLists().keySet()));
+
+        lists.getRow(1).getCell(5).setCellValue("not a number");
+        assertInvalid("2027", "listLinks", 2, 5, "Weight is not numeric");
+    }
+
+    @Test
+    void rejectsOldUnweightedFormatAndIncompletePairs() {
+        lists.getRow(0).getCell(1).setCellValue("another list");
+        assertInvalid("2027", "listLinks", 1, 1, "Expected poids header");
+
+        lists.getRow(0).getCell(1).setCellValue("poids");
+        lists.getRow(1).getCell(1).setBlank();
+        assertInvalid("2027", "listLinks", 2, 1, "Link has no weight");
+
+        lists.getRow(1).getCell(0).setBlank();
+        lists.getRow(1).getCell(1).setCellValue(1);
+        assertInvalid("2027", "listLinks", 2, 1, "Weight has no link");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"not-a-number", "NaN", "Infinity", "-Infinity"})
+    void rejectsNonNumericAndNonFiniteWeights(String weight) {
+        lists.getRow(1).getCell(1).setCellValue(weight);
+        assertInvalid("2027", "listLinks", 2, 1, "Weight");
+    }
+
+    @Test
+    void rejectsBooleanAndInvalidFormulaWeights() {
+        lists.getRow(1).getCell(1).setCellValue(true);
+        assertInvalid("2027", "listLinks", 2, 1, "Weight must be numeric");
+
+        lists.getRow(1).getCell(1).setCellFormula("UNKNOWNFUNCTION(1)");
+        assertInvalid("2027", "listLinks", 2, 1, "Cannot evaluate formula");
+    }
+
+    @Test
+    void rejectsExcelErrorAndFormulaErrorWeightsWithLocation() {
+        lists.getRow(1).getCell(1).setCellErrorValue(FormulaError.NA.getCode());
+        assertInvalid("2027", "listLinks", 2, 1, "Weight must be numeric");
+
+        lists.getRow(1).getCell(1).setCellFormula("1/0");
+        assertInvalid("2027", "listLinks", 2, 1, "Weight must be numeric");
+    }
+
+    @Test
+    void rejectsOrphanWeightHeader() {
+        lists.getRow(0).getCell(0).setCellValue("poids");
+        assertInvalid("2027", "listLinks", 1, 0, "Weight header has no list name");
     }
 
     @ParameterizedTest

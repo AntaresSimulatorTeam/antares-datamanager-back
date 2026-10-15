@@ -76,8 +76,8 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         assertThat(constraint.getName()).isEqualTo("restriction_ahc");
         assertThat(constraint.getEnabled()).isTrue();
         assertThat(constraint.getSign()).isEqualTo("less");
-        assertThat(constraint.getTemporality()).isEqualTo("hourly");
-        assertThat(constraint.getType()).isEqualTo("flowbased");
+        assertThat(constraint.getType()).isEqualTo("hourly");
+        assertThat(constraint.getConstraintType()).isEqualTo("flowbased");
         assertThat(constraint.getListLinks()).isEqualTo("listLinks1");
         assertThat(constraint.getSecondMember()).isEqualTo("ts10GW");
         assertThat(result.constraints().get(1).getEnabled()).isFalse();
@@ -85,6 +85,30 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
                 .containsExactlyInAnyOrder("ch-fr", "fr-itn", "fr-zz_flowbased");
         assertThat(result.links()).extracting(FlowbasedLinkListEntity::getListName)
                 .containsOnly("listLinks1");
+        assertThat(result.links()).extracting(FlowbasedLinkListEntity::getLink, FlowbasedLinkListEntity::getPoids)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("ch-fr", -1.0),
+                        org.assertj.core.groups.Tuple.tuple("fr-itn", 1.0),
+                        org.assertj.core.groups.Tuple.tuple("fr-zz_flowbased", 0.5));
+    }
+
+    @Test
+    void rejectsLinkWithoutWeightRatherThanAssigningDefault() throws IOException {
+        createWorkbook("2027");
+        Path file = restrictionsFile();
+        try (var input = Files.newInputStream(file);
+             var workbook = new XSSFWorkbook(input)) {
+            workbook.getSheet("listLinks").getRow(1).getCell(1).setBlank();
+            try (var output = Files.newOutputStream(file)) {
+                workbook.write(output);
+            }
+        }
+
+        var exception = org.junit.jupiter.api.Assertions.assertThrows(BusinessException.class,
+                () -> processor.readRestrictions(tempDir, "2027"));
+
+        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exception.getErrorMessageArguments()).contains("listLinks", "2", "B");
     }
 
     @Test
@@ -141,11 +165,17 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
             var lists = workbook.createSheet("listLinks");
             var listHeader = lists.createRow(0);
             listHeader.createCell(0).setCellValue("listLinks1");
+            listHeader.createCell(1).setCellValue("poids");
             listHeader.createCell(2).setCellValue("unused");
+            listHeader.createCell(3).setCellValue("poids");
             lists.createRow(1).createCell(0).setCellValue("ch-fr");
             lists.createRow(2).createCell(0).setCellValue("fr-itn");
             lists.createRow(3).createCell(0).setCellValue("fr-zz_flowbased");
             lists.getRow(1).createCell(2).setCellValue("fr-es");
+            lists.getRow(1).createCell(1).setCellValue(-1);
+            lists.getRow(2).createCell(1).setCellValue(1);
+            lists.getRow(3).createCell(1).setCellValue(0.5);
+            lists.getRow(1).createCell(3).setCellValue(1);
             var sheet = workbook.createSheet(horizonSheet);
             String[] headers = {"nom", "enabled", "signe", "temporalit\u00e9", "type",
                     "information forme de la contrainte", "listLinks", "second_member"};
