@@ -319,6 +319,8 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
 
 
     /**
+     * Checks endpoint order and study-area membership without regard to case.
+     *
      * @param path                  trajectory file
      * @param horizon               make error clearer
      * @param columnName            grouped by Direct or Indirect types
@@ -327,6 +329,8 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
      */
     public static List<String> checkLinksAlphabeticalOrder(Path path, String horizon, String columnName, List<String> areasSavedForScenario) {
         List<String> parametersForWarnings = new ArrayList<>();
+        Set<String> studyAreas = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        studyAreas.addAll(areasSavedForScenario);
 
         try (InputStream inputStream = Files.newInputStream(path);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -344,7 +348,7 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
                         String area1 = parts[0].trim();
                         String area2 = parts[1].trim();
 
-                        if (area1.compareTo(area2) > 0 && areasSavedForScenario.contains(area1) && areasSavedForScenario.contains(area2)) {
+                        if (area1.compareToIgnoreCase(area2) > 0 && studyAreas.contains(area1) && studyAreas.contains(area2)) {
                             parametersForWarnings.add(value);
                         }
                     }

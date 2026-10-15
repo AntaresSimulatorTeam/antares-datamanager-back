@@ -27,6 +27,9 @@ public class FlowbasedLinkListEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String link;
 
+    @Column(nullable = false)
+    private Double poids;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trajectory_id", nullable = false)
     private TrajectoryEntity trajectory;

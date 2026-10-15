@@ -47,9 +47,9 @@ public class FlowbasedConstraintsRestrictionsFileProcessorService {
                     .map(row -> FlowbasedConstraintsRestrictionEntity.builder()
                             .name(row.name())
                             .enabled(row.enabled())
-                            .sign(row.sign())
-                            .temporality(row.temporality())
+                            .sign(row.operator())
                             .type(row.type())
+                            .constraintType(row.constraintType())
                             .listLinks(row.listLinks())
                             .secondMember(row.secondMember())
                             .build())
@@ -57,10 +57,11 @@ public class FlowbasedConstraintsRestrictionsFileProcessorService {
 
             List<FlowbasedLinkListEntity> links = new ArrayList<>();
             parsed.linkLists().forEach((listName, values) -> {
-                for (String link : values) {
+                for (var link : values) {
                     links.add(FlowbasedLinkListEntity.builder()
                             .listName(listName)
-                            .link(link)
+                            .link(link.name())
+                            .poids(link.weight())
                             .build());
                 }
             });

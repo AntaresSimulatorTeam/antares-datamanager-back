@@ -1891,6 +1891,57 @@ class UtilsTest {
     }
 
     @Test
+    void calculateFlowbasedFilesChecksum_tracksLinksSheetChangesInWorkbook(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("IdTypDays.csv"), "1;2;Winter");
+        Files.writeString(directory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        Path file = directory.resolve("Flowbased_nodes_links.xlsx");
+        try (var workbook = new XSSFWorkbook()) {
+            workbook.createSheet("nodes").createRow(0).createCell(0).setCellValue("z_fr_de");
+            workbook.createSheet("links").createRow(0).createCell(0).setCellValue("FR-DE");
+            try (var output = Files.newOutputStream(file)) {
+                workbook.write(output);
+            }
+            String original = Utils.calculateFlowbasedFilesChecksum(directory);
+            assertEquals(original, Utils.calculateFlowbasedFilesChecksum(directory));
+
+            workbook.getSheet("links").getRow(0).getCell(0).setCellValue("DE-FR");
+            try (var output = Files.newOutputStream(file)) {
+                workbook.write(output);
+            }
+
+            assertNotEquals(original, Utils.calculateFlowbasedFilesChecksum(directory));
+        }
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_tracksOnlyWeightChangeInAhcWorkbook(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(directory.resolve("IdTypDays.csv"), "1;2;Winter");
+        Files.writeString(directory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        Path file = Files.createDirectory(directory.resolve("restriction_ahc")).resolve("contrainte_restriction_ahc.xlsx");
+        try (var workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet("listLinks");
+            var header = sheet.createRow(0);
+            header.createCell(0).setCellValue("listLinks1");
+            header.createCell(1).setCellValue("poids");
+            var row = sheet.createRow(1);
+            row.createCell(0).setCellValue("ch-fr");
+            row.createCell(1).setCellValue(-1);
+            try (var output = Files.newOutputStream(file)) {
+                workbook.write(output);
+            }
+            String original = Utils.calculateFlowbasedFilesChecksum(directory);
+
+            row.getCell(1).setCellValue(0.5);
+            try (var output = Files.newOutputStream(file)) {
+                workbook.write(output);
+            }
+
+            assertNotEquals(original, Utils.calculateFlowbasedFilesChecksum(directory));
+        }
+    }
+
+    @Test
     void calculateFlowbasedFilesChecksum_returnsSameChecksumForSameContent(@TempDir Path testDir) throws IOException {
         Path dir = testDir.resolve("flowbased");
         Files.createDirectories(dir);
@@ -2027,6 +2078,136 @@ class UtilsTest {
 
         Files.delete(restrictions);
         assertEquals(withoutRestrictions, Utils.calculateFlowbasedFilesChecksum(directory));
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_preservesWorkbookOnlyChecksumCompatibility(@TempDir Path directory) throws Exception {
+        Files.writeString(directory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(directory.resolve("IdTypDays.csv"), "1,2,Winter");
+        Files.writeString(directory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        String workbookContents = "workbook content";
+        Files.createDirectories(directory.resolve("restriction_ahc"));
+        Files.writeString(directory.resolve("restriction_ahc/contrainte_restriction_ahc.xlsx"), workbookContents);
+
+        var legacyDigest = java.security.MessageDigest.getInstance("SHA-256");
+        for (String name : List.of("Flowbased_nodes_links.xlsx", "IdTypDays.csv", "areas_necessary.xlsx")) {
+            legacyDigest.update(name.getBytes(StandardCharsets.UTF_8));
+            legacyDigest.update(Files.readAllBytes(directory.resolve(name)));
+        }
+        legacyDigest.update("restriction_ahc/contrainte_restriction_ahc.xlsx".getBytes(StandardCharsets.UTF_8));
+        legacyDigest.update(workbookContents.getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(java.util.HexFormat.of().formatHex(legacyDigest.digest()),
+                Utils.calculateFlowbasedFilesChecksum(directory));
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_tracksNestedRestrictionFileLifecycle(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(directory.resolve("IdTypDays.csv"), "1,2,Winter");
+        Files.writeString(directory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        Path restrictions = Files.createDirectories(directory.resolve("restriction_ahc/ts"));
+        String withoutRestrictions = Utils.calculateFlowbasedFilesChecksum(directory);
+
+        Path series = Files.writeString(restrictions.resolve("series.txt"), "initial series");
+        String first = Utils.calculateFlowbasedFilesChecksum(directory);
+        assertNotEquals(withoutRestrictions, first);
+        assertEquals(first, Utils.calculateFlowbasedFilesChecksum(directory));
+
+        Files.writeString(series, "changed series");
+        String changed = Utils.calculateFlowbasedFilesChecksum(directory);
+        assertNotEquals(first, changed);
+
+        Path added = Files.writeString(restrictions.resolve("added.txt"), "additional series");
+        String withAddedFile = Utils.calculateFlowbasedFilesChecksum(directory);
+        assertNotEquals(changed, withAddedFile);
+
+        Path renamed = restrictions.resolve("renamed.txt");
+        Files.move(added, renamed);
+        String withRenamedFile = Utils.calculateFlowbasedFilesChecksum(directory);
+        assertNotEquals(withAddedFile, withRenamedFile);
+
+        Files.delete(renamed);
+        assertNotEquals(withRenamedFile, Utils.calculateFlowbasedFilesChecksum(directory));
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_sortsNestedRestrictionPathsIndependentlyOfCreationOrder(@TempDir Path directory) throws IOException {
+        Path first = Files.createDirectory(directory.resolve("first"));
+        Path second = Files.createDirectory(directory.resolve("second"));
+        for (Path trajectory : List.of(first, second)) {
+            Files.writeString(trajectory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+            Files.writeString(trajectory.resolve("IdTypDays.csv"), "1,2,Winter");
+            Files.writeString(trajectory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        }
+
+        Path firstRestrictions = Files.createDirectories(first.resolve("restriction_ahc/ts"));
+        Files.writeString(firstRestrictions.resolve("z.txt"), "last");
+        Files.writeString(firstRestrictions.resolve("a.txt"), "first");
+        Path secondRestrictions = Files.createDirectories(second.resolve("restriction_ahc/ts"));
+        Files.writeString(secondRestrictions.resolve("a.txt"), "first");
+        Files.writeString(secondRestrictions.resolve("z.txt"), "last");
+
+        assertEquals(Utils.calculateFlowbasedFilesChecksum(first), Utils.calculateFlowbasedFilesChecksum(second));
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_emptyRestrictionsFolderDoesNotChangeChecksum(@TempDir Path directory) throws IOException {
+        Files.writeString(directory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(directory.resolve("IdTypDays.csv"), "1,2,Winter");
+        Files.writeString(directory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        String withoutRestrictions = Utils.calculateFlowbasedFilesChecksum(directory);
+
+        Files.createDirectory(directory.resolve("restriction_ahc"));
+
+        assertEquals(withoutRestrictions, Utils.calculateFlowbasedFilesChecksum(directory));
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_rejectsEscapingSymlinkInNestedRestrictions(@TempDir Path directory) throws IOException {
+        Path trajectory = Files.createDirectory(directory.resolve("trajectory"));
+        Files.writeString(trajectory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(trajectory.resolve("IdTypDays.csv"), "1,2,Winter");
+        Files.writeString(trajectory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        Path nested = Files.createDirectories(trajectory.resolve("restriction_ahc/ts"));
+        Path outside = Files.writeString(directory.resolve("outside.txt"), "outside");
+        Files.createSymbolicLink(nested.resolve("outside.txt"), outside);
+
+        assertThatThrownBy(() -> Utils.calculateFlowbasedFilesChecksum(trajectory))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("outside of the allowed directory");
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_rejectsEscapingDirectorySymlinkInRestrictions(@TempDir Path directory) throws IOException {
+        Path trajectory = Files.createDirectory(directory.resolve("trajectory"));
+        Files.writeString(trajectory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(trajectory.resolve("IdTypDays.csv"), "1,2,Winter");
+        Files.writeString(trajectory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        Path restrictions = Files.createDirectory(trajectory.resolve("restriction_ahc"));
+        Path outside = Files.createDirectory(directory.resolve("outside"));
+        Files.writeString(outside.resolve("file.txt"), "outside");
+        Files.createSymbolicLink(restrictions.resolve("linked"), outside);
+
+        assertThatThrownBy(() -> Utils.calculateFlowbasedFilesChecksum(trajectory))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("outside of the allowed directory");
+    }
+
+    @Test
+    void calculateFlowbasedFilesChecksum_rejectsDirectorySymlinkInRestrictions(@TempDir Path directory) throws IOException {
+        Path trajectory = Files.createDirectory(directory.resolve("trajectory"));
+        Files.writeString(trajectory.resolve("Flowbased_nodes_links.xlsx"), "nodes and links");
+        Files.writeString(trajectory.resolve("IdTypDays.csv"), "1,2,Winter");
+        Files.writeString(trajectory.resolve("areas_necessary.xlsx"), "areas\nFR");
+        Path restrictions = Files.createDirectory(trajectory.resolve("restriction_ahc"));
+        Path targetDirectory = Files.createDirectory(trajectory.resolve("other"));
+        Files.writeString(targetDirectory.resolve("hidden.txt"), "hidden");
+        Files.createSymbolicLink(restrictions.resolve("linked"), targetDirectory);
+
+        assertThatThrownBy(() -> Utils.calculateFlowbasedFilesChecksum(trajectory))
+                .isInstanceOf(TechnicalException.class)
+                .hasMessageContaining("directory symbolic links are not allowed");
     }
 
     @Test
