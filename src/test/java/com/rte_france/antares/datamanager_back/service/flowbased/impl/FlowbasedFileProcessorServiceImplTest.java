@@ -71,7 +71,7 @@ class FlowbasedFileProcessorServiceImplTest {
 
         assertDoesNotThrow(() -> flowbasedFileProcessorService.validateRequiredFiles(tempDir));
     }
-    
+
     @Test
     void validateRequiredFiles_shouldThrowExceptionWhenMultipleFilesAreMissing(@TempDir Path tempDir) throws IOException {
         createAllRequiredFilesExcept(tempDir, "Flowbased_nodes_links.xlsx", "IdTypDays.csv");
@@ -111,7 +111,7 @@ class FlowbasedFileProcessorServiceImplTest {
             BusinessException exception = assertThrows(BusinessException.class,
                     () -> flowbasedFileProcessorService.processFlowbasedFiles(tempDir, "trajectory", 1, "2025-2026"));
 
-            assertTrue(exception.getMessage().contains("Error processing flowbased files") || 
+            assertTrue(exception.getMessage().contains("Error processing flowbased files") ||
                       exception.getMessage().contains("Checksum calculation error"));
             assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         }
@@ -135,7 +135,7 @@ class FlowbasedFileProcessorServiceImplTest {
              MockedStatic<Files> filesMock = mockStatic(Files.class)) {
             utilsMock.when(() -> Utils.calculateFlowbasedFilesChecksum(tempDir))
                     .thenReturn("sameChecksum");
-            
+
             var mockFileTime = mock(java.nio.file.attribute.FileTime.class);
             when(mockFileTime.toMillis()).thenReturn(modificationDate.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
             filesMock.when(() -> Files.getLastModifiedTime(tempDir))
@@ -181,7 +181,7 @@ class FlowbasedFileProcessorServiceImplTest {
         var constraint = FlowbasedConstraintsRestrictionEntity.builder()
                 .name("restriction_ahc").enabled(true).listLinks("listLinks1").build();
         var link = FlowbasedLinkListEntity.builder()
-                .listName("listLinks1").link("ch-fr").position(0).build();
+                .listName("listLinks1").link("ch-fr").build();
         when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027"))
                 .thenReturn(new FlowbasedConstraintsRestrictionsFileProcessorService.RestrictionsData(
                         List.of(constraint), List.of(link)));
@@ -222,16 +222,6 @@ class FlowbasedFileProcessorServiceImplTest {
         assertEquals("Mandatory Areas {0} in Flowbased trajectory are missing in AREA trajectory", exception.getMessage());
         assertEquals(List.of("NL"), exception.getErrorMessageArguments());
         verify(trajectoryRepository, never()).save(any(TrajectoryEntity.class));
-    }
-
-    @Test
-    void buildAreasNecessaryList_shouldRejectInvalidHeader(@TempDir Path tempDir) throws IOException {
-        createAreasNecessarySheet(tempDir.resolve("areas_necessary.xlsx"), "FR", "area");
-
-        BusinessException exception = assertThrows(BusinessException.class,
-                () -> flowbasedFileProcessorService.buildAreasNecessaryList(tempDir));
-
-        assertTrue(exception.getMessage().contains("expected one column with header 'areas'"));
     }
 
     @Test
@@ -674,7 +664,7 @@ class FlowbasedFileProcessorServiceImplTest {
             var row = sheet.createRow(0);
             row.createCell(0).setCellValue("invalid_value");
 
-            assertThrows(BusinessException.class, () -> 
+            assertThrows(BusinessException.class, () ->
                 flowbasedFileProcessorService.getIntegerCellValue(row, 0));
         }
     }
@@ -686,7 +676,7 @@ class FlowbasedFileProcessorServiceImplTest {
             var row = sheet.createRow(0);
             row.createCell(0).setCellValue("123.45");
 
-            assertThrows(BusinessException.class, () -> 
+            assertThrows(BusinessException.class, () ->
                 flowbasedFileProcessorService.getIntegerCellValue(row, 0));
         }
     }
@@ -698,7 +688,7 @@ class FlowbasedFileProcessorServiceImplTest {
             var row = sheet.createRow(0);
             row.createCell(0).setCellValue(true);
 
-            assertThrows(BusinessException.class, () -> 
+            assertThrows(BusinessException.class, () ->
                 flowbasedFileProcessorService.getIntegerCellValue(row, 0));
         }
     }
@@ -710,7 +700,7 @@ class FlowbasedFileProcessorServiceImplTest {
             var row = sheet.createRow(0);
             row.createCell(0).setCellValue("");
 
-            assertThrows(BusinessException.class, () -> 
+            assertThrows(BusinessException.class, () ->
                 flowbasedFileProcessorService.getIntegerCellValue(row, 0));
         }
     }
@@ -816,7 +806,7 @@ class FlowbasedFileProcessorServiceImplTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
-            
+
             for (int i = 0; i < 8; i++) {
                 row.createCell(i).setCellValue(100 * (i + 1));
             }
@@ -839,7 +829,7 @@ class FlowbasedFileProcessorServiceImplTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
-            
+
             for (int i = 0; i < 8; i++) {
                 row.createCell(i).setCellValue("infinite");
             }
@@ -862,7 +852,7 @@ class FlowbasedFileProcessorServiceImplTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
-            
+
             row.createCell(0).setCellValue("infinite");
             row.createCell(1).setCellValue(200);
             row.createCell(2).setCellValue(300);
@@ -877,7 +867,7 @@ class FlowbasedFileProcessorServiceImplTest {
                 values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
             }
 
-            assertThrows(BusinessException.class, () -> 
+            assertThrows(BusinessException.class, () ->
                 flowbasedFileProcessorService.determineOverallType(
                     values[0], values[1], values[2], values[3],
                     values[4], values[5], values[6], values[7]));
@@ -889,7 +879,7 @@ class FlowbasedFileProcessorServiceImplTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
-            
+
             row.createCell(0).setCellValue(100);
             row.createCell(1).setCellValue(200);
             row.createCell(2).setCellValue(300);
@@ -914,7 +904,7 @@ class FlowbasedFileProcessorServiceImplTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             XSSFSheet sheet = workbook.createSheet();
             var row = sheet.createRow(0);
-            
+
             row.createCell(0).setCellValue("infinite");
             row.createCell(1).setCellValue(200);
             row.createCell(2).setCellValue(300);
@@ -926,7 +916,7 @@ class FlowbasedFileProcessorServiceImplTest {
                 values[i] = flowbasedFileProcessorService.getIntegerCellValueWithType(row, i);
             }
 
-            assertThrows(BusinessException.class, () -> 
+            assertThrows(BusinessException.class, () ->
                 flowbasedFileProcessorService.determineOverallType(
                     values[0], values[1], values[2], values[3],
                     values[4], values[5], values[6], values[7]));

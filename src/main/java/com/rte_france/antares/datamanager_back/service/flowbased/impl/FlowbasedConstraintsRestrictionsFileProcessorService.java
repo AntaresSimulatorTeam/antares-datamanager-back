@@ -22,6 +22,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -36,7 +37,7 @@ public class FlowbasedConstraintsRestrictionsFileProcessorService {
     public RestrictionsData readRestrictions(Path trajectoryDirectory, String horizon) {
         Path file = pathSecurityUtil.resolveSafePath(trajectoryDirectory, DIRECTORY, FILE_NAME);
         if (Files.notExists(file, LinkOption.NOFOLLOW_LINKS)) {
-            return new RestrictionsData(List.of(), List.of());
+            return new RestrictionsData(new ArrayList<>(), new ArrayList<>());
         }
 
         try (InputStream input = Files.newInputStream(file);
@@ -52,15 +53,14 @@ public class FlowbasedConstraintsRestrictionsFileProcessorService {
                             .listLinks(row.listLinks())
                             .secondMember(row.secondMember())
                             .build())
-                    .toList();
+                    .collect(Collectors.toCollection(ArrayList::new));
 
             List<FlowbasedLinkListEntity> links = new ArrayList<>();
             parsed.linkLists().forEach((listName, values) -> {
-                for (int position = 0; position < values.size(); position++) {
+                for (String link : values) {
                     links.add(FlowbasedLinkListEntity.builder()
                             .listName(listName)
-                            .link(values.get(position))
-                            .position(position)
+                            .link(link)
                             .build());
                 }
             });

@@ -22,14 +22,14 @@ class FlowbasedLinkListRepositoryTest {
     private EntityManager entityManager;
 
     @Test
-    void shouldFindListEntriesByTrajectoryAndListNameInPositionOrder() {
+    void shouldFindListEntriesByTrajectoryAndListName() {
         TrajectoryEntity trajectory = persistTrajectory("links-trajectory");
         TrajectoryEntity otherTrajectory = persistTrajectory("other-links-trajectory");
-        persistLink(trajectory, "listLinks1", "ch-fr", 2);
-        persistLink(trajectory, "listLinks1", "fr-itn", 1);
-        persistLink(trajectory, "listLinks1", "ch-fr", 3);
-        persistLink(trajectory, "listLinks2", "not-in-result", 1);
-        persistLink(otherTrajectory, "listLinks1", "other-trajectory", 1);
+        persistLink(trajectory, "listLinks1", "ch-fr");
+        persistLink(trajectory, "listLinks1", "fr-itn");
+        persistLink(trajectory, "listLinks1", "ch-fr");
+        persistLink(trajectory, "listLinks2", "not-in-result");
+        persistLink(otherTrajectory, "listLinks1", "other-trajectory");
         entityManager.flush();
 
         List<FlowbasedLinkListEntity> result =
@@ -38,10 +38,7 @@ class FlowbasedLinkListRepositoryTest {
         assertThat(result)
                 .hasSize(3)
                 .extracting(FlowbasedLinkListEntity::getLink)
-                .containsExactly("fr-itn", "ch-fr", "ch-fr");
-        assertThat(result)
-                .extracting(FlowbasedLinkListEntity::getPosition)
-                .containsExactly(1, 2, 3);
+                .containsExactlyInAnyOrder("fr-itn", "ch-fr", "ch-fr");
     }
 
     private TrajectoryEntity persistTrajectory(String fileName) {
@@ -56,12 +53,11 @@ class FlowbasedLinkListRepositoryTest {
         return trajectory;
     }
 
-    private void persistLink(TrajectoryEntity trajectory, String listName, String link, int position) {
+    private void persistLink(TrajectoryEntity trajectory, String listName, String link) {
         FlowbasedLinkListEntity entry = new FlowbasedLinkListEntity();
         entry.setTrajectory(trajectory);
         entry.setListName(listName);
         entry.setLink(link);
-        entry.setPosition(position);
         entityManager.persist(entry);
     }
 }
