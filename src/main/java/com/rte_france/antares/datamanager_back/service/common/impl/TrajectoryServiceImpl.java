@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProc
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
@@ -67,6 +68,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
+
+    private final FlowbasedFileProcessorService flowbasedFileProcessorService;
 
     private final LinkMeProcessorServiceImpl linkMeProcessorServiceImpl;
 
@@ -718,6 +721,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         String trajectoryType = trajectory.getType();
+
+        if (TrajectoryType.FLOWBASED.name().equals(trajectoryType)) {
+            flowbasedFileProcessorService.validateVirtualNodesHvdcLinks(trajectory.getFlowbasedVirtualNodes(), studyId);
+        }
 
         // Validation de cohérence entre Hydro Series et Hydro Parameters déjà sélectionnée
         if (TrajectoryType.HYDRO_SERIES.name().equals(trajectoryType) || TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectoryType)) {

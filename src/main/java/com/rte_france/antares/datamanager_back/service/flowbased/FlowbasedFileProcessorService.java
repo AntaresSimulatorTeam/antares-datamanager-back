@@ -23,4 +23,6 @@ public interface FlowbasedFileProcessorService {
 
     void validateRequiredFiles(Path trajectoryFilePath);
 
+    void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, Integer studyId);
+
 }

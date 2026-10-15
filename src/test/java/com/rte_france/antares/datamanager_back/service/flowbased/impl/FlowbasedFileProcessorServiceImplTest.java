@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedAreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedConstraintsRestrictionEntity;
@@ -21,6 +22,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -181,7 +184,7 @@ class FlowbasedFileProcessorServiceImplTest {
         var constraint = FlowbasedConstraintsRestrictionEntity.builder()
                 .name("restriction_ahc").enabled(true).listLinks("listLinks1").build();
         var link = FlowbasedLinkListEntity.builder()
-                .listName("listLinks1").link("ch-fr").build();
+                .listName("listLinks1").link("ch-fr").poids(-1.0).build();
         when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027"))
                 .thenReturn(new FlowbasedConstraintsRestrictionsFileProcessorService.RestrictionsData(
                         List.of(constraint), List.of(link)));
@@ -222,6 +225,142 @@ class FlowbasedFileProcessorServiceImplTest {
         assertEquals("Mandatory Areas {0} in Flowbased trajectory are missing in AREA trajectory", exception.getMessage());
         assertEquals(List.of("NL"), exception.getErrorMessageArguments());
         verify(trajectoryRepository, never()).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldAcceptHvdcNodesInEitherDirectionIgnoringCase(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        replaceNodes(directory, "z_fr_de", "Z_dE_fR", "z_Nos_nl");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 1))
+                .thenReturn(List.of(TrajectoryEntity.builder().linkEntities(List.of(
+                        LinkEntity.builder().name("DE-FR").hvdcMwDirect(10.0).hvdcMwIndirect(20.0).build(),
+                        LinkEntity.builder().name("nOs-NL").hvdcMwDirect(-10.0).hvdcMwIndirect(-20.0).build()
+                )).build()));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026");
+
+        assertEquals(List.of("z_fr_de", "Z_dE_fR", "z_Nos_nl"),
+                result.getFlowbasedVirtualNodes().stream().map(FlowbasedVirtualNodesEntity::getName).toList());
+        verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.LINK.name(), 1);
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"NULL,10", "10,NULL", "0,10", "10,0", "NULL,NULL", "0,0", "-0.0,10"}, nullValues = "NULL")
+    void processFlowbasedFiles_shouldRejectInvalidHvdcCapacity(Double direct, Double indirect, @TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        replaceNodes(directory, "z_fr_de");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 1))
+                .thenReturn(List.of(TrajectoryEntity.builder().linkEntities(List.of(
+                        LinkEntity.builder().name("FR-DE").hvdcMwDirect(direct).hvdcMwIndirect(indirect).build()
+                )).build()));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals(List.of("z_fr_de"), exception.getErrorMessageArguments());
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldNotCombineCapacitiesFromDifferentLinks(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        replaceNodes(directory, "z_fr_de");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 1))
+                .thenReturn(List.of(TrajectoryEntity.builder().linkEntities(List.of(
+                        LinkEntity.builder().name("FR-DE").hvdcMwDirect(10.0).hvdcMwIndirect(0.0).build(),
+                        LinkEntity.builder().name("DE-FR").hvdcMwDirect(0.0).hvdcMwIndirect(10.0).build()
+                )).build()));
+
+        assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026"));
+
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldReportMissingPairsOnceInNodeOrder(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        replaceNodes(directory, "z_Nos_nl", "z_fr_de", "z_Nos_nl");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 1))
+                .thenReturn(List.of(TrajectoryEntity.builder().linkEntities(List.of(
+                        LinkEntity.builder().name("FR-CH").hvdcMwDirect(10.0).hvdcMwIndirect(20.0).build()
+                )).build()));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals(List.of("z_Nos_nl, z_fr_de"), exception.getErrorMessageArguments());
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldRejectHvdcNodeWithoutLinkedTrajectory(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        replaceNodes(directory, "z_fr_de");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 1)).thenReturn(List.of());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals(List.of("z_fr_de"), exception.getErrorMessageArguments());
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldNotUseLinksAssociatedWithAnotherStudy(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        replaceNodes(directory, "z_fr_de");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 2))
+                .thenReturn(List.of(TrajectoryEntity.builder().linkEntities(List.of(
+                        LinkEntity.builder().name("FR-DE").hvdcMwDirect(10.0).hvdcMwIndirect(20.0).build()
+                )).build()));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026"));
+
+        assertEquals(List.of("z_fr_de"), exception.getErrorMessageArguments());
+        verify(trajectoryRepository).findByTypeAndStudyId(TrajectoryType.LINK.name(), 1);
+        verify(trajectoryRepository, never()).findByTypeAndStudyId(TrajectoryType.LINK.name(), 2);
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldLeaveOtherNodeFormatsUnchangedWithoutLinkedTrajectory(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        List<String> names = List.of("Node1", "FR", "z_fr", "z_fr_de_extra", "z__de", "z_fr_");
+        replaceNodes(directory, names.toArray(String[]::new));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026");
+
+        assertEquals(names, result.getFlowbasedVirtualNodes().stream().map(FlowbasedVirtualNodesEntity::getName).toList());
+        verify(trajectoryRepository, never()).findByTypeAndStudyId(anyString(), anyInt());
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldVersionChangesInRestrictionSeries(@TempDir Path directory) throws IOException {
+        createAllRequiredFilesWithContent(directory);
+        Path series = Files.createDirectories(directory.resolve("restriction_ahc/ts")).resolve("series.txt");
+        Files.writeString(series, "first content");
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var original = flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026");
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                "trajectory", TrajectoryType.FLOWBASED.name(), "2025-2026", null, null))
+                .thenReturn(Optional.of(original));
+
+        BusinessException duplicate = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026"));
+        assertEquals(HttpStatus.CONFLICT, duplicate.getHttpStatus());
+
+        Files.writeString(series, "updated content");
+        var updated = flowbasedFileProcessorService.processFlowbasedFiles(directory, "trajectory", 1, "2025-2026");
+
+        assertEquals(2, updated.getVersion());
+        assertNotEquals(original.getChecksum(), updated.getChecksum());
     }
 
     @Test
@@ -461,6 +600,21 @@ class FlowbasedFileProcessorServiceImplTest {
         List<FlowbasedTypeDayEntity> result = flowbasedFileProcessorService.buildFlowbasedTypeDayList(tempDir);
 
         assertEquals(0, result.size());
+    }
+
+    private void replaceNodes(Path directory, String... names) throws IOException {
+        Path file = directory.resolve("Flowbased_nodes_links.xlsx");
+        try (var input = Files.newInputStream(file);
+             var workbook = new XSSFWorkbook(input)) {
+            workbook.removeSheetAt(workbook.getSheetIndex("nodes"));
+            var sheet = workbook.createSheet("nodes");
+            for (int i = 0; i < names.length; i++) {
+                sheet.createRow(i).createCell(0).setCellValue(names[i]);
+            }
+            try (var output = Files.newOutputStream(file)) {
+                workbook.write(output);
+            }
+        }
     }
 
     private void createAllRequiredFiles(@TempDir Path tempDir) throws IOException {

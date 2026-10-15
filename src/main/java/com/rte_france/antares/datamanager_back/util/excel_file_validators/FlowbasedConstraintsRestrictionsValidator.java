@@ -34,11 +34,14 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         this.evaluator = workbook.getCreationHelper().createFormulaEvaluator();
     }
 
-    public record ParsedRestrictions(List<RestrictionRow> constraints, Map<String, List<String>> linkLists) {
+    public record WeightedLink(String name, double weight) {
     }
 
-    public record RestrictionRow(String name, boolean enabled, String sign, String temporality,
-                                 String type, String listLinks, String secondMember) {
+    public record ParsedRestrictions(List<RestrictionRow> constraints, Map<String, List<WeightedLink>> linkLists) {
+    }
+
+    public record RestrictionRow(String name, boolean enabled, String operator, String type,
+                                 String constraintType, String listLinks, String secondMember) {
     }
 
     public static ParsedRestrictions parse(Workbook workbook, String horizon, String fileName) {
@@ -53,8 +56,8 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         Sheet constraintsSheet = parser.requiredSheet(workbook, year);
         Sheet listsSheet = parser.requiredSheet(workbook, LIST_LINKS_SHEET);
         parser.validateHeaders(constraintsSheet);
-        Map<String, List<String>> allLists = parser.readLists(listsSheet);
-        Map<String, List<String>> referencedLists = new LinkedHashMap<>();
+        Map<String, List<WeightedLink>> allLists = parser.readLists(listsSheet);
+        Map<String, List<WeightedLink>> referencedLists = new LinkedHashMap<>();
         List<RestrictionRow> constraints = parser.readConstraints(constraintsSheet, allLists, referencedLists);
         return new ParsedRestrictions(List.copyOf(constraints), Collections.unmodifiableMap(referencedLists));
     }
@@ -79,8 +82,8 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         rejectExtraCells(header, sheet);
     }
 
-    private List<RestrictionRow> readConstraints(Sheet sheet, Map<String, List<String>> allLists,
-                                               Map<String, List<String>> referencedLists) {
+    private List<RestrictionRow> readConstraints(Sheet sheet, Map<String, List<WeightedLink>> allLists,
+                                                 Map<String, List<WeightedLink>> referencedLists) {
         List<RestrictionRow> constraints = new ArrayList<>();
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
@@ -104,7 +107,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
                         "enabled must be YES or NO, found " + enabled);
             }
             String reference = fields[LIST_LINKS.ordinal()];
-            List<String> links = allLists.get(reference);
+            List<WeightedLink> links = allLists.get(reference);
             if (links == null || links.isEmpty()) {
                 throw invalid(fileName, sheet.getSheetName(), row.getRowNum(), LIST_LINKS.ordinal(),
                         "Referenced list is absent or empty in listLinks: " + reference);
@@ -134,41 +137,150 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         }
     }
 
-    private Map<String, List<String>> readLists(Sheet sheet) {
+    private Map<String, List<WeightedLink>> readLists(Sheet sheet) {
         Map<Integer, String> names = new LinkedHashMap<>();
-        Map<String, List<String>> lists = new LinkedHashMap<>();
+        Map<Integer, Integer> weights = new LinkedHashMap<>();
+        Map<Integer, String> weightColumns = new LinkedHashMap<>();
+        Map<String, List<WeightedLink>> lists = new LinkedHashMap<>();
         Row header = sheet.getRow(0);
         if (header == null) {
             throw invalid(fileName, sheet.getSheetName(), 0, 0, "List header row is missing");
         }
-        for (Cell cell : header) {
-            String name = text(cell, sheet, 0, cell.getColumnIndex());
-            if (name != null) {
-                if (lists.putIfAbsent(name, new ArrayList<>()) != null) {
-                    throw invalid(fileName, sheet.getSheetName(), 0, cell.getColumnIndex(),
-                            "Duplicate list header: " + name);
-                }
-                names.put(cell.getColumnIndex(), name);
+        int width = maxColumnCount(sheet);
+        for (int column = 0; column < width; column++) {
+            String name = text(header.getCell(column), sheet, 0, column);
+            if (name == null) {
+                continue;
             }
+            if ("poids".equalsIgnoreCase(name)) {
+                throw invalid(fileName, sheet.getSheetName(), 0, column,
+                        "Weight header has no list name immediately before it");
+            }
+            String weightHeader = text(header.getCell(column + 1), sheet, 0, column + 1);
+            if (weightHeader == null || !"poids".equalsIgnoreCase(weightHeader)) {
+                throw invalid(fileName, sheet.getSheetName(), 0, column + 1,
+                        "Expected poids header immediately after list: " + name);
+            }
+            if (lists.putIfAbsent(name, new ArrayList<>()) != null) {
+                throw invalid(fileName, sheet.getSheetName(), 0, column, "Duplicate list header: " + name);
+            }
+            names.put(column, name);
+            weights.put(column, column + 1);
+            weightColumns.put(column + 1, name);
+            column++;
         }
         for (Row row : sheet) {
             if (row.getRowNum() == 0) {
                 continue;
             }
-            for (Cell cell : row) {
-                String value = text(cell, sheet, row.getRowNum(), cell.getColumnIndex());
-                if (value == null) {
+            for (int column = 0; column < width; column++) {
+                if (weightColumns.containsKey(column)) {
                     continue;
                 }
-                String name = names.get(cell.getColumnIndex());
+                String name = names.get(column);
+                Cell linkCell = row.getCell(column);
+                String link = text(linkCell, sheet, row.getRowNum(), column);
+                int weightColumn = weights.getOrDefault(column, -1);
+                Double weight = weightColumn < 0 ? null
+                        : numericWeight(row.getCell(weightColumn), sheet, row.getRowNum(), weightColumn);
                 if (name == null) {
-                    throw invalid(fileName, sheet.getSheetName(), row.getRowNum(), cell.getColumnIndex(),
-                            "Data under an unnamed list column");
+                    if (link != null || hasNumericValue(linkCell, sheet, row.getRowNum(), column)) {
+                        throw invalid(fileName, sheet.getSheetName(), row.getRowNum(), column,
+                                "Data under an unnamed list column");
+                    }
+                    continue;
                 }
-                lists.get(name).add(value);
+                if (link == null && weight == null) {
+                    continue;
+                }
+                if (link == null) {
+                    throw invalid(fileName, sheet.getSheetName(), row.getRowNum(), weightColumn,
+                            "Weight has no link");
+                }
+                if (weight == null) {
+                    throw invalid(fileName, sheet.getSheetName(), row.getRowNum(), weightColumn,
+                            "Link has no weight");
+                }
+                lists.get(name).add(new WeightedLink(link, weight));
             }
         }
         return lists;
+    }
+
+    private boolean hasNumericValue(Cell cell, Sheet sheet, int row, int column) {
+        if (cell == null) {
+            return false;
+        }
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return true;
+        }
+        if (cell.getCellType() == CellType.FORMULA) {
+            CellValue result;
+            try {
+                result = evaluator.evaluate(cell);
+            } catch (NotImplementedException | IllegalArgumentException | IllegalStateException e) {
+                throw invalid(fileName, sheet.getSheetName(), row, column,
+                        "Cannot evaluate formula: " + e.getMessage());
+            }
+            return result != null && result.getCellType() == CellType.NUMERIC;
+        }
+        return false;
+    }
+
+    private int maxColumnCount(Sheet sheet) {
+        int width = 0;
+        for (Row row : sheet) {
+            width = Math.max(width, row.getLastCellNum());
+        }
+        return width;
+    }
+
+    private Double numericWeight(Cell cell, Sheet sheet, int row, int column) {
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
+            return null;
+        }
+        double weight;
+        CellType type = cell.getCellType();
+        if (type == CellType.FORMULA) {
+            CellValue result;
+            try {
+                result = evaluator.evaluate(cell);
+            } catch (NotImplementedException | IllegalArgumentException | IllegalStateException e) {
+                throw invalid(fileName, sheet.getSheetName(), row, column,
+                        "Cannot evaluate formula: " + e.getMessage());
+            }
+            if (result == null) {
+                throw invalid(fileName, sheet.getSheetName(), row, column, "Formula has no result");
+            }
+            type = result.getCellType();
+            if (type == CellType.NUMERIC) {
+                weight = result.getNumberValue();
+            } else if (type == CellType.STRING && result.getStringValue().trim().isEmpty()) {
+                return null;
+            } else {
+                throw invalid(fileName, sheet.getSheetName(), row, column,
+                        "Weight must be numeric, found " + type);
+            }
+        } else if (type == CellType.NUMERIC) {
+            weight = cell.getNumericCellValue();
+        } else if (type == CellType.STRING) {
+            String value = cell.getStringCellValue().trim();
+            if (value.isEmpty()) {
+                return null;
+            }
+            try {
+                weight = Double.parseDouble(value);
+            } catch (NumberFormatException e) {
+                throw invalid(fileName, sheet.getSheetName(), row, column, "Weight is not numeric: " + value);
+            }
+        } else {
+            throw invalid(fileName, sheet.getSheetName(), row, column,
+                    "Weight must be numeric, found " + type);
+        }
+        if (!Double.isFinite(weight)) {
+            throw invalid(fileName, sheet.getSheetName(), row, column, "Weight must be finite");
+        }
+        return weight;
     }
 
     private String text(Cell cell, Sheet sheet, int row, int column) {
