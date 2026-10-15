@@ -45,7 +45,7 @@ class TrajectoryValidationAspectTest {
 
         aspect.validateTrajectoryName(joinPoint);
 
-        verify(trajectoryValidator).validate(trajectoryName, 40);
+        verify(trajectoryValidator).validate(trajectoryName, 60);
     }
 
     @Test
@@ -74,7 +74,7 @@ class TrajectoryValidationAspectTest {
 
         aspect.validateTrajectoryName(joinPoint);
 
-        verify(trajectoryValidator).validate(trajectoryName, 40);
+        verify(trajectoryValidator).validate(trajectoryName, 60);
     }
 
     @Test
@@ -142,7 +142,7 @@ class TrajectoryValidationAspectTest {
                 .message("Trajectory name too long")
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
-        doThrow(exception).when(trajectoryValidator).validate(trajectoryName, 40);
+        doThrow(exception).when(trajectoryValidator).validate(trajectoryName, 60);
 
         assertThrows(BusinessException.class, () -> aspect.validateTrajectoryName(joinPoint));
     }
@@ -172,8 +172,8 @@ class TrajectoryValidationAspectTest {
 
         aspect.validateTrajectoryName(joinPoint);
 
-        verify(trajectoryValidator).validate(trajectory1, 40);
-        verify(trajectoryValidator).validate(trajectory2, 40);
+        verify(trajectoryValidator).validate(trajectory1, 60);
+        verify(trajectoryValidator).validate(trajectory2, 60);
     }
 
     /* Test Controller with various method signatures for testing */

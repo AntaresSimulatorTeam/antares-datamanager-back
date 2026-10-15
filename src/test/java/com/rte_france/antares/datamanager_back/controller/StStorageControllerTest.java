@@ -75,7 +75,7 @@ class StStorageControllerTest {
         String area = "FR";
         String technology = "techno";
         // trajectoryToUse > 40 chars
-        String trajectoryToUse = "cluster_" + technology + "_" + "a".repeat(35) + ".xls";
+        String trajectoryToUse = "cluster_" + technology + "_" + "a".repeat(61) + ".xls";
         String horizon = "2025-2026";
 
         mockMvc.perform(post("/v1/trajectory/st-storage")

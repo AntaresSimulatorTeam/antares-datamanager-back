@@ -164,7 +164,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadHydroCapacityMeTrajectory_whenTrajectoryNameTooLong_returns400_andDoesNotCallService() throws Exception {
-        String tooLongName = "x".repeat(41);
+        String tooLongName = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/hydro-capacity-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -368,7 +368,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadHydroParametersMeTrajectory_whenTrajectoryNameTooLong_doesNotCallPathSecurityUtil() throws Exception {
-        String tooLongName = "x".repeat(41);
+        String tooLongName = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/hydro-parameters-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -418,7 +418,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadHydroTimeSeriesMeTrajectory_whenTrajectoryNameTooLong_returns400AndDoesNotCallService() throws Exception {
-        String tooLongName = "x".repeat(41);
+        String tooLongName = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/hydro-ts-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -604,7 +604,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadHydroReservoirLevelsMeTrajectory_whenTrajectoryNameTooLong_returns400AndDoesNotCallService() throws Exception {
-        String tooLongName = "x".repeat(41);
+        String tooLongName = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/hydro-reservoir-levels-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -772,7 +772,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadConstraintMeTrajectory_returnsBadRequestForTooLongTrajectoryName() throws Exception {
-        String tooLongName = "x".repeat(41);
+        String tooLongName = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/constraint-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -846,7 +846,7 @@ class MultiEnergyControllerTest {
 
     @Test
     void uploadEfficiencyMeTrajectory_returnsBadRequestForTooLongTrajectoryName() throws Exception {
-        String tooLongName = "x".repeat(41);
+        String tooLongName = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/efficiency-me")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)

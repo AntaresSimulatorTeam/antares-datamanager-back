@@ -78,10 +78,10 @@ class MultiEnergyControllerHydroWaterValuesMeTest {
     }
 
     @Test
-    @DisplayName("Should return 400 when trajectoryToUse exceeds 40 characters")
+    @DisplayName("Should return 400 when trajectoryToUse exceeds 60 characters")
     void uploadHydroWaterValuesMeTrajectory_whenTrajectoryNameTooLong_returns400() throws Exception {
         // Arrange
-        String longName = "this_is_a_very_long_trajectory_name_exceeding_forty_chars";
+        String longName = "a".repeat(61);
 
         // Act & Assert
         mockMvc.perform(post("/v1/trajectory/hydro-water-values-me")

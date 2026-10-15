@@ -207,7 +207,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearModulationTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
 
-        String longName = "a".repeat(41);
+        String longName = "a".repeat(61);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-modulation")
                 .param("trajectoryToUse", longName)
@@ -219,7 +219,7 @@ class NuclearControllerTest {
 
     @Test
     void uploadNuclearModulationTrajectory_withExactlyMaxLengthTrajectoryName_mustReturnCreated() throws Exception {
-        String maxName = "a".repeat(40);
+        String maxName = "a".repeat(60);
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -536,7 +536,7 @@ class NuclearControllerTest {
     @Test
     void uploadNuclearLongTermTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
         this.mockMvc.perform(post("/v1/trajectory/nuclear-lt")
-                .param("trajectoryToUse", "this_is_a_very_long_trajectory_name_exceeding_forty_characters")
+                .param("trajectoryToUse", "a".repeat(61))
                 .param("horizon", "2025-2026")
                 .param("studyId", "1")
                 .param("area", "FR"))
@@ -736,7 +736,7 @@ class NuclearControllerTest {
 
     @Test
     void uploadNuclearTsErpTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
-        String longName = "this_is_a_very_long_trajectory_name_exceeding_forty_characters.xlsx";
+        String longName = "a".repeat(61);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-erp")
                 .param("trajectoryToUse", longName)
@@ -938,7 +938,7 @@ class NuclearControllerTest {
 
     @Test
     void uploadNuclearTsSmrTrajectory_withTooLongTrajectoryName_mustReturnBadRequest() throws Exception {
-        String longName = "this_is_a_very_long_trajectory_name_exceeding_forty_characters.xlsx";
+        String longName = "a".repeat(61);
 
         this.mockMvc.perform(post("/v1/trajectory/nuclear-ts-smr")
                 .param("trajectoryToUse", longName)
