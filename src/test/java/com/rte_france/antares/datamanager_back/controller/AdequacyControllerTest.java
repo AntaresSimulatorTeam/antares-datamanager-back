@@ -73,7 +73,7 @@ class AdequacyControllerTest {
 
     @Test
     void uploadAdequacyTrajectory_returnsBadRequestForTooLongTrajectoryName() throws Exception {
-        String longName = "a".repeat(41);
+        String longName = "a".repeat(61);
         this.mockMvc.perform(post("/v1/trajectory/adequacy-patch")
                         .contentType(MediaType.APPLICATION_JSON_VALUE)
                         .param("trajectoryToUse", longName)

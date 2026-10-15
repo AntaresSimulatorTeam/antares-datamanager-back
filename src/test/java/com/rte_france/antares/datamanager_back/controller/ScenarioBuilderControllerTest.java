@@ -58,7 +58,7 @@ class ScenarioBuilderControllerTest {
 
     @Test
     void testUploadScenarioBuilderTrajectoryNameTooLong() throws Exception {
-        String longTrajectory = "scenario_builder_this_trajectory_name_is_way_too_long_exceeding_forty_characters";
+        String longTrajectory = "a".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/scenario-builder")
                         .param("trajectoryToUse", longTrajectory)
@@ -66,7 +66,7 @@ class ScenarioBuilderControllerTest {
                         .param("studyId", "1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.antaresErrorMessage")
-                        .value("Trajectory name cannot exceed 40 characters"))
+                        .value("Trajectory name cannot exceed 60 characters"))
                 .andExpect(jsonPath("$.type").value("BUSINESS"));
     }
 

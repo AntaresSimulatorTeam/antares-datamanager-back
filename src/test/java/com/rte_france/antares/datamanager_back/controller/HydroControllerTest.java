@@ -82,7 +82,7 @@ class HydroControllerTest {
 
     @Test
     void uploadSeriesHydroTrajectory_whenTrajectoryNameTooLong_returns400_andDoesNotCallService() throws Exception {
-        String tooLong = "x".repeat(41);
+        String tooLong = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/hydro-series")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -150,7 +150,7 @@ class HydroControllerTest {
 
     @Test
     void uploadTechnicalParametersHydroTrajectory_whenTrajectoryNameTooLong_returns400_andDoesNotCallService() throws Exception {
-        String tooLong = "x".repeat(41);
+        String tooLong = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/hydro-technical-parameters")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
