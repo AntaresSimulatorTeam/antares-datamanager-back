@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.HydroCapacityMeReposit
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.HydroCapacityMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
@@ -64,6 +65,7 @@ class HydroCapacityMeFileProcessorServiceImplTest {
     @Mock(lenient = true)
     private AreaRepository areaRepository;
 
+    @Mock(lenient = true)
     private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @InjectMocks
@@ -96,25 +98,8 @@ class HydroCapacityMeFileProcessorServiceImplTest {
         StudyEntity mockStudy = StudyEntity.builder().id(1).build();
         when(studyRepository.findById(1)).thenReturn(Optional.of(mockStudy));
         
-        // Mock AreaRepository to return area entities
-        java.util.List<AreaEntity> mockAreas = java.util.Arrays.asList(
-                AreaEntity.builder().name("AREA_1").build(),
-                AreaEntity.builder().name("area2").build(),
-                AreaEntity.builder().name("area3").build()
-        );
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
-                .thenReturn(mockAreas);
-        
-        // Create a spy of the real MultiEnergyCoherenceCheckService implementation
-        MultiEnergyCoherenceCheckService realService = new MultiEnergyCoherenceCheckServiceImpl(trajectoryRepository, areaRepository);
-        multiEnergyCoherenceCheckService = spy(realService);
-        
-        // Re-inject the spy into the service after @InjectMocks
-        ReflectionTestUtils.setField(hydroMeFileProcessorService, "multiEnergyCoherenceCheckService", multiEnergyCoherenceCheckService);
-        
-        // Configure the spy to return AREA_ME nodes (lowercase for validation)
-        java.util.Set<String> areaMeNodes = new java.util.HashSet<>(java.util.Arrays.asList("area_1", "area2", "area3"));
-        doReturn(areaMeNodes).when(multiEnergyCoherenceCheckService).extractNodesFromAreaMeTrajectory(anyInt());
+        when(multiEnergyCoherenceCheckService.getAreasMe(any()))
+                .thenReturn(java.util.Set.of("AREA_1", "AREA2", "AREA3"));
         
         setupExcelFile();
     }
@@ -175,6 +160,9 @@ class HydroCapacityMeFileProcessorServiceImplTest {
         
         when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
                 .thenReturn(testExcelPath);
+        
+        when(multiEnergyCoherenceCheckService.getAreasMe(1))
+                .thenReturn(java.util.Set.of("A".repeat(61)));
         
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
@@ -740,54 +728,14 @@ class HydroCapacityMeFileProcessorServiceImplTest {
     }
 
     @Test
-    void testProcessHydroCapacityMeFile_WithEmptyAreasMeTrajectory_shouldSucceed() throws IOException {
-        createValidExcelFile(testExcelPath);
-        
-        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
-                .thenReturn(testExcelPath);
-        
-        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
-                .thenReturn(java.util.Collections.emptyList());
-        
-        TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
-                .id(1)
-                .fileName(testTrajectoryName)
-                .horizon(testHorizon)
-                .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
-                .version(1)
-                .checksum("test_checksum")
-                .build();
-        
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
-                .thenReturn(Optional.empty());
-        
-        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
-                .thenReturn(mockTrajectory);
-        
-        TrajectoryEntity result = hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1);
-        
-        assertNotNull(result);
-        assertEquals(testTrajectoryName, result.getFileName());
-        assertEquals(1, result.getVersion());
-        verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
-    }
-
-    @Test
-    void testProcessHydroCapacityMeFile_MissingAreasInAreasMeTrajectory_throwsException() throws IOException {
+    void testProcessHydroCapacityMeFile_whenNoAreaMatchesAreaMe_throwsException() throws IOException {
         createExcelFileWithMultipleAreas(testExcelPath);
         
         when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
                 .thenReturn(testExcelPath);
         
-        when(studyRepository.findById(1)).thenReturn(Optional.of(StudyEntity.builder().id(1).build()));
-        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA_ME.name()))
-                .thenReturn(java.util.Arrays.asList(
-                        AreaEntity.builder().name("AREA_1").build()
-                ));
-        
-        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
-                .thenReturn(Optional.empty());
+        when(multiEnergyCoherenceCheckService.getAreasMe(1))
+                .thenReturn(java.util.Collections.emptySet());
         
         TrajectoryEntity mockTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -797,44 +745,58 @@ class HydroCapacityMeFileProcessorServiceImplTest {
                 .version(1)
                 .build();
         
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenReturn(mockTrajectory);
         
         BusinessException exception = assertThrows(BusinessException.class, 
                 () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
         
-        String message = exception.getMessage();
-        assertTrue(message.contains("from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory"),
-                "Exception message should contain the expected text. Message was: " + message);
-    }
-
-    @Test
-    void testProcessHydroCapacityMeFile_MultipleMissingAreas_reportsAllMissingAreasInArguments() throws IOException {
-        createExcelFileWithMultipleAreas(testExcelPath);
-        stubTrajectorySave();
-
-        BusinessException exception = assertThrows(BusinessException.class,
-                () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
-
-        assertTrue(exception.getMessage().contains("not present in AREAS_ME trajectory"));
+        assertEquals("No area from the HYDRO_ME trajectory is present in the AREA_ME trajectory", exception.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-        assertEquals(1, exception.getErrorMessageArguments().size());
-        String missingAreas = exception.getErrorMessageArguments().get(0);
-        assertTrue(missingAreas.contains("area_2"), "Missing areas should contain area_2: " + missingAreas);
-        assertTrue(missingAreas.contains("area_3"), "Missing areas should contain area_3: " + missingAreas);
-        assertFalse(missingAreas.contains("area_1"), "Present area must not be reported: " + missingAreas);
     }
 
     @Test
-    void testProcessHydroCapacityMeFile_SingleMissingArea_reportsOnlyThatArea() throws IOException {
-        createExcelFileWithNodes(testExcelPath, "AREA_1", "AREA_9");
-        stubTrajectorySave();
+    void testProcessHydroCapacityMeFile_filtersOutNonMatchingRowsAndSavesMatching() throws IOException {
+        createExcelFileWithMultipleAreas(testExcelPath);
+        
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
+        when(multiEnergyCoherenceCheckService.getAreasMe(1))
+                .thenReturn(java.util.Set.of("AREA_1"));
+        
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        TrajectoryEntity result = hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1);
+        
+        assertNotNull(result);
+        verify(hydroCapacityMeRepository, times(1)).save(argThat(entity -> "AREA_1".equals(entity.getNode())));
+    }
 
-        BusinessException exception = assertThrows(BusinessException.class,
-                () -> hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1));
-
-        assertTrue(exception.getMessage().contains("not present in AREAS_ME trajectory"));
-        assertEquals(List.of("area_9"), exception.getErrorMessageArguments());
+    @Test
+    void testProcessHydroCapacityMeFile_allMatchingRows_success() throws IOException {
+        createExcelFileWithMultipleAreas(testExcelPath);
+        
+        when(trajectoryService.buildTrajectoryPath(testTrajectoryName, TrajectoryType.HYDRO_CAPACITY_ME))
+                .thenReturn(testExcelPath);
+        
+        when(multiEnergyCoherenceCheckService.getAreasMe(1))
+                .thenReturn(java.util.Set.of("AREA_1", "AREA_2", "AREA_3"));
+        
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        
+        TrajectoryEntity result = hydroMeFileProcessorService.processHydroCapacityMeFile(testTrajectoryName, testHorizon, 1);
+        
+        assertNotNull(result);
+        verify(hydroCapacityMeRepository, times(3)).save(any(HydroCapacityMeEntity.class));
     }
 
     private void stubTrajectorySave() {

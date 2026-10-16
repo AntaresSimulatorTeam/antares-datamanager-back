@@ -946,7 +946,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user");
 
-        verify(multiEnergyCoherenceCheckService, times(1)).validateHydroCapacityMeCoherence(studyId, trajectory);
+        verify(multiEnergyCoherenceCheckService, times(1)).checkAreaMETrajectoryConsistency(studyId, "HYDRO_CAPACITY_ME", trajectory);
         verifyNoInteractions(hydroParametersMeFileProcessorService);
         verify(warningRepository, times(1)).saveAll(warningMessages);
     }
@@ -958,16 +958,16 @@ class TrajectoryServiceImplTest {
         Set<WarningMessageEntity> warningMessages = new HashSet<>();
 
         doThrow(BusinessException.builder()
-                .message("Areas {0} from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory")
-                .errorMessageArguments(List.of("area_9"))
+                .message("No area {0} from the {1} trajectory is present in the AREA_ME trajectory")
+                .errorMessageArguments(List.of("", "HYDRO_ME"))
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build())
-                .when(multiEnergyCoherenceCheckService).validateHydroCapacityMeCoherence(studyId, trajectory);
+                .when(multiEnergyCoherenceCheckService).checkAreaMETrajectoryConsistency(studyId, "HYDRO_CAPACITY_ME", trajectory);
 
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, trajectory, "user"));
 
-        assertEquals(List.of("area_9"), exception.getErrorMessageArguments());
+        assertEquals(List.of("", "HYDRO_ME"), exception.getErrorMessageArguments());
         verify(warningRepository, never()).saveAll(any());
     }
 
