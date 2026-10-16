@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.repository.model.flowbased.Flowba
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -48,6 +50,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     private final AreaRepository areaRepository;
     private final UserService userService;
     private final FlowbasedConstraintsRestrictionsFileProcessorService restrictionsFileProcessorService;
+    private final PathSecurityUtil pathSecurityUtil;
 
     private static final String[] REQUIRED_FILES = {
             "Flowbased_nodes_links.xlsx",
@@ -155,7 +158,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
 
     @Override
     public List<FlowbasedAreaEntity> buildAreasNecessaryList(Path trajectoryFilePath) {
-        Path excelPath = trajectoryFilePath.resolve("areas_necessary.xlsx");
+        Path excelPath = pathSecurityUtil.resolveSafePath(trajectoryFilePath, "areas_necessary.xlsx");
         DataFormatter formatter = new DataFormatter();
         List<FlowbasedAreaEntity> areas = new ArrayList<>();
 
@@ -215,7 +218,8 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
                 .build();
     }
 
-    private void validateAreasExistInStudy(List<FlowbasedAreaEntity> areas, Integer studyId) {
+    @Override
+    public void validateAreasExistInStudy(List<FlowbasedAreaEntity> areas, Integer studyId) {
         Set<String> studyAreas = areaRepository.findAllByStudyId(studyId, AREA.name()).stream()
                 .map(AreaEntity::getName)
                 .filter(Objects::nonNull)
@@ -274,6 +278,18 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
 
     @Override
     public void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, Integer studyId) {
+        validateVirtualNodesHvdcLinks(virtualNodes, () ->
+                trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream()
+                        .flatMap(trajectory -> trajectory.getLinkEntities().stream())
+                        .toList());
+    }
+
+    @Override
+    public void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, List<LinkEntity> links) {
+        validateVirtualNodesHvdcLinks(virtualNodes, () -> links);
+    }
+
+    private void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, Supplier<List<LinkEntity>> links) {
         Map<String, List<String>> nodePairs = new LinkedHashMap<>();
         for (FlowbasedVirtualNodesEntity node : virtualNodes) {
             var matcher = HVDC_NODE_PATTERN.matcher(node.getName());
@@ -285,8 +301,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
             return;
         }
 
-        Set<List<String>> hvdcPairs = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream()
-                .flatMap(trajectory -> trajectory.getLinkEntities().stream())
+        Set<List<String>> hvdcPairs = links.get().stream()
                 .filter(link -> isNonZeroCapacity(link.getHvdcMwDirect()) && isNonZeroCapacity(link.getHvdcMwIndirect()))
                 .map(LinkEntity::getName)
                 .filter(Objects::nonNull)
