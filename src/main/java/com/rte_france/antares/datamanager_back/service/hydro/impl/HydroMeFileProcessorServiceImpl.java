@@ -30,7 +30,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -177,7 +176,6 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         // Get all nodes from AREA_ME trajectory for the study
         Set<String> areasMeNodes = multiEnergyCoherenceCheckService.getAreasMe(studyId);
         
-        Set<String> hydroMeNodes = new HashSet<>();
         boolean hasGeneratingDaily = false;
         boolean hasPumpingDaily = false;
 
@@ -214,9 +212,6 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 if ("daily".equalsIgnoreCase(pumpingTimestep)) {
                     hasPumpingDaily = true;
                 }
-                
-                // Store node for validation (convert to lowercase for comparison)
-                hydroMeNodes.add(node.trim().toLowerCase(Locale.ROOT));
                 
                 // Data extraction and persistence in same pass
                 BigDecimal reservoirCapacity = getCellNumericValue(row, 1);

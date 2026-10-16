@@ -14,7 +14,6 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
-import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyCoherenceCheckServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -28,12 +27,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -797,44 +794,6 @@ class HydroCapacityMeFileProcessorServiceImplTest {
         
         assertNotNull(result);
         verify(hydroCapacityMeRepository, times(3)).save(any(HydroCapacityMeEntity.class));
-    }
-
-    private void stubTrajectorySave() {
-        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-    }
-
-    private void createExcelFileWithNodes(Path excelPath, String... nodes) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook()) {
-            var sheet = workbook.createSheet("2021");
-
-            var headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("Node");
-            headerRow.createCell(1).setCellValue("Reservoir Capacity [MWh]");
-            headerRow.createCell(2).setCellValue("Generating Pmax - timestep (daily/annual)");
-            headerRow.createCell(3).setCellValue("Generating Pmax [MW]");
-            headerRow.createCell(4).setCellValue("hours at generating Pmax");
-            headerRow.createCell(5).setCellValue("Pumping Pmax - timestep (daily/annual)");
-            headerRow.createCell(6).setCellValue("Pumping Pmax [MW]");
-            headerRow.createCell(7).setCellValue("hours at pumping Pmax");
-
-            for (int i = 0; i < nodes.length; i++) {
-                var dataRow = sheet.createRow(i + 1);
-                dataRow.createCell(0).setCellValue(nodes[i]);
-                dataRow.createCell(1).setCellValue(1000.0);
-                dataRow.createCell(2).setCellValue("annual");
-                dataRow.createCell(3).setCellValue(500.0);
-                dataRow.createCell(4).setCellValue(24.0);
-                dataRow.createCell(5).setCellValue("annual");
-                dataRow.createCell(6).setCellValue(300.0);
-                dataRow.createCell(7).setCellValue(12.0);
-            }
-
-            Files.createDirectories(excelPath.getParent());
-            try (var fos = Files.newOutputStream(excelPath)) {
-                workbook.write(fos);
-            }
-        }
     }
 
     private void createExcelFileWithDailyGeneratingTimestepAtPath(Path excelPath) throws IOException {
