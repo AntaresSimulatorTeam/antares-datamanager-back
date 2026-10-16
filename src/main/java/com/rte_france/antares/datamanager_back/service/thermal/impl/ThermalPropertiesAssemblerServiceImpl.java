@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 
@@ -109,9 +110,6 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
             var capacitiesByAreaRef = extractThermalCapacitiesByAreaClusterRef(capacityTrajectories); //by  area_cluster_ref (area + cluster ref)
             //clusterRef common: name, namePEMMDB, null
             var commonsParamByClusterName = extractCommonParamsByClusterRef(commonTrajectories); // by cluster name
-
-
-
 
             for (var entry : capacitiesByAreaRef.entrySet()) {
                 AreaClusterRefKey areaClusterRefKey = entry.getKey();
@@ -301,16 +299,86 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
     }
 
     public static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> extractThermalCapacitiesByAreaClusterRef(List<TrajectoryEntity> capacityTrajs) {
+        if (capacityTrajs == null || capacityTrajs.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
         log.info("Extracting thermal capacities by area and cluster ref from {} trajectories", capacityTrajs.size());
-        return capacityTrajs.stream()
-                .flatMap(t -> Optional.ofNullable(t.getThermalClusterCapacities())
-                        .orElseGet(List::of).stream()
-                        .map(cap -> Map.entry(new AreaClusterRefKey(cap.getArea(), cap.getThermalClusterRef()), cap)))
+
+        Map<String, Set<String>> specificTechnologiesByArea = extractSpecificTechnologiesByArea(capacityTrajs);
+
+        return filterCapacityTrajectoriesByArea(capacityTrajs, specificTechnologiesByArea);
+    }
+
+    private static Map<String, Set<String>> extractSpecificTechnologiesByArea(List<TrajectoryEntity> capacityTrajs) {
+        Map<String, Set<String>> specificTechnologiesByArea = new HashMap<>();
+        for (TrajectoryEntity traj : capacityTrajs) {
+            registerSpecificTechnologies(traj, specificTechnologiesByArea);
+        }
+        return specificTechnologiesByArea;
+    }
+
+    private static void registerSpecificTechnologies(TrajectoryEntity traj, Map<String, Set<String>> specificTechnologiesByArea) {
+        if (traj == null || traj.getTechnology() == null || traj.getTechnology().isBlank()) {
+            return;
+        }
+        String tech = traj.getTechnology().trim().toUpperCase(Locale.ROOT);
+        extractAreas(traj).forEach(area ->
+                specificTechnologiesByArea.computeIfAbsent(area, k -> new HashSet<>()).add(tech)
+        );
+    }
+
+    private static Stream<String> extractAreas(TrajectoryEntity traj) {
+        Stream<String> capacityAreas = Optional.ofNullable(traj.getThermalClusterCapacities())
+                .orElseGet(List::of)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(ThermalClusterCapacityEntity::getArea);
+
+        Stream<String> trajArea = Stream.ofNullable(traj.getArea());
+
+        return Stream.concat(capacityAreas, trajArea)
+                .filter(area -> area != null && !area.isBlank())
+                .map(area -> area.trim().toUpperCase(Locale.ROOT));
+    }
+    
+    private static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> filterCapacityTrajectoriesByArea(List<TrajectoryEntity> capacityTrajectories, Map<String, Set<String>> specificTechnologiesByArea) {
+
+        return capacityTrajectories.stream()
+                .filter(Objects::nonNull)
+                .flatMap(t -> {
+                    boolean isGlobalTrajectory = (t.getTechnology() == null || t.getTechnology().isBlank());
+                    List<ThermalClusterCapacityEntity> caps = t.getThermalClusterCapacities();
+                    if (caps == null) {
+                        return Stream.empty();
+                    }
+                    return caps.stream()
+                            .filter(Objects::nonNull)
+                            .filter(cap -> {
+                                if (!isGlobalTrajectory) {
+                                    return true;
+                                }
+                                String capArea = cap.getArea() != null ? cap.getArea().trim().toUpperCase(Locale.ROOT) : "";
+                                Set<String> specificTechs = specificTechnologiesByArea.get(capArea);
+                                if (specificTechs == null || specificTechs.isEmpty()) {
+                                    return true;
+                                }
+                                String capTech = extractTechnology(cap);
+                                return capTech == null || !specificTechs.contains(capTech.trim().toUpperCase(Locale.ROOT));
+                            })
+                            .map(cap -> Map.entry(new AreaClusterRefKey(cap.getArea(), cap.getThermalClusterRef()), cap));
+                })
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,
                         LinkedHashMap::new,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())
                 ));
+    }
+
+    private static String extractTechnology(ThermalClusterCapacityEntity cap) {
+        if (cap == null || cap.getThermalClusterRef() == null || cap.getThermalClusterRef().getThermalTechnology() == null) {
+            return null;
+        }
+        return cap.getThermalClusterRef().getThermalTechnology().getName();
     }
 
     /**

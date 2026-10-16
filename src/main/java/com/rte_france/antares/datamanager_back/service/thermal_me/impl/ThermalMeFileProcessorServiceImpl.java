@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private final TrajectoryRepository trajectoryRepository;
     private final UserService userService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
+    private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
     
     private static final String THERMAL_ME = "THERMAL_ME";
     private static final String FILE_EXTENSION_XLSX = ".xlsx";
@@ -61,31 +63,54 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private static final Map<Integer, CheckValueDefinition<?>> CHECK_VALUE_LIST = new LinkedHashMap<>();
 
     static {
-        Set<Integer> lengthValues = Set.of(0,1,2);
-        Set<Integer> booleanValues = Set.of(3,12);
+        Set<Integer> lengthValues = Set.of(0, 1, 2);
+        Set<Integer> booleanValues = Set.of(3, 12);
         Set<Integer> timestepValues = Set.of(7, 10, 13, 15);
 
         for (int i = 0; i <= 16; i++) {
             CHECK_VALUE_LIST.put(
                     i,
-                    booleanValues.contains(i)
-                            ? new CheckValueDefinition<>(CheckValueType.BOOLEAN, null)
-                            : timestepValues.contains(i)
-                            ? new CheckValueDefinition<>(CheckValueType.TIMESTEP, MODULATION_FOLDERS.get(i))
-                            : lengthValues.contains(i)
-                            ? new CheckValueDefinition<>(CheckValueType.LENGTH, i == 0 ? 60 : i == 1 ? 20 : 40)
-                            : new CheckValueDefinition<>(CheckValueType.NUMERIC, null)
+                    buildCheckValueDefinition(i, lengthValues, booleanValues, timestepValues)
             );
         }
+    }
+
+    private static CheckValueDefinition<?> buildCheckValueDefinition(
+            int index,
+            Set<Integer> lengthValues,
+            Set<Integer> booleanValues,
+            Set<Integer> timestepValues) {
+
+        if (booleanValues.contains(index)) {
+            return new CheckValueDefinition<>(CheckValueType.BOOLEAN, null);
+        }
+
+        if (timestepValues.contains(index)) {
+            return new CheckValueDefinition<>(CheckValueType.TIMESTEP, MODULATION_FOLDERS.get(index));
+        }
+
+        if (lengthValues.contains(index)) {
+            return new CheckValueDefinition<>(CheckValueType.LENGTH, getLengthValue(index));
+        }
+
+        return new CheckValueDefinition<>(CheckValueType.NUMERIC, null);
+    }
+
+    private static int getLengthValue(int index) {
+        return switch (index) {
+            case 0 -> 60;
+            case 1 -> 20;
+            default -> 40;
+        };
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processThermalMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
-        return saveThermalMeTrajectoryInDb(trajectoryToUse, horizon);
+        return saveThermalMeTrajectoryInDb(trajectoryToUse, horizon, studyId);
     }
 
-    public TrajectoryEntity saveThermalMeTrajectoryInDb(String trajectoryToUse, String horizon) throws IOException {
+    public TrajectoryEntity saveThermalMeTrajectoryInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         if (horizon == null) {
             throw BusinessException.builder()
                     .message("Horizon must not be null")
@@ -145,6 +170,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
 
             Path baseDirectory = Path.of(nasDir, trajFilePath, directoryByType);
             buildEntities(sheet, newTrajectory, trajectoryToUse, baseDirectory);
+            multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.THERMAL_CAPACITY_ME.name(), newTrajectory);
             return trajectoryRepository.save(newTrajectory);
 
         } catch (IOException e) {
@@ -210,7 +236,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                         if (!isTimeStepValue(valueTimeStep)) {
                             throw BusinessException.builder()
                                     .errorMessageArguments(List.of(columnNames.get(columnIndex), THERMAL_ME, trajectoryToUse))
-                                    .message("Colunm {0} must be hourly or annual in {1} trajectory {2}")
+                                    .message("Column {0} must be hourly or annual in {1} trajectory {2}")
                                     .httpStatus(HttpStatus.BAD_REQUEST)
                                     .build();
                         }
@@ -262,15 +288,15 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                     .nbUnit((int) row.getCell(5).getNumericCellValue())
                     .marginalCost(row.getCell(6).getNumericCellValue())
                     .marginalCostTimestep(row.getCell(7).getStringCellValue())
-                    .marginalCostModulation((int) row.getCell(8).getNumericCellValue())
+                    .marginalCostModulation(row.getCell(8).getNumericCellValue())
                     .marketBidCost(row.getCell(9).getNumericCellValue())
                     .marketBidCostTimestep(row.getCell(10).getStringCellValue())
-                    .marketBidCostModulation((int) row.getCell(11).getNumericCellValue())
+                    .marketBidCostModulation(row.getCell(11).getNumericCellValue())
                     .mustRun(getBooleanCell(row, 12))
                     .mrTimestep(row.getCell(13).getStringCellValue())
-                    .mrModulation((int) row.getCell(14).getNumericCellValue())
+                    .mrModulation(row.getCell(14).getNumericCellValue())
                     .cmTimestep(row.getCell(15).getStringCellValue())
-                    .cmModulation((int) row.getCell(16).getNumericCellValue())
+                    .cmModulation(row.getCell(16).getNumericCellValue())
                     .trajectory(trajectory)
                     .build();
 

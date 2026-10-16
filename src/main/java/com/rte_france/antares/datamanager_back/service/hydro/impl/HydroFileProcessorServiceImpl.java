@@ -9,6 +9,8 @@ import com.rte_france.antares.datamanager_back.service.common.impl.TrajectorySer
 import com.rte_france.antares.datamanager_back.service.hydro.*;
 import com.rte_france.antares.datamanager_back.service.res.*;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroAllocationColumns;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroParameterColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -56,29 +58,8 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
     public static final TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
     protected static final String HYDRO_TECHNICAL_PREFIX_ALLOCATION = "hydroAllocation_";
-    protected static final String HYDRO_COLUMN = "hydro";
-    protected static final String LOAD_COLUMN = "load";
-    protected static final String ALLOCATION_COLUMN = "allocation";
-    protected static final String[] REQUIRED_HYDRO_ALLOCATION_COLUMNS = {
-            HYDRO_COLUMN, LOAD_COLUMN, ALLOCATION_COLUMN};
 
     protected static final String HYDRO_TECHNICAL_PREFIX_PARAMETERS = "hydroParameters_";
-    protected static final String NODE_COLUMN = "node";
-    protected static final String INTER_DAILY_BREAKDOWN_COLUMN = "inter.daily.breakdown";
-    protected static final String INTER_DAILY_MODULATION_COLUMN = "intra.daily.modulation";
-    protected static final String INTER_MONTHLY_BREAKDOWN_COLUMN = "inter.monthly.breakdown";
-    protected static final String INITIALIZE_RESERVOIR_DATE_COLUMN = "initialize.reservoir.date";
-    protected static final String PUMPING_EFFICIENCY_COLUMN = "pumping.efficiency";
-    protected static final String RESERVOIR_COLUMN = "reservoir";
-    protected static final String RESERVOIR_CAPACITY_COLUMN = "reservoir.capacity";
-    protected static final String FOLLOW_LOAD_COLUMN = "follow.load";
-    protected static final String USE_WATER_COLUMN = "use.water";
-    protected static final String[] REQUIRED_HYDRO_PARAMETERS_COLUMNS = {
-            NODE_COLUMN, INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, INITIALIZE_RESERVOIR_DATE_COLUMN,PUMPING_EFFICIENCY_COLUMN, RESERVOIR_COLUMN, RESERVOIR_CAPACITY_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
-    protected static final String[] REQUIRED_HYDRO_PARAMETERS_INTEGER_COLUMNS = {INITIALIZE_RESERVOIR_DATE_COLUMN};
-    protected static final String[] REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS = {
-            INTER_DAILY_BREAKDOWN_COLUMN, INTER_DAILY_MODULATION_COLUMN, INTER_MONTHLY_BREAKDOWN_COLUMN, PUMPING_EFFICIENCY_COLUMN, RESERVOIR_CAPACITY_COLUMN};
-    protected static final String[] REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS = {RESERVOIR_COLUMN, FOLLOW_LOAD_COLUMN, USE_WATER_COLUMN};
 
     public record TechnicalParametersProcessingContext(
             Path filePath,
@@ -520,7 +501,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         // Normalize the path to avoid traversal or symlink tricks
         Path normalizedFile = ctx.filePath().toRealPath();
         var context = ResRowProcessingContext.builder().studyAreas(ctx.studyAreas()).areaParam(ctx.areaParam()).trajectoryToUse(ctx.trajectoryToUse()).trajectoryType(ctx.trajectoryType()).build();
-        String[] requiredColumns = ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION ? REQUIRED_HYDRO_ALLOCATION_COLUMNS : REQUIRED_HYDRO_PARAMETERS_COLUMNS;
+        String[] requiredColumns = ctx.trajectoryType() == TrajectoryType.HYDRO_ALLOCATION ? HydroAllocationColumns.getAllColumnNames() : HydroParameterColumns.getAllColumnNames();
         boolean isPsp = HydroTypeHelper.isPsp(ctx.parentTrajectoryType());
         String label = getErrorMessageLabelFromType(ctx.trajectoryType().name());
 
@@ -625,7 +606,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
         Object[] values = new Object[] { allocation };
 
-        validateEmptyRequiredColumns(context, new String[]{ALLOCATION_COLUMN}, true, isPsp, values);
+        validateEmptyRequiredColumns(context, new String[]{HydroAllocationColumns.ALLOCATION.getDisplayName()}, true, isPsp, values);
 
         HydroAllocationEntity entity = HydroAllocationEntity.builder()
                 .hydro(area)
@@ -666,9 +647,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         Object[] numericValues = new Object[] { interDailyBreakdown, interDailyModulation, interMonthlyBreakdown, pumpingEfficiency, reservoirCapacity };
         Object[] booleanValues = new Object[] { reservoir, followLoad, useWater };
 
-        validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_NUMERIC_COLUMNS, true, isPsp, numericValues);
-        validateEmptyRequiredColumns(context, REQUIRED_HYDRO_PARAMETERS_BOOLEAN_COLUMNS, false, isPsp, booleanValues);
-        validateIntegerColumns(context, REQUIRED_HYDRO_PARAMETERS_INTEGER_COLUMNS, isPsp, initializeReservoirDate);
+        validateEmptyRequiredColumns(context, HydroParameterColumns.getNumericColumnNames(), true, isPsp, numericValues);
+        validateEmptyRequiredColumns(context, HydroParameterColumns.getBooleanColumnNames(), false, isPsp, booleanValues);
+        validateIntegerColumns(context, HydroParameterColumns.getIntegerColumnNames(), isPsp, initializeReservoirDate);
         validateInterval(context, isPsp, initializeReservoirDate);
 
         BigDecimal reservoirCapacityValue = parseDecimal(reservoirCapacity);
@@ -766,7 +747,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         if (!isValueWithinInterval(initializeReservoirDate)) {
             String typeLabel = getTypeLabel(context.getTrajectoryType(), isPsp);
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(INITIALIZE_RESERVOIR_DATE_COLUMN, typeLabel, context.getTrajectoryToUse()))
+                    .errorMessageArguments(List.of(HydroParameterColumns.INITIALIZE_RESERVOIR_DATE.getDisplayName(), typeLabel, context.getTrajectoryToUse()))
                     .message("{0} value must be between 1 and 12 in {1} trajectory {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();

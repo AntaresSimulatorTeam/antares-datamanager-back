@@ -68,7 +68,7 @@ public class P2GControllerTest {
     @Test
     void postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
         // trajectoryToUse > 40 chars
-        String trajectoryToUse = "FE_Liv60" + "a".repeat(35) + ".xls";
+        String trajectoryToUse = "FE_Liv60" + "a".repeat(49) + ".xls";
         String horizon = "2025-2026";
 
         mockMvc.perform(post("/v1/trajectory/modulation-p2g")
@@ -132,7 +132,7 @@ public class P2GControllerTest {
     @Test
     void processDsrCapacityModulationFile_postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
         // trajectoryToUse > 40 chars
-        String trajectoryToUse = "CM_" + "a".repeat(35) + ".xls";
+        String trajectoryToUse = "CM_" + "a".repeat(54) + ".xls";
         String horizon = "2025-2026";
 
         mockMvc.perform(post("/v1/trajectory/capacity-cost-p2g")

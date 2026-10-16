@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlSer
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalCommonParamColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -55,15 +56,6 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     private final ThermalClusterRefService thermalClusterRefService;
 
     private static final String YEAR_MONTH_PATTERN = "%04d_%02d";
-
-    public static final List<String> REQUIRED_COMMON_PARAM_HEADER_COLUMNS = List.of(
-            "cluster_PEMMDB", "cluster_BP", "Category", "Fuel", "Type", "efficiency_range", "efficiency_default",
-            "CO2", "OM_cost", "min_up_time", "min_down_time", "start_up_fuel", "start_up_fix_cost",
-            "start_up_fuel_cold_start", "start_up_fix_cost_cold_start", "start_up_fuel_hot_start", "start_up_fix_cost_hot_start",
-            "transition_hot_warm", "transition_hot_cold", "shutdown_time", "startup_time", "FO_rate_default",
-            "FO_duration_default", "PO_duration_default", "PO_winter_default", "min_stable_generation_default",
-            "ramp_up", "ramp_down", "fixed_generation_reduction");
-
 
     /**
      * Processes a thermal common parameter file and saves the corresponding trajectory.
@@ -697,12 +689,13 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
 
     private void validateCommonParamHeaderColumns(Row header, Path path) {
-        for (int i = 0; i < REQUIRED_COMMON_PARAM_HEADER_COLUMNS.size(); i++) {
+        var allColumnNames = ThermalCommonParamColumns.getAllColumnNames();
+        for (int i = 0; i < allColumnNames.size(); i++) {
             Cell cell = header.getCell(i);
             String cellValue = cell != null ? cell.getStringCellValue() : null;
-            if (cellValue == null || !cellValue.equalsIgnoreCase(REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i))) {
+            if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
                 throw BusinessException.builder()
-                        .message("The expected column '" + REQUIRED_COMMON_PARAM_HEADER_COLUMNS.get(i) + "' is missing or misplaced in the Common Parameters file " + path.getFileName())
+                        .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in the Common Parameters file " + path.getFileName())
                         .build();
             }
         }

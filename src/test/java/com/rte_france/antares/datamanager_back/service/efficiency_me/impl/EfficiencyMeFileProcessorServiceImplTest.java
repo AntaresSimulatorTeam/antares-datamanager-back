@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.EfficiencyMeRepository
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.EfficiencyMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -15,8 +16,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -46,6 +45,9 @@ class EfficiencyMeFileProcessorServiceImplTest {
     @Mock
     private EfficiencyMeRepository efficiencyMeRepository;
 
+    @Mock
+    private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
+
     @InjectMocks
     private EfficiencyMeFileProcessorServiceImpl service;
 
@@ -74,7 +76,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         // Given
         String trajectoryName = "test_trajectory";
         String horizon = "2023-2024";
-        Path trajectoryFile = createTestExcelFile(trajectoryName, horizon);
+        createTestExcelFile(trajectoryName, horizon);
 
         TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
                 .id(1)
@@ -98,13 +100,17 @@ class EfficiencyMeFileProcessorServiceImplTest {
         assertEquals(horizon, result.getHorizon());
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
         verify(efficiencyMeRepository, atLeastOnce()).save(any(EfficiencyMeEntity.class));
+        verify(multiEnergyCoherenceCheckService, times(1))
+                .checkAreaMETrajectoryConsistency(1, TrajectoryType.EFFICIENCY_ME.name(), newTrajectory);
+        assertNotNull(newTrajectory.getEfficiencyMeEntities());
+        assertFalse(newTrajectory.getEfficiencyMeEntities().isEmpty());
     }
 
     @Test
-    void saveEfficiencyMeTrajectoryInDb_withNullHorizon_throwsException() throws IOException {
+    void saveEfficiencyMeTrajectoryInDb_withNullHorizon_throwsException() {
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb("trajectory", null);
+            service.saveEfficiencyMeTrajectoryInDb("trajectory", null, 1);
         });
 
         assertEquals("Horizon must not be null", exception.getMessage());
@@ -118,7 +124,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(longName, "2023-2024");
+            service.saveEfficiencyMeTrajectoryInDb(longName, "2023-2024", 1);
         });
 
         assertEquals("Trajectory name cannot exceed 40 characters", exception.getMessage());
@@ -131,7 +137,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb("trajectory", "2023-2024");
+            service.saveEfficiencyMeTrajectoryInDb("trajectory", "2023-2024", 1);
         });
 
         assertEquals("User NNI could not be determined", exception.getMessage());
@@ -158,12 +164,14 @@ class EfficiencyMeFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
 
         // When
-        TrajectoryEntity result = service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         // Then
         assertNotNull(result);
         assertEquals(1, result.getVersion());
         verify(trajectoryRepository, times(1)).save(argThat(t -> t.getVersion() == 1));
+        verify(multiEnergyCoherenceCheckService, times(1))
+                .checkAreaMETrajectoryConsistency(1, TrajectoryType.EFFICIENCY_ME.name(), newTrajectory);
     }
 
     @Test
@@ -194,7 +202,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
 
         // When
-        TrajectoryEntity result = service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
 
         // Then
         assertNotNull(result);
@@ -215,7 +223,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
 
         assertTrue(exception.getMessage().contains("Missing horizon"));
@@ -234,7 +242,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
 
         assertTrue(exception.getMessage().contains("Missing horizon"));
@@ -253,7 +261,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
 
         assertTrue(exception.getMessage().contains("Node/Cluster cannot exceed 60 characters"));
@@ -272,7 +280,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
 
         assertTrue(exception.getMessage().contains("Column efficiency must be numeric"));
@@ -291,7 +299,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon);
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
 
         assertTrue(exception.getMessage().contains("Node/Cluster column must be filled"));
@@ -304,7 +312,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         assertThrows(IOException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, "2023-2024");
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, "2023-2024", 1);
         });
     }
 
@@ -315,10 +323,45 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            service.saveEfficiencyMeTrajectoryInDb("trajectory", "2023-2024");
+            service.saveEfficiencyMeTrajectoryInDb("trajectory", "2023-2024", 1);
         });
 
         assertEquals("Antares path configuration is incomplete", exception.getMessage());
+    }
+
+    @Test
+    void saveEfficiencyMeTrajectoryInDb_whenConsistencyCheckFails_throwsException() throws IOException {
+        // Given
+        String trajectoryName = "test_trajectory";
+        String horizon = "2023-2024";
+        createTestExcelFile(trajectoryName, horizon);
+
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryName)
+                .horizon(horizon)
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .version(1)
+                .build();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
+
+        doThrow(BusinessException.builder()
+                .message("Areas FR from AREA_ME trajectory is (are) not present in EFFICIENCY_ME trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(multiEnergyCoherenceCheckService)
+                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.EFFICIENCY_ME.name()), any(TrajectoryEntity.class));
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
+            service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
+        });
+
+        assertTrue(exception.getMessage().contains("Areas FR from AREA_ME trajectory"));
     }
 
     // Helper methods to create test Excel files

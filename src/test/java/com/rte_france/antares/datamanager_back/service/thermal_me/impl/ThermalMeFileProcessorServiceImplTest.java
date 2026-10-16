@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -53,6 +54,9 @@ class ThermalMeFileProcessorServiceImplTest {
 
     @Mock
     private AntaresDataManagerProperties antaresDataManagerProperties;
+
+    @Mock
+    private MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
     @InjectMocks
     private ThermalMeFileProcessorServiceImpl service;
@@ -108,7 +112,7 @@ class ThermalMeFileProcessorServiceImplTest {
     @DisplayName("saveThermalMeTrajectoryInDb - should throw BusinessException when horizon is null")
     void saveThermalMeTrajectoryInDb_withNullHorizon_throwsException() {
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb("test_trajectory", null)
+                service.saveThermalMeTrajectoryInDb("test_trajectory", null, 3)
         );
 
         assertEquals("Horizon must not be null", exception.getMessage());
@@ -121,7 +125,7 @@ class ThermalMeFileProcessorServiceImplTest {
         String longTrajectoryName = "a".repeat(41);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(longTrajectoryName, "2024-2025")
+                service.saveThermalMeTrajectoryInDb(longTrajectoryName, "2024-2025", 5)
         );
 
         assertEquals("Trajectory name cannot exceed 40 characters", exception.getMessage());
@@ -134,7 +138,7 @@ class ThermalMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(null);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb("test_trajectory", "2024-2025")
+                service.saveThermalMeTrajectoryInDb("test_trajectory", "2024-2025", 3)
         );
 
         assertEquals("User NNI could not be determined", exception.getMessage());
@@ -147,7 +151,7 @@ class ThermalMeFileProcessorServiceImplTest {
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni(null).build());
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb("test_trajectory", "2024-2025")
+                service.saveThermalMeTrajectoryInDb("test_trajectory", "2024-2025", 8)
         );
 
         assertEquals("User NNI could not be determined", exception.getMessage());
@@ -160,7 +164,7 @@ class ThermalMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getNasDirectory()).thenReturn(null);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb("test_trajectory", "2024-2025")
+                service.saveThermalMeTrajectoryInDb("test_trajectory", "2024-2025", 9)
         );
 
         assertEquals("Antares path configuration is incomplete", exception.getMessage());
@@ -173,7 +177,7 @@ class ThermalMeFileProcessorServiceImplTest {
         String trajectoryName = "../../../etc/passwd";
 
         assertThrows(IOException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, "2024-2025")
+                service.saveThermalMeTrajectoryInDb(trajectoryName, "2024-2025", 10)
         );
     }
 
@@ -185,7 +189,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithWrongSheet(trajectoryName, "wrong_sheet");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 2)
         );
 
         assertEquals("Missing horizon {0} in {1} trajectory {2}", exception.getMessage());
@@ -201,7 +205,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createEmptyExcelFile(trajectoryName, "2025");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 5)
         );
 
         assertEquals("Missing horizon {0} in {1} trajectory {2}", exception.getMessage());
@@ -225,7 +229,7 @@ class ThermalMeFileProcessorServiceImplTest {
                 .thenReturn(Optional.of(existingTrajectory));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 5)
         );
 
         assertEquals("File already processed with same content : {0}", exception.getMessage());
@@ -249,7 +253,7 @@ class ThermalMeFileProcessorServiceImplTest {
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 8);
 
         assertNotNull(result);
         assertEquals(2, result.getVersion());
@@ -274,7 +278,7 @@ class ThermalMeFileProcessorServiceImplTest {
         ArgumentCaptor<TrajectoryEntity> captor = ArgumentCaptor.forClass(TrajectoryEntity.class);
         when(trajectoryRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
-        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 9);
 
         assertNotNull(result);
         assertEquals(1, result.getVersion());
@@ -324,7 +328,7 @@ class ThermalMeFileProcessorServiceImplTest {
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 4);
 
         assertNotNull(result);
         assertEquals(1, result.getThermalMeEntities().size());
@@ -342,7 +346,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 0, null);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 5)
         );
 
         assertEquals("{0} column must be filled in {1} trajectory {2}", exception.getMessage());
@@ -357,7 +361,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 0, "a".repeat(61));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 7)
         );
 
         assertEquals("{0} cannot exceed {1} characters in {2} trajectory {3}", exception.getMessage());
@@ -372,7 +376,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 1, "a".repeat(21));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 8)
         );
 
         assertEquals("{0} cannot exceed {1} characters in {2} trajectory {3}", exception.getMessage());
@@ -387,7 +391,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 2, "a".repeat(41));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 3)
         );
 
         assertEquals("{0} cannot exceed {1} characters in {2} trajectory {3}", exception.getMessage());
@@ -402,7 +406,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 3, "not_a_boolean");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 4)
         );
 
         assertEquals("{0} must be boolean in {1} trajectory {2}", exception.getMessage());
@@ -417,7 +421,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 12, "not_a_boolean");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 1)
         );
 
         assertEquals("{0} must be boolean in {1} trajectory {2}", exception.getMessage());
@@ -433,10 +437,10 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, columnIndex, "monthly");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 3)
         );
 
-        assertEquals("Colunm {0} must be hourly or annual in {1} trajectory {2}", exception.getMessage());
+        assertEquals("Column {0} must be hourly or annual in {1} trajectory {2}", exception.getMessage());
         assertThat(exception.getErrorMessageArguments()).containsExactly(HEADERS[columnIndex], "THERMAL_ME", trajectoryName);
     }
 
@@ -448,7 +452,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 7, "hourly");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 6)
         );
 
         assertEquals("Missing {0} {1} TS in trajectory {2}", exception.getMessage());
@@ -463,7 +467,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 10, "hourly");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 2)
         );
 
         assertEquals("Missing {0} {1} TS in trajectory {2}", exception.getMessage());
@@ -478,7 +482,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 13, "hourly");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 3)
         );
 
         assertEquals("Missing {0} {1} TS in trajectory {2}", exception.getMessage());
@@ -493,7 +497,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, 15, "hourly");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 5)
         );
 
         assertEquals("Missing {0} {1} TS in trajectory {2}", exception.getMessage());
@@ -509,7 +513,7 @@ class ThermalMeFileProcessorServiceImplTest {
         createExcelFileWithSpecificCell(trajectoryName, horizon, columnIndex, "invalid_num");
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 7)
         );
 
         assertEquals("Column {0} must be numeric in {1} trajectory {2}", exception.getMessage());
@@ -562,7 +566,7 @@ class ThermalMeFileProcessorServiceImplTest {
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 3);
 
         assertNotNull(result);
         assertEquals(2, result.getThermalMeEntities().size());
@@ -577,7 +581,7 @@ class ThermalMeFileProcessorServiceImplTest {
         String horizon = "2024-2025";
 
         TechnicalException exception = assertThrows(TechnicalException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 3)
         );
 
         assertTrue(exception.getMessage().contains("Could not process THERMAL ME file"));
@@ -615,7 +619,7 @@ class ThermalMeFileProcessorServiceImplTest {
         saveWorkbook(workbook, trajectoryFilePath.resolve(trajectoryName + ".xlsx"));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon)
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 8)
         );
 
         assertEquals("Duplicate entry detected in {0} trajectory {1}: node {2} and cluster {3} is defined more than once for this horizon.", exception.getMessage());
@@ -659,7 +663,7 @@ class ThermalMeFileProcessorServiceImplTest {
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon);
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 3);
 
         assertNotNull(result);
         assertEquals(2, result.getThermalMeEntities().size());
@@ -667,6 +671,31 @@ class ThermalMeFileProcessorServiceImplTest {
         assertEquals("cluster_1", result.getThermalMeEntities().get(0).getClusterName());
         assertEquals("FR", result.getThermalMeEntities().get(1).getNode());
         assertEquals("cluster_2", result.getThermalMeEntities().get(1).getClusterName());
+    }
+
+    @Test
+    @DisplayName("saveThermalMeTrajectoryInDb - should throw BusinessException when multi-energy coherence check fails")
+    void saveThermalMeTrajectoryInDb_whenConsistencyCheckFails_throwsException() throws IOException {
+        String trajectoryName = "test_coherence_fail";
+        String horizon = "2024-2025";
+        createValidThermalMeExcelFile(trajectoryName, horizon, "annual");
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.THERMAL_CAPACITY_ME.name()))
+                .thenReturn(Optional.empty());
+
+        doThrow(BusinessException.builder()
+                .message("Areas BE from AREA_ME trajectory is (are) not present in THERMAL_ME trajectory")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build())
+                .when(multiEnergyCoherenceCheckService)
+                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.THERMAL_CAPACITY_ME.name()), any(TrajectoryEntity.class));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 1)
+        );
+
+        assertTrue(exception.getMessage().contains("Areas BE from AREA_ME trajectory"));
     }
 
     // ============ Helper Methods ============

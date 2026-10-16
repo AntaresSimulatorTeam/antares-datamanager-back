@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.DsrClusterColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -40,10 +41,6 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
     private final AreaRepository areaRepository;
 
     private static final String DSR_PREFIX = "cluster_DSR_";
-    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            "toUse", "Area", "Name", "Capacity", "nb_hour_per_day", "max_hour_per_day",
-            "price", "nb_units", "FO_rate", "FO_duration", "Modulation"};
-
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
@@ -203,7 +200,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath.getFileName().toString(), "DSR Cluster");
             Row header = sheet.getRow(0);
-            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryFileName, TrajectoryType.DSR);
+            checkMissingColumns(sheet, DsrClusterColumns.getAllColumnNames(), trajectoryFileName, TrajectoryType.DSR);
 
             List<String> fileAreas = new ArrayList<>();
             boolean onlyHeader = true;

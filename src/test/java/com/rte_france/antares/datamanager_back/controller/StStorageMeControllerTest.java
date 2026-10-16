@@ -65,7 +65,7 @@ class StStorageMeControllerTest {
     @Test
     void postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
         // trajectoryToUse > 40 chars (excluding .xlsx)
-        String trajectoryToUse = "me_" + "a".repeat(38) + ".xlsx";
+        String trajectoryToUse = "me_" + "a".repeat(53) + ".xlsx";
         String horizon = "2025-2026";
 
         mockMvc.perform(post("/v1/trajectory/st-storage-me")

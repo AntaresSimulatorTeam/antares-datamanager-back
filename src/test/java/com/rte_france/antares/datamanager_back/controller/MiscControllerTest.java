@@ -78,7 +78,7 @@ class MiscControllerTest {
 
     @Test
     void uploadInstalledMiscTrajectory_whenTrajectoryNameTooLong_returns400_andDoesNotCallService() throws Exception {
-        String tooLong = "x".repeat(41);
+        String tooLong = "x".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory/installed-misc")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)

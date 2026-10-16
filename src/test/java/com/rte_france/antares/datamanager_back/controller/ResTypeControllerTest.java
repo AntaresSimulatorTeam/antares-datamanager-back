@@ -149,8 +149,8 @@ class ResControllerTest {
         }
 
         @Test
-        void uploadLoadFactorResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds40Characters() throws Exception {
-            String longTrajectoryName = "a".repeat(41);
+        void uploadLoadFactorResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds60Characters() throws Exception {
+            String longTrajectoryName = "a".repeat(61);
 
             mockMvc.perform(post("/v1/trajectory/load-factor-res")
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -252,15 +252,15 @@ class ResControllerTest {
         }
 
         @Test
-        void uploadLoadFactorResTrajectory_acceptsTrajectoryNameWithExactly40Characters() throws Exception {
-            String trajectoryName40Chars = "a".repeat(40);
+        void uploadLoadFactorResTrajectory_acceptsTrajectoryNameWithExactly60Characters() throws Exception {
+            String trajectoryName60Chars = "a".repeat(60);
             TrajectoryEntity entity = new TrajectoryEntity();
             entity.setId(999);
-            entity.setFileName(trajectoryName40Chars);
+            entity.setFileName(trajectoryName60Chars);
             entity.setType("RES_LOAD_FACTOR");
 
             when(resFileProcessorService.processLoadFactorResFile(
-                    trajectoryName40Chars,
+                    trajectoryName60Chars,
                     "2029-2030",
                     1,
                     "FR",
@@ -271,14 +271,14 @@ class ResControllerTest {
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                             .param("area", "FR")
                             .param("technology", "wind")
-                            .param("trajectoryToUse", trajectoryName40Chars)
+                            .param("trajectoryToUse", trajectoryName60Chars)
                             .param("horizon", "2029-2030")
                             .param("studyId", "1"))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(999));
 
             verify(resFileProcessorService, times(1))
-                    .processLoadFactorResFile(trajectoryName40Chars, "2029-2030", 1, "FR", "wind");
+                    .processLoadFactorResFile(trajectoryName60Chars, "2029-2030", 1, "FR", "wind");
         }
 
         @Test
@@ -349,8 +349,8 @@ class ResControllerTest {
         }
 
         @Test
-        void uploadTechnologyDistributionResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds40Characters() throws Exception {
-            String longTrajectoryName = "a".repeat(41);
+        void uploadTechnologyDistributionResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds60Characters() throws Exception {
+            String longTrajectoryName = "a".repeat(61);
 
             mockMvc.perform(post("/v1/trajectory/technology-distribution-res")
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -416,15 +416,15 @@ class ResControllerTest {
         }
 
         @Test
-        void uploadTechnologyDistributionResTrajectory_acceptsTrajectoryNameWithExactly40Characters() throws Exception {
-            String trajectoryName40Chars = "a".repeat(40);
+        void uploadTechnologyDistributionResTrajectory_acceptsTrajectoryNameWithExactly60Characters() throws Exception {
+            String trajectoryName60Chars = "a".repeat(60);
             TrajectoryEntity entity = new TrajectoryEntity();
             entity.setId(999);
-            entity.setFileName(trajectoryName40Chars);
+            entity.setFileName(trajectoryName60Chars);
             entity.setType("RES_TECHNOLOGY_DISTRIBUTION");
 
             when(resFileProcessorService.processTechnologyDistributionResFile(
-                    trajectoryName40Chars,
+                    trajectoryName60Chars,
                     "2029-2030",
                     1,
                     "FR",
@@ -436,7 +436,7 @@ class ResControllerTest {
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                             .param("area", "FR")
                             .param("technology", "wind")
-                            .param("trajectoryToUse", trajectoryName40Chars)
+                            .param("trajectoryToUse", trajectoryName60Chars)
                             .param("horizon", "2029-2030")
                             .param("studyId", "1")
                             .param("isCivilYear", String.valueOf(false)))
@@ -444,7 +444,7 @@ class ResControllerTest {
                     .andExpect(jsonPath("$.id").value(999));
 
             verify(resFileProcessorService, times(1))
-                    .processTechnologyDistributionResFile(trajectoryName40Chars, "2029-2030", 1, "FR", "wind", false);
+                    .processTechnologyDistributionResFile(trajectoryName60Chars, "2029-2030", 1, "FR", "wind", false);
         }
 
         @Test
@@ -515,8 +515,8 @@ class ResControllerTest {
         }
 
         @Test
-        void uploadZonalDistributionResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds40Characters() throws Exception {
-            String longTrajectoryName = "a".repeat(41);
+        void uploadZonalDistributionResTrajectory_returnsBadRequest_whenTrajectoryNameExceeds60Characters() throws Exception {
+            String longTrajectoryName = "a".repeat(61);
 
             mockMvc.perform(post("/v1/trajectory/zonal-distribution-res")
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -581,15 +581,15 @@ class ResControllerTest {
         }
 
         @Test
-        void uploadZonalDistributionResTrajectory_acceptsTrajectoryNameWithExactly40Characters() throws Exception {
-            String trajectoryName40Chars = "a".repeat(40);
+        void uploadZonalDistributionResTrajectory_acceptsTrajectoryNameWithExactly60Characters() throws Exception {
+            String trajectoryName60Chars = "a".repeat(60);
             TrajectoryEntity entity = new TrajectoryEntity();
             entity.setId(999);
-            entity.setFileName(trajectoryName40Chars);
+            entity.setFileName(trajectoryName60Chars);
             entity.setType("RES_ZONAL_DISTRIBUTION");
 
             when(resFileProcessorService.processZonalDistributionResFile(
-                    trajectoryName40Chars,
+                    trajectoryName60Chars,
                     "2029-2030",
                     1,
                     "FR",
@@ -601,7 +601,7 @@ class ResControllerTest {
                             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                             .param("area", "FR")
                             .param("technology", "")
-                            .param("trajectoryToUse", trajectoryName40Chars)
+                            .param("trajectoryToUse", trajectoryName60Chars)
                             .param("horizon", "2029-2030")
                             .param("studyId", "1")
                             .param("isCivilYear", String.valueOf(false)))
@@ -609,7 +609,7 @@ class ResControllerTest {
                     .andExpect(jsonPath("$.id").value(999));
 
             verify(resFileProcessorService, times(1))
-                    .processZonalDistributionResFile(trajectoryName40Chars, "2029-2030", 1, "FR", "", false);
+                    .processZonalDistributionResFile(trajectoryName60Chars, "2029-2030", 1, "FR", "", false);
         }
 
         @Test
