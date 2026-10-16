@@ -134,9 +134,10 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
+                if (!isValidMeRow(row, areasMeList)) {
+                    continue;
+                }
                 String node = row.getCell(0).getStringCellValue();
-                if (row == null || isRowEmptyMe(row) || !areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
-                
                 String name = row.getCell(1).getStringCellValue();
                 String group = row.getCell(2).getStringCellValue();
 
@@ -156,6 +157,14 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         }
 
         return stStorageEntityList;
+    }
+
+    private boolean isValidMeRow(Row row, Set<String> areasMeList) {
+        if (row == null || isRowEmptyMe(row)) {
+            return false;
+        }
+        String node = row.getCell(0).getStringCellValue();
+        return areasMeList.contains(node.toUpperCase(Locale.ROOT));
     }
 
     private StStorageEntity mapRowToEntityMe(Row row, Path trajectoryFilePath, String node, String name, String group,
