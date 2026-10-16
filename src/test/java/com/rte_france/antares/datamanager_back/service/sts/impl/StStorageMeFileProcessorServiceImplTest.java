@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -66,6 +67,8 @@ class StStorageMeFileProcessorServiceImplTest {
         AreaEntity areaEntity = new AreaEntity();
         areaEntity.setName("FR");
 
+        when(multiEnergyCoherenceCheckService.getAreasMe(anyInt())).thenReturn(Set.of("FR", "DE", "BE", "ES"));
+
         // Mock default return for repository to avoid NPE
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
                 .thenReturn(java.util.Optional.empty());
@@ -90,6 +93,7 @@ class StStorageMeFileProcessorServiceImplTest {
     void shouldThrowExceptionWhenNodeColumnHasNoValue() throws IOException {
         Path xlsx = createMeWorkbookWithEmptyNode();
         placeInMeClusters(xlsx, "me_test.xlsx");
+        when(multiEnergyCoherenceCheckService.getAreasMe(anyInt())).thenReturn(Set.of(""));
 
         assertThatThrownBy(() ->
                 service.processStStorageMeFile("me_test", "2029-2030", 1)
@@ -101,6 +105,7 @@ class StStorageMeFileProcessorServiceImplTest {
     void shouldThrowExceptionWhenNodeExceedsMaxLength() throws IOException {
         Path xlsx = createMeWorkbookWithLongNode(61);
         placeInMeClusters(xlsx, "me_test.xlsx");
+        when(multiEnergyCoherenceCheckService.getAreasMe(anyInt())).thenReturn(Set.of("A".repeat(61)));
 
         assertThatThrownBy(() ->
                 service.processStStorageMeFile("me_test", "2029-2030", 1)
@@ -360,7 +365,7 @@ class StStorageMeFileProcessorServiceImplTest {
         assertThatThrownBy(() ->
                 service.processStStorageMeFile("me_test", "2029-2030", 1)
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("No ST Storage data found");
+                .hasMessageContaining("No area from the STS_ME trajectory is present in the AREA_ME trajectory");
     }
 
     @Test
@@ -955,44 +960,77 @@ class StStorageMeFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldThrowBusinessExceptionWhenAreaFromAreaMeIsNotPresentInStStorageMe() throws IOException {
+    void shouldThrowBusinessExceptionWhenNoAreaFromAreaMeIsPresentInStStorageMe() throws IOException {
         Path xlsx = createValidMeWorkbook();
         placeInMeClusters(xlsx, "me_test.xlsx");
 
-        doThrow(BusinessException.builder()
-                .message("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory")
-                .errorMessageArguments(List.of("BE", "STS_ME"))
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build())
-                .when(multiEnergyCoherenceCheckService)
-                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.STS_ME.name()), any(TrajectoryEntity.class));
+        when(multiEnergyCoherenceCheckService.getAreasMe(1)).thenReturn(Set.of("OTHER_AREA"));
 
         assertThatThrownBy(() ->
                 service.processStStorageMeFile("me_test", "2029-2030", 1)
         ).isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory")
-                .satisfies(e -> {
-                    BusinessException be = (BusinessException) e;
-                    assertThat(be.getErrorMessageArguments()).containsExactly("BE", "STS_ME");
-                });
-
-        verify(multiEnergyCoherenceCheckService).checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.STS_ME.name()), any(TrajectoryEntity.class));
+                .hasMessageContaining("No area from the STS_ME trajectory is present in the AREA_ME trajectory");
     }
 
     @Test
-    void shouldSuccessfullyProcessWhenAllAreasFromAreaMeArePresentInStStorageMe() throws IOException {
-        Path xlsx = createValidMeWorkbook();
+    void shouldFilterOutRowsNotPresentInAreaMeAndProcessValidRows() throws IOException {
+        Path xlsx = tempDir.resolve("multi_test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            String[] headers = {"Node", "Name", "Group", "Injection [MW]", "Withdrawal [MW]", "Storage [MWh]", "Efficiency", "initial_level", "initial_level_optim", "Series", "unused1", "constraints_flag"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            // Row 1: Valid matching row (FR)
+            Row r1 = s.createRow(1);
+            r1.createCell(0).setCellValue("FR");
+            r1.createCell(1).setCellValue("cluster1");
+            r1.createCell(2).setCellValue("g1");
+            r1.createCell(3).setCellValue(10);
+            r1.createCell(4).setCellValue(20);
+            r1.createCell(5).setCellValue(30);
+            r1.createCell(6).setCellValue(0.9);
+            r1.createCell(7).setCellValue(0.5);
+            r1.createCell(8).setCellValue("false");
+            r1.createCell(9).setCellValue("false");
+            r1.createCell(10).setCellValue("false");
+            r1.createCell(11).setCellValue("false");
+
+            // Row 2: Non-matching row (UNKNOWN)
+            Row r2 = s.createRow(2);
+            r2.createCell(0).setCellValue("UNKNOWN");
+            r2.createCell(1).setCellValue("cluster2");
+            r2.createCell(2).setCellValue("g2");
+            r2.createCell(3).setCellValue(10);
+            r2.createCell(4).setCellValue(20);
+            r2.createCell(5).setCellValue(30);
+            r2.createCell(6).setCellValue(0.9);
+            r2.createCell(7).setCellValue(0.5);
+            r2.createCell(8).setCellValue("false");
+            r2.createCell(9).setCellValue("false");
+            r2.createCell(10).setCellValue("false");
+            r2.createCell(11).setCellValue("false");
+
+            try (OutputStream os = Files.newOutputStream(xlsx)) {
+                wb.write(os);
+            }
+        }
         placeInMeClusters(xlsx, "me_test.xlsx");
+
+        when(multiEnergyCoherenceCheckService.getAreasMe(1)).thenReturn(Set.of("FR"));
 
         TrajectoryEntity trajectory = new TrajectoryEntity();
         trajectory.setHorizon("2030");
         trajectory.setId(10);
-        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(trajectory);
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
 
         assertThat(result).isNotNull();
-        verify(multiEnergyCoherenceCheckService).checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.STS_ME.name()), any(TrajectoryEntity.class));
+        assertThat(result.getStStorageEntities()).hasSize(1);
+        assertThat(result.getStStorageEntities().get(0).getArea()).isEqualTo("FR");
     }
 
     @Test

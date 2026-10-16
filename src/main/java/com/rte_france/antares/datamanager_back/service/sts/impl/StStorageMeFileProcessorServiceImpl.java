@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.service.sts.impl;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
@@ -58,7 +57,8 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse);
 
         Map<String, List<String>> missingFilesMeKeysMap = new LinkedHashMap<>();
-        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap);
+        Set<String> areasMeList = multiEnergyCoherenceCheckService.getAreasMe(studyId);
+        List<StStorageEntity> stStorageEntityList = buildStStorageMeLines(horizon.split("-")[1], trajectoryFilePath, missingFilesMeKeysMap, areasMeList);
         List<String> areasMeInStorage = stStorageEntityList.stream()
                 .map(StStorageEntity::getArea)
                 .toList();
@@ -96,7 +96,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                         .build();
             }
        }
-        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon, studyId);
+        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon, areasMeList);
 
         saveMissingColumnWarning(study, savedTrajectory, missingFilesMeKeysMap);
 
@@ -104,23 +104,22 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private TrajectoryEntity saveTrajectoryImport(List<StStorageEntity> stStorageEntityList, Path trajectoryFilePath,
-                                                   String horizon, Integer studyId) throws IOException {
+                                                   String horizon, Set<String> areasMeList) throws IOException {
         if (stStorageEntityList.isEmpty()) {
-            throw createValidationError("No ST Storage data found in the file for horizon: {0}", List.of(horizon));
+            throw createValidationError("No area from the STS_ME trajectory is present in the AREA_ME trajectory", List.of());
         }
 
         boolean isSeriesTrue = stStorageEntityList.stream()
                 .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
-
-        TrajectoryEntity trajectoryEntity = buildStStorageMeTrajectory(trajectoryFilePath, horizon, isSeriesTrue);
+        
+        TrajectoryEntity trajectoryEntity = buildStStorageMeTrajectory(trajectoryFilePath, horizon, isSeriesTrue, areasMeList);
 
         stStorageEntityList.forEach(stStorageEntity -> stStorageEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
-        multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.STS_ME.name(), trajectoryEntity);
         return trajectoryRepository.save(trajectoryEntity);
     }
 
-    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap) throws IOException{
+    private List<StStorageEntity> buildStStorageMeLines(String horizonYear, Path trajectoryFilePath, Map<String, List<String>> missingFilesMeKeysMap, Set<String> areasMeList) throws IOException{
         List<StStorageEntity> stStorageEntityList = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         Map<Path, Set<String>> headersCache = new HashMap<>();
@@ -138,6 +137,9 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                 if (row == null || isRowEmptyMe(row)) continue;
 
                 String node = row.getCell(0).getStringCellValue();
+                // areasMeList
+                if (!areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
+                
                 String name = row.getCell(1).getStringCellValue();
                 String group = row.getCell(2).getStringCellValue();
 
@@ -415,7 +417,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         throw new NoSuchFileException("Trajectory file not found: " + trajectoryFileName + " in " + root);
     }
 
-    private TrajectoryEntity buildStStorageMeTrajectory(Path trajectoryFilePath, String horizon, Boolean hasSeries) throws IOException {
+    private TrajectoryEntity buildStStorageMeTrajectory(Path trajectoryFilePath, String horizon, Boolean hasSeries, Set<String> areasMeList) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String trajectoryName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS_ME.name());
 

@@ -10,6 +10,8 @@ public interface MultiEnergyCoherenceCheckService {
     void checkAreaMETrajectoryConsistency(Integer studyId, String trajectoryType, TrajectoryEntity trajectory);
 
     Set<String> extractNodesFromAreaMeTrajectory(Integer studyId);
+    
+    Set<String> getAreasMe(Integer studyId);
 
     void validateHydroCapacityMeCoherence(Integer studyId, TrajectoryEntity trajectoryEntity);
 

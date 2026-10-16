@@ -39,6 +39,8 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
     private final EfficiencyMeRepository efficiencyMeRepository;
     private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
 
+    private static final String PREFIX_EFFICIENCY_AREA = "z_p2g";
+
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processEfficiencyMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
@@ -79,7 +81,8 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
             
             Optional<TrajectoryEntity> existingTrajectoryOpt = trajectoryRepository
                     .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.EFFICIENCY_ME.name());
-
+            Set<String> areasMeList = multiEnergyCoherenceCheckService.getAreasMe(studyId);
+            
             if (existingTrajectoryOpt.isPresent()) {
                 TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
                 if (isSameFileWithSameContent(trajectoryPath, existingTrajectory)) {
@@ -92,24 +95,23 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
                 TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.EFFICIENCY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
                 newTrajectory.setVersion(existingTrajectory.getVersion() + 1);
                 TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-                insertEfficiencyMeData(workbook, horizon, savedTrajectory);
+                insertEfficiencyMeData(workbook, horizon, savedTrajectory, areasMeList);
                 return savedTrajectory;
             }
 
             TrajectoryEntity newTrajectory = buildNewTrajectory(TrajectoryType.EFFICIENCY_ME, trajectoryToUse, horizon, trajectoryPath, userNni);
             TrajectoryEntity savedTrajectory = trajectoryRepository.save(newTrajectory);
-            insertEfficiencyMeData(workbook, horizon, savedTrajectory);
-            multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.EFFICIENCY_ME.name(), savedTrajectory);
+            insertEfficiencyMeData(workbook, horizon, savedTrajectory, areasMeList);
             return savedTrajectory;
         }
     }
 
-    private void insertEfficiencyMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory) {
+    private void insertEfficiencyMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory, Set<String> areasMeList) {
         String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? horizon.split("-")[1] : horizon;
-        processHorizonSheet(workbook, horizonYear, trajectory);
+        processHorizonSheet(workbook, horizonYear, trajectory, areasMeList);
     }
 
-    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory) {
+    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Set<String> areasMeList) {
         Sheet sheet = workbook.getSheet(horizonYear);
         List<EfficiencyMeEntity> efficiencyMeEntities = new ArrayList<>();
         if (sheet == null) return;
@@ -118,7 +120,7 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
             if (row.getRowNum() == 0) continue;
             
             String nodeCluster = getCellStringValue(row, 0);
-            if (nodeCluster == null || nodeCluster.trim().isEmpty()) continue;
+            if (nodeCluster == null || nodeCluster.trim().isEmpty() || !nodeCluster.toLowerCase(Locale.ROOT).startsWith(PREFIX_EFFICIENCY_AREA) || !areasMeList.contains(nodeCluster.toUpperCase(Locale.ROOT))) continue;
             
             String type = getCellStringValue(row, 1);
             String comments = getCellStringValue(row, 2);
@@ -135,6 +137,14 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
             efficiencyMeRepository.save(efficiencyMe);
             efficiencyMeEntities.add(efficiencyMe);
         }
+
+        if (efficiencyMeEntities.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No area z_p2g from the EFFICIENCY_ME trajectory is present in the AREA_ME trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
         trajectory.setEfficiencyMeEntities(efficiencyMeEntities);
     }
 

@@ -169,8 +169,8 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
             existingTrajectoryOpt.ifPresent(existing -> newTrajectory.setVersion(existing.getVersion() + 1));
 
             Path baseDirectory = Path.of(nasDir, trajFilePath, directoryByType);
-            buildEntities(sheet, newTrajectory, trajectoryToUse, baseDirectory);
-            multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.THERMAL_CAPACITY_ME.name(), newTrajectory);
+            Set<String> areasMeList = multiEnergyCoherenceCheckService.getAreasMe(studyId);
+            buildEntities(sheet, newTrajectory, trajectoryToUse, baseDirectory, areasMeList);
             return trajectoryRepository.save(newTrajectory);
 
         } catch (IOException e) {
@@ -181,7 +181,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
         }
     }
 
-    private List<ThermalMeEntity> buildEntities(Sheet sheet, TrajectoryEntity trajectory, String trajectoryToUse, Path trajectoryPath) {
+    private List<ThermalMeEntity> buildEntities(Sheet sheet, TrajectoryEntity trajectory, String trajectoryToUse, Path trajectoryPath, Set<String> areasMeList) {
         List<ThermalMeEntity> thermalMeEntities = new ArrayList<>();
         List<String> columnNames = new ArrayList<>();
         Set<String> seenCombinations = new HashSet<>();
@@ -196,10 +196,13 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                 continue;
             }
             
+            String node = Objects.toString(getCellValue(row, 0), "").trim();
+            if (!areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
+            
             if (getCellValue(row, 0) == null) {
                 throw BusinessException.builder()
                         .message("{0} column must be filled in {1} trajectory {2}")
-                        .errorMessageArguments(List.of(columnNames.get(0), THERMAL_ME, trajectoryToUse))
+                        .errorMessageArguments(List.of(columnNames.getFirst(), THERMAL_ME, trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -265,8 +268,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                 }
             }
 
-            // --- Récupération du node et du cluster_name ---
-            String node = Objects.toString(getCellValue(row, 0), "").trim();
+            // --- Récupération du cluster_name ---
             String clusterName = Objects.toString(getCellValue(row, 2), "").trim();
 
             // --- Validation d'unicité (insensible à la casse) ---
@@ -301,6 +303,13 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                     .build();
 
             thermalMeEntities.add(thermalMeEntity);
+        }
+        
+        if (thermalMeEntities.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No area from the THERMAL_ME trajectory is present in the AREA_ME trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
         trajectory.setThermalMeEntities(thermalMeEntities);
         return thermalMeEntities;

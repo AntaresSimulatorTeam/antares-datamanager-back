@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.computeChecksumByType;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +85,7 @@ class ThermalMeFileProcessorServiceImplTest {
         lenient().when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         lenient().when(antaresDataManagerProperties.getThermalMeDirectory()).thenReturn("thermal_me");
         lenient().when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("USER123").build());
+        lenient().when(multiEnergyCoherenceCheckService.getAreasMe(any())).thenReturn(Set.of("FR", "DE", "ES", "CH", "IT", "BE", "NODE1", "NODE2"));
     }
 
     @Test
@@ -344,6 +346,7 @@ class ThermalMeFileProcessorServiceImplTest {
         String trajectoryName = "test_trajectory";
         String horizon = "2024-2025";
         createExcelFileWithSpecificCell(trajectoryName, horizon, 0, null);
+        when(multiEnergyCoherenceCheckService.getAreasMe(5)).thenReturn(Set.of(""));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 5)
@@ -358,7 +361,9 @@ class ThermalMeFileProcessorServiceImplTest {
     void saveThermalMeTrajectoryInDb_nodeExceedsMaxLength_throwsException() throws IOException {
         String trajectoryName = "test_trajectory";
         String horizon = "2024-2025";
-        createExcelFileWithSpecificCell(trajectoryName, horizon, 0, "a".repeat(61));
+        String longNode = "a".repeat(61);
+        createExcelFileWithSpecificCell(trajectoryName, horizon, 0, longNode);
+        when(multiEnergyCoherenceCheckService.getAreasMe(7)).thenReturn(Set.of(longNode.toUpperCase()));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 7)
@@ -674,8 +679,8 @@ class ThermalMeFileProcessorServiceImplTest {
     }
 
     @Test
-    @DisplayName("saveThermalMeTrajectoryInDb - should throw BusinessException when multi-energy coherence check fails")
-    void saveThermalMeTrajectoryInDb_whenConsistencyCheckFails_throwsException() throws IOException {
+    @DisplayName("saveThermalMeTrajectoryInDb - should throw BusinessException when no area from THERMAL_ME matches AREA_ME")
+    void saveThermalMeTrajectoryInDb_whenNoAreaMatchesAreaMe_throwsException() throws IOException {
         String trajectoryName = "test_coherence_fail";
         String horizon = "2024-2025";
         createValidThermalMeExcelFile(trajectoryName, horizon, "annual");
@@ -683,19 +688,58 @@ class ThermalMeFileProcessorServiceImplTest {
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.THERMAL_CAPACITY_ME.name()))
                 .thenReturn(Optional.empty());
-
-        doThrow(BusinessException.builder()
-                .message("Areas BE from AREA_ME trajectory is (are) not present in THERMAL_ME trajectory")
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build())
-                .when(multiEnergyCoherenceCheckService)
-                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.THERMAL_CAPACITY_ME.name()), any(TrajectoryEntity.class));
+        when(multiEnergyCoherenceCheckService.getAreasMe(1)).thenReturn(Set.of("OTHER_AREA"));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 1)
         );
 
-        assertTrue(exception.getMessage().contains("Areas BE from AREA_ME trajectory"));
+        assertEquals("No area from the THERMAL_ME trajectory is present in the AREA_ME trajectory", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("saveThermalMeTrajectoryInDb - should filter out rows whose node is not present in AREA_ME")
+    void saveThermalMeTrajectoryInDb_filtersOutNonMatchingRows() throws IOException {
+        String trajectoryName = "test_filtering";
+        String horizon = "2024-2025";
+        Workbook workbook = new XSSFWorkbook();
+        String horizonYear = horizon.split("-")[1];
+        Sheet sheet = workbook.createSheet(horizonYear);
+
+        sheet.createRow(0);
+        sheet.createRow(1);
+        sheet.createRow(2);
+
+        Row headerRow = sheet.createRow(3);
+        for (int i = 0; i < HEADERS.length; i++) {
+            headerRow.createCell(i).setCellValue(HEADERS[i]);
+        }
+
+        Row dataRow1 = sheet.createRow(4);
+        fillDataRow(dataRow1, "FR", "group1", "cluster_1", "annual");
+
+        Row dataRow2 = sheet.createRow(5);
+        fillDataRow(dataRow2, "UNKNOWN", "group2", "cluster_2", "annual");
+
+        for (int r = 6; r <= 17; r++) {
+            sheet.createRow(r);
+        }
+
+        Path filePath = trajectoryFilePath.resolve(trajectoryName + ".xlsx");
+        saveWorkbook(workbook, filePath);
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                trajectoryName, horizon, TrajectoryType.THERMAL_CAPACITY_ME.name()))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(multiEnergyCoherenceCheckService.getAreasMe(1)).thenReturn(Set.of("FR"));
+
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 1);
+
+        assertNotNull(result);
+        assertEquals(1, result.getThermalMeEntities().size());
+        assertEquals("FR", result.getThermalMeEntities().get(0).getNode());
     }
 
     // ============ Helper Methods ============

@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -69,6 +70,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
         when(antaresDataManagerProperties.getEfficiencyMeDirectory()).thenReturn("efficiency_me");
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("USER123").build());
+        when(multiEnergyCoherenceCheckService.getAreasMe(any())).thenReturn(Set.of("Z_P2G_NODE1", "Z_P2G_NODE2"));
     }
 
     @Test
@@ -100,8 +102,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         assertEquals(horizon, result.getHorizon());
         verify(trajectoryRepository, times(1)).save(any(TrajectoryEntity.class));
         verify(efficiencyMeRepository, atLeastOnce()).save(any(EfficiencyMeEntity.class));
-        verify(multiEnergyCoherenceCheckService, times(1))
-                .checkAreaMETrajectoryConsistency(1, TrajectoryType.EFFICIENCY_ME.name(), newTrajectory);
+        verify(multiEnergyCoherenceCheckService, times(1)).getAreasMe(1);
         assertNotNull(newTrajectory.getEfficiencyMeEntities());
         assertFalse(newTrajectory.getEfficiencyMeEntities().isEmpty());
     }
@@ -170,8 +171,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
         assertNotNull(result);
         assertEquals(1, result.getVersion());
         verify(trajectoryRepository, times(1)).save(argThat(t -> t.getVersion() == 1));
-        verify(multiEnergyCoherenceCheckService, times(1))
-                .checkAreaMETrajectoryConsistency(1, TrajectoryType.EFFICIENCY_ME.name(), newTrajectory);
+        verify(multiEnergyCoherenceCheckService, times(1)).getAreasMe(1);
     }
 
     @Test
@@ -330,7 +330,7 @@ class EfficiencyMeFileProcessorServiceImplTest {
     }
 
     @Test
-    void saveEfficiencyMeTrajectoryInDb_whenConsistencyCheckFails_throwsException() throws IOException {
+    void saveEfficiencyMeTrajectoryInDb_whenNoAreaMatchesAreaMe_throwsException() throws IOException {
         // Given
         String trajectoryName = "test_trajectory";
         String horizon = "2023-2024";
@@ -348,20 +348,46 @@ class EfficiencyMeFileProcessorServiceImplTest {
                 any(String.class), any(String.class), any(String.class)))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
-
-        doThrow(BusinessException.builder()
-                .message("Areas FR from AREA_ME trajectory is (are) not present in EFFICIENCY_ME trajectory")
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build())
-                .when(multiEnergyCoherenceCheckService)
-                .checkAreaMETrajectoryConsistency(eq(1), eq(TrajectoryType.EFFICIENCY_ME.name()), any(TrajectoryEntity.class));
+        when(multiEnergyCoherenceCheckService.getAreasMe(1)).thenReturn(Set.of("OTHER_AREA"));
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
         });
 
-        assertTrue(exception.getMessage().contains("Areas FR from AREA_ME trajectory"));
+        assertEquals("No area z_p2g from the EFFICIENCY_ME trajectory is present in the AREA_ME trajectory", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void saveEfficiencyMeTrajectoryInDb_filtersOutNonPrefixAndNonMatchingRows() throws IOException {
+        // Given
+        String trajectoryName = "multi_row_test";
+        String horizon = "2023-2024";
+        createMultiRowTestExcelFile(trajectoryName, horizon);
+
+        TrajectoryEntity newTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName(trajectoryName)
+                .horizon(horizon)
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .version(1)
+                .build();
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
+        when(multiEnergyCoherenceCheckService.getAreasMe(1)).thenReturn(Set.of("Z_P2G_NODE1"));
+
+        // When
+        TrajectoryEntity result = service.saveEfficiencyMeTrajectoryInDb(trajectoryName, horizon, 1);
+
+        // Then
+        assertNotNull(result);
+        verify(efficiencyMeRepository, times(1)).save(argThat(entity -> entity.getNodeCluster().equals("z_p2g_node1")));
+        assertEquals(1, newTrajectory.getEfficiencyMeEntities().size());
+        assertEquals("z_p2g_node1", newTrajectory.getEfficiencyMeEntities().get(0).getNodeCluster());
     }
 
     // Helper methods to create test Excel files
@@ -379,10 +405,51 @@ class EfficiencyMeFileProcessorServiceImplTest {
 
         // Create data row
         var dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("Node1");
+        dataRow.createCell(0).setCellValue("z_p2g_node1");
         dataRow.createCell(1).setCellValue("Type1");
         dataRow.createCell(2).setCellValue("Comments");
         dataRow.createCell(3).setCellValue(0.95);
+
+        Path filePath = trajectoryFilePath.resolve(fileName + ".xlsx");
+        try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
+            workbook.write(fos);
+        }
+        workbook.close();
+        return filePath;
+    }
+
+    private Path createMultiRowTestExcelFile(String fileName, String horizon) throws IOException {
+        Workbook workbook = new XSSFWorkbook();
+        String horizonYear = horizon.split("-")[1];
+        Sheet sheet = workbook.createSheet(horizonYear);
+
+        // Create header
+        var headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("Node/Cluster");
+        headerRow.createCell(1).setCellValue("Type");
+        headerRow.createCell(2).setCellValue("Comments");
+        headerRow.createCell(3).setCellValue("Efficiency");
+
+        // Row 1: Valid matching row
+        var row1 = sheet.createRow(1);
+        row1.createCell(0).setCellValue("z_p2g_node1");
+        row1.createCell(1).setCellValue("Type1");
+        row1.createCell(2).setCellValue("Comments1");
+        row1.createCell(3).setCellValue(0.95);
+
+        // Row 2: Has prefix but not in areasMe
+        var row2 = sheet.createRow(2);
+        row2.createCell(0).setCellValue("z_p2g_unknown");
+        row2.createCell(1).setCellValue("Type2");
+        row2.createCell(2).setCellValue("Comments2");
+        row2.createCell(3).setCellValue(0.85);
+
+        // Row 3: Does not start with prefix
+        var row3 = sheet.createRow(3);
+        row3.createCell(0).setCellValue("regular_node");
+        row3.createCell(1).setCellValue("Type3");
+        row3.createCell(2).setCellValue("Comments3");
+        row3.createCell(3).setCellValue(0.75);
 
         Path filePath = trajectoryFilePath.resolve(fileName + ".xlsx");
         try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
