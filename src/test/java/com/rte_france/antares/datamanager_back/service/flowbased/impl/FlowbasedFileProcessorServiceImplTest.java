@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.flowbased.impl;
 
+import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
@@ -16,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.flowbased.Flowba
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -28,6 +30,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
 import org.springframework.http.HttpStatus;
 
 import java.io.FileOutputStream;
@@ -55,6 +58,9 @@ class FlowbasedFileProcessorServiceImplTest {
 
     @Mock
     private FlowbasedConstraintsRestrictionsFileProcessorService restrictionsFileProcessorService;
+
+    @Spy
+    private PathSecurityUtil pathSecurityUtil = new PathSecurityUtil(mock(AntaresDataManagerProperties.class));
 
     @InjectMocks
     private FlowbasedFileProcessorServiceImpl flowbasedFileProcessorService;
@@ -225,6 +231,35 @@ class FlowbasedFileProcessorServiceImplTest {
         assertEquals("Mandatory Areas {0} in Flowbased trajectory are missing in AREA trajectory", exception.getMessage());
         assertEquals(List.of("NL"), exception.getErrorMessageArguments());
         verify(trajectoryRepository, never()).save(any(TrajectoryEntity.class));
+    }
+
+    @Test
+    void processFlowbasedFiles_shouldRejectAreasWorkbookSymlinkOutsideTrajectory(@TempDir Path tempDir) throws IOException {
+        Path trajectory = Files.createDirectory(tempDir.resolve("trajectory"));
+        createAllRequiredFilesWithContent(trajectory);
+        Path outside = tempDir.resolve("outside.xlsx");
+        createAreasNecessarySheet(outside, "EXTERNAL_AREA");
+        Path areasWorkbook = trajectory.resolve("areas_necessary.xlsx");
+        Files.delete(areasWorkbook);
+        Files.createSymbolicLink(areasWorkbook, outside);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.processFlowbasedFiles(trajectory, "trajectory", 1, "2025-2026"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("Resolved path is outside of the allowed directory", exception.getMessage());
+        verifyNoInteractions(areaRepository, trajectoryRepository, restrictionsFileProcessorService);
+    }
+
+    @Test
+    void buildAreasNecessaryList_shouldAcceptWorkbookSymlinkInsideTrajectory(@TempDir Path tempDir) throws IOException {
+        Path workbook = tempDir.resolve("areas.xlsx");
+        createAreasNecessarySheet(workbook, "FR", "NL");
+        Files.createSymbolicLink(tempDir.resolve("areas_necessary.xlsx"), workbook);
+
+        var areas = flowbasedFileProcessorService.buildAreasNecessaryList(tempDir);
+
+        assertEquals(List.of("FR", "NL"), areas.stream().map(FlowbasedAreaEntity::getArea).toList());
     }
 
     @Test
