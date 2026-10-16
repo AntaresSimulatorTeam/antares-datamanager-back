@@ -22,6 +22,7 @@ import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulation
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.flowbased.impl.FlowbasedFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedAreaEntity;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -61,6 +62,7 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.params.ParameterizedTest;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import org.junit.jupiter.params.provider.ValueSource;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -340,8 +342,9 @@ class TrajectoryServiceImplTest {
     @Test
     void linkTrajectoryToStudy_validatesSavedFlowbasedBeforeReplacing() throws IOException {
         var nodes = List.of(FlowbasedVirtualNodesEntity.builder().name("z_Nos_nl").build());
+        var areas = List.of(FlowbasedAreaEntity.builder().area("FR").build());
         var trajectory = TrajectoryEntity.builder().id(2).type(TrajectoryType.FLOWBASED.name())
-                .flowbasedVirtualNodes(nodes).build();
+                .flowbasedVirtualNodes(nodes).flowbasedAreas(areas).build();
         var existing = StudyTrajectoryEntity.builder()
                 .trajectory(TrajectoryEntity.builder().id(1).type(TrajectoryType.FLOWBASED.name()).build()).build();
         when(studyRepository.findById(10)).thenReturn(Optional.of(
@@ -353,9 +356,142 @@ class TrajectoryServiceImplTest {
         assertSame(trajectory, trajectoryService.linkTrajectoryToStudy(2, 10, TrajectoryType.FLOWBASED));
 
         var order = inOrder(flowbasedFileProcessorService, studyTrajectoryRepository);
+        order.verify(flowbasedFileProcessorService).validateAreasExistInStudy(areas, 10);
         order.verify(flowbasedFileProcessorService).validateVirtualNodesHvdcLinks(nodes, 10);
         order.verify(studyTrajectoryRepository).delete(existing);
         order.verify(studyTrajectoryRepository).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"FR", "fr", "NL", "missing"})
+    void linkTrajectoryToStudy_validatesSavedFlowbasedAreasAgainstDestinationStudy(String studyArea) throws IOException {
+        var areas = List.of(FlowbasedAreaEntity.builder().area("FR").build());
+        var trajectory = TrajectoryEntity.builder().id(2).type(TrajectoryType.FLOWBASED.name())
+                .flowbasedAreas(areas).flowbasedVirtualNodes(List.of()).build();
+        var existing = StudyTrajectoryEntity.builder()
+                .trajectory(TrajectoryEntity.builder().id(1).type(TrajectoryType.FLOWBASED.name()).build()).build();
+        when(studyRepository.findById(10)).thenReturn(Optional.of(
+                StudyEntity.builder().id(10).studyTrajectoryEntities(Set.of(existing)).build()));
+        when(trajectoryRepository.findById(2)).thenReturn(Optional.of(trajectory));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        when(areaRepository.findAllByStudyId(10, TrajectoryType.AREA.name()))
+                .thenReturn(studyArea.equals("missing") ? List.of() : List.of(AreaEntity.builder().name(studyArea).build()));
+        var validator = new FlowbasedFileProcessorServiceImpl(trajectoryRepository, areaRepository, userService, null, null);
+        doAnswer(invocation -> {
+            validator.validateAreasExistInStudy(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(flowbasedFileProcessorService).validateAreasExistInStudy(areas, 10);
+
+        if (studyArea.equalsIgnoreCase("FR")) {
+            when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            assertSame(trajectory, trajectoryService.linkTrajectoryToStudy(2, 10, TrajectoryType.FLOWBASED));
+            verify(studyTrajectoryRepository).delete(existing);
+            verify(studyTrajectoryRepository).save(any());
+        } else {
+            var exception = assertThrows(BusinessException.class,
+                    () -> trajectoryService.linkTrajectoryToStudy(2, 10, TrajectoryType.FLOWBASED));
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals(List.of("FR"), exception.getErrorMessageArguments());
+            verify(studyTrajectoryRepository, never()).delete(any());
+            verify(studyTrajectoryRepository, never()).save(any());
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {"NULL,10", "10,NULL", "0,10", "10,0", "10,20", "-10,-20"}, nullValues = "NULL")
+    void linkTrajectoryToStudy_validatesFlowbasedAgainstProposedLink(Double direct, Double indirect) throws IOException {
+        var nodes = List.of(FlowbasedVirtualNodesEntity.builder().name("z_fr_de").build());
+        var flowbased = TrajectoryEntity.builder().id(3).type(TrajectoryType.FLOWBASED.name())
+                .flowbasedVirtualNodes(nodes).build();
+        var oldLink = TrajectoryEntity.builder().id(1).type(TrajectoryType.LINK.name())
+                .linkEntities(List.of(LinkEntity.builder().name("FR-DE").hvdcMwDirect(10.0).hvdcMwIndirect(10.0).build()))
+                .build();
+        var existing = StudyTrajectoryEntity.builder().trajectory(oldLink).build();
+        var proposedLinks = List.of(LinkEntity.builder().name("DE-FR").hvdcMwDirect(direct).hvdcMwIndirect(indirect).build());
+        var proposed = TrajectoryEntity.builder().id(2).type(TrajectoryType.LINK.name()).linkEntities(proposedLinks).build();
+        when(studyRepository.findById(10)).thenReturn(Optional.of(
+                StudyEntity.builder().id(10).studyTrajectoryEntities(Set.of(existing)).build()));
+        when(trajectoryRepository.findById(2)).thenReturn(Optional.of(proposed));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 10)).thenReturn(List.of(oldLink));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.FLOWBASED.name(), 10)).thenReturn(List.of(flowbased));
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
+        useRealExplicitHvdcValidator();
+
+        if (direct != null && indirect != null && direct != 0 && indirect != 0) {
+            when(studyTrajectoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            assertSame(proposed, trajectoryService.linkTrajectoryToStudy(2, 10, TrajectoryType.LINK));
+            var order = inOrder(flowbasedFileProcessorService, studyTrajectoryRepository);
+            order.verify(flowbasedFileProcessorService).validateVirtualNodesHvdcLinks(nodes, proposedLinks);
+            order.verify(studyTrajectoryRepository).delete(existing);
+            order.verify(studyTrajectoryRepository).save(any());
+        } else {
+            var exception = assertThrows(BusinessException.class,
+                    () -> trajectoryService.linkTrajectoryToStudy(2, 10, TrajectoryType.LINK));
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals(List.of("z_fr_de"), exception.getErrorMessageArguments());
+            verify(studyTrajectoryRepository, never()).delete(any());
+            verify(studyTrajectoryRepository, never()).save(any());
+        }
+    }
+
+    private void useRealExplicitHvdcValidator() {
+        var validator = new FlowbasedFileProcessorServiceImpl(trajectoryRepository, areaRepository, userService, null, null);
+        doAnswer(invocation -> {
+            validator.validateVirtualNodesHvdcLinks(invocation.getArgument(0), invocation.<List<LinkEntity>>getArgument(1));
+            return null;
+        }).when(flowbasedFileProcessorService).validateVirtualNodesHvdcLinks(anyList(), anyList());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void unlinkTrajectoryFromStudy_preservesLinkRequiredByFlowbased(boolean requiresHvdc) {
+        var link = TrajectoryEntity.builder().id(1).type(TrajectoryType.LINK.name()).scenarioEntities(new HashSet<>()).build();
+        var nodes = List.of(FlowbasedVirtualNodesEntity.builder().name(requiresHvdc ? "z_fr_de" : "Node1").build());
+        var flowbased = TrajectoryEntity.builder().id(2).type(TrajectoryType.FLOWBASED.name()).flowbasedVirtualNodes(nodes).build();
+        var study = StudyEntity.builder().id(10).trajectories(new HashSet<>(Set.of(link, flowbased))).build();
+        var key = StudyTrajectoryKey.builder().trajectoryId(1).scenarioId(10).build();
+        var association = StudyTrajectoryEntity.builder().id(key).trajectory(link).studyEntity(study).build();
+        when(trajectoryRepository.findById(1)).thenReturn(Optional.of(link));
+        when(studyTrajectoryRepository.findById(key)).thenReturn(Optional.of(association));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 10)).thenReturn(List.of(link));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.FLOWBASED.name(), 10)).thenReturn(List.of(flowbased));
+        useRealExplicitHvdcValidator();
+
+        if (requiresHvdc) {
+            var exception = assertThrows(BusinessException.class, () -> trajectoryService.unlinkTrajectoryFromStudy(1, 10));
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals(List.of("z_fr_de"), exception.getErrorMessageArguments());
+            verify(studyTrajectoryRepository, never()).delete(any());
+            assertTrue(study.getTrajectories().contains(link));
+        } else {
+            trajectoryService.unlinkTrajectoryFromStudy(1, 10);
+            verify(studyTrajectoryRepository).delete(association);
+            assertFalse(study.getTrajectories().contains(link));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void unlinkBatchTrajectoriesFromStudy_requiresDependentFlowbasedToBeRemoved(boolean removeFlowbased) {
+        var link = TrajectoryEntity.builder().id(1).type(TrajectoryType.LINK.name()).build();
+        var flowbased = TrajectoryEntity.builder().id(2).type(TrajectoryType.FLOWBASED.name())
+                .flowbasedVirtualNodes(List.of(FlowbasedVirtualNodesEntity.builder().name("z_fr_de").build())).build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), 10)).thenReturn(List.of(link));
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.FLOWBASED.name(), 10)).thenReturn(List.of(flowbased));
+        useRealExplicitHvdcValidator();
+        var ids = removeFlowbased ? List.of(1, 2) : List.of(1);
+
+        if (removeFlowbased) {
+            when(studyTrajectoryRepository.deleteByStudyIdAndTrajectoryIds(10, ids)).thenReturn(ids.size());
+            trajectoryService.unlinkBatchTrajectoriesFromStudy(10, ids);
+            verify(studyTrajectoryRepository).deleteByStudyIdAndTrajectoryIds(10, ids);
+        } else {
+            var exception = assertThrows(BusinessException.class,
+                    () -> trajectoryService.unlinkBatchTrajectoriesFromStudy(10, ids));
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals(List.of("z_fr_de"), exception.getErrorMessageArguments());
+            verify(studyTrajectoryRepository, never()).deleteByStudyIdAndTrajectoryIds(anyInt(), anyList());
+        }
     }
 
     @ParameterizedTest
@@ -370,9 +506,9 @@ class TrajectoryServiceImplTest {
         when(studyRepository.findById(10)).thenReturn(Optional.of(study));
         when(trajectoryRepository.findById(2)).thenReturn(Optional.of(trajectory));
         when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("user").build());
-        var validator = new FlowbasedFileProcessorServiceImpl(trajectoryRepository, areaRepository, userService, null);
+        var validator = new FlowbasedFileProcessorServiceImpl(trajectoryRepository, areaRepository, userService, null, null);
         doAnswer(invocation -> {
-            validator.validateVirtualNodesHvdcLinks(invocation.getArgument(0), invocation.getArgument(1));
+            validator.validateVirtualNodesHvdcLinks(invocation.getArgument(0), invocation.<Integer>getArgument(1));
             return null;
         }).when(flowbasedFileProcessorService).validateVirtualNodesHvdcLinks(nodes, 10);
         var links = failure.equals("missing") ? List.<LinkEntity>of() : List.of(
