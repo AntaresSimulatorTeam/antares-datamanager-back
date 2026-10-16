@@ -43,7 +43,10 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
                 .anyMatch(areasList::contains);        
 
         if (!hasMatchingArea) {
-            String typeToUse = trajectoryType.equalsIgnoreCase(TrajectoryType.THERMAL_CAPACITY_ME.name() )? "THERMAL_ME" : trajectoryType;
+            String typeToUse = trajectoryType.equalsIgnoreCase(TrajectoryType.THERMAL_CAPACITY_ME.name()) ? "THERMAL_ME" : trajectoryType;
+            if (trajectoryType.equalsIgnoreCase(TrajectoryType.HYDRO_CAPACITY_ME.name())) {
+                typeToUse = "HYDRO_ME";
+            }
             throw createValidationError(typeToUse);
         }
     }
@@ -84,6 +87,7 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
             case LOAD_ME -> extractAreas(trajectory.getLoadEntities(), LoadEntity::getArea);
             case STS_ME  -> extractAreas(trajectory.getStStorageEntities(), StStorageEntity::getArea);
             case THERMAL_CAPACITY_ME  -> extractAreas(trajectory.getThermalMeEntities(), ThermalMeEntity::getNode);
+            case HYDRO_CAPACITY_ME  -> extractAreas(trajectory.getHydroCapacityMeEntities(), HydroCapacityMeEntity::getNode);
             case EFFICIENCY_ME  -> extractAreas(trajectory.getEfficiencyMeEntities(), entity -> entity.getNodeCluster().startsWith(PREFIX_EFFICIENCY_AREA)
                     ? entity.getNodeCluster()
                     : null);

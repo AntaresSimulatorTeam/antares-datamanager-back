@@ -171,10 +171,11 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Path trajectoryPath, Integer studyId) throws IOException {
         Sheet sheet = workbook.getSheet(horizonYear);
+        List<HydroCapacityMeEntity> hydroCapacityMeEntities = new ArrayList<>();
         if (sheet == null) return;
 
         // Get all nodes from AREA_ME trajectory for the study
-        Set<String> areasMeNodes = multiEnergyCoherenceCheckService.extractNodesFromAreaMeTrajectory(studyId);
+        Set<String> areasMeNodes = multiEnergyCoherenceCheckService.getAreasMe(studyId);
         
         Set<String> hydroMeNodes = new HashSet<>();
         boolean hasGeneratingDaily = false;
@@ -184,11 +185,13 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
             if (row.getRowNum() == 0) continue;
             
             String node = getCellStringValue(row, 0);
+            
             String generatingTimestep = getCellStringValue(row, 2);
             String pumpingTimestep = getCellStringValue(row, 5);
 
             // Validation during single pass
             if (node != null && !node.trim().isEmpty()) {
+                if (!areasMeNodes.contains(node.toUpperCase(Locale.ROOT))) continue;
                 if (node.length() > 60) {
                     throw BusinessException.builder()
                             .message("Node column cannot exceed 60 characters in HYDRO_ME Capacity trajectory " + trajectory.getFileName())
@@ -235,6 +238,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                         .build();
                 
                 hydroCapacityMeRepository.save(hydroCapacityMe);
+                hydroCapacityMeEntities.add(hydroCapacityMe);
             } else {
                 boolean hasOtherData = false;
                 for (int i = 1; i < 8; i++) {
@@ -254,18 +258,11 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         }
 
         // Validate that all nodes in HYDRO_ME_CAPACITY exist in AREAS_ME
-        if (!hydroMeNodes.isEmpty() && !areasMeNodes.isEmpty()) {
-            Set<String> missingAreas = hydroMeNodes.stream()
-                    .filter(node -> !areasMeNodes.contains(node))
-                    .collect(Collectors.toSet());
-            
-            if (!missingAreas.isEmpty()) {
+        if (hydroCapacityMeEntities.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("Areas {0} from HYDRO_ME Capacity trajectory is (are) not present in AREAS_ME trajectory")
-                        .errorMessageArguments(List.of(String.join(", ", missingAreas)))
+                        .message("No area from the HYDRO_ME trajectory is present in the AREA_ME trajectory")
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
-            }
         }
 
         // Validate time series directories

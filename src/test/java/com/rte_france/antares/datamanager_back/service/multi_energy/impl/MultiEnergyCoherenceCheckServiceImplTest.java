@@ -317,6 +317,47 @@ class MultiEnergyCoherenceCheckServiceImplTest {
     }
 
     @Test
+    void checkAreaMETrajectoryConsistency_whenHydroCapacityMeContainsAtLeastOneAreaMeArea_shouldPass() {
+        TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR", "BE");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        HydroCapacityMeEntity hydro1 = HydroCapacityMeEntity.builder().node("FR").build();
+        HydroCapacityMeEntity hydro2 = HydroCapacityMeEntity.builder().node(" OTHER ").build();
+        TrajectoryEntity hydroMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
+                .hydroCapacityMeEntities(List.of(hydro1, hydro2))
+                .build();
+
+        assertDoesNotThrow(() ->
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.HYDRO_CAPACITY_ME.name(), hydroMeTrajectory)
+        );
+    }
+
+    @Test
+    void checkAreaMETrajectoryConsistency_whenHydroCapacityMeHasNoMatchingArea_shouldThrowBusinessException() {
+        TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("FR", "BE");
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        HydroCapacityMeEntity hydro1 = HydroCapacityMeEntity.builder().node("ES").build();
+        TrajectoryEntity hydroMeTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.HYDRO_CAPACITY_ME.name())
+                .hydroCapacityMeEntities(List.of(hydro1))
+                .build();
+
+        assertThatThrownBy(() ->
+                coherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.HYDRO_CAPACITY_ME.name(), hydroMeTrajectory)
+        ).isInstanceOf(BusinessException.class)
+                .hasMessage("No area {0} from the {1} trajectory is present in the AREA_ME trajectory")
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(be.getErrorMessageArguments()).containsExactly("", "HYDRO_ME");
+                });
+    }
+
+    @Test
     void checkAreaMETrajectoryConsistency_whenEfficiencyMeContainsAtLeastOneMatchingAreaMeArea_shouldPass() {
         TrajectoryEntity areaMeTrajectory = createAreaMeTrajectory("Z_P2G_FR", "BE");
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))

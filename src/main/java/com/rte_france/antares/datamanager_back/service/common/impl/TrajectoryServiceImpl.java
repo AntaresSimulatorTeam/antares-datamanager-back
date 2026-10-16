@@ -710,7 +710,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 TrajectoryType.HYDRO_TECHNICAL_PARAMETERS,
                 TrajectoryType.HYDRO_PSP_SERIES,
                 TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS,
-                TrajectoryType.HYDRO_CAPACITY_ME,
                 TrajectoryType.HYDRO_PARAMETERS_ME,
                 TrajectoryType.CONSTRAINT_ME
         );
@@ -731,8 +730,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 hydroCoherenceCheckService.validateHydroTechnicalParametersCoherence(studyId, trajectory, hydroType);
             }
         }
+        
+        if (TrajectoryType.LOAD_ME.name().equals(trajectoryType)) {
+            validateLoadMeAreasAgainstAreaMe(trajectory, studyId);
+        }
 
-        if (TrajectoryType.LOAD_ME.name().equals(trajectoryType) || TrajectoryType.STS_ME.name().equals(trajectoryType) || TrajectoryType.THERMAL_CAPACITY_ME.name().equals(trajectoryType) || TrajectoryType.EFFICIENCY_ME.name().equals(trajectoryType)) {
+        if (TrajectoryType.STS_ME.name().equals(trajectoryType) || TrajectoryType.HYDRO_CAPACITY_ME.name().equals(trajectoryType) || TrajectoryType.THERMAL_CAPACITY_ME.name().equals(trajectoryType) || TrajectoryType.EFFICIENCY_ME.name().equals(trajectoryType)) {
             multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, trajectoryType, trajectory);
         }
 
@@ -1166,20 +1169,26 @@ public class TrajectoryServiceImpl implements TrajectoryService {
            return;
         }
 
+        // Reuse existing validation logic
+        validateLoadMeAreasAgainstAreaMe(trajectory, studyId);
+    }
+
+    private Map<String, String> validateLoadMeAreasAgainstAreaMe(TrajectoryEntity trajectory, Integer studyId) {
         Map<String, String> loadsFileWithAreas = new HashMap<>();
-        for (LoadEntity load : trajectory.getLoadEntities()) {
-           if (load.getArea() != null) {
-               loadsFileWithAreas.put(load.getFileName(), load.getArea());
-           }
+        if (trajectory.getLoadEntities() != null) {
+            for (LoadEntity load : trajectory.getLoadEntities()) {
+                if (load.getArea() != null) {
+                    loadsFileWithAreas.put(load.getFileName(), load.getArea());
+                }
+            }
         }
 
         if (loadsFileWithAreas.isEmpty()) {
-           log.debug("No valid areas found in LOAD_ME trajectory: {}", trajectory.getFileName());
-           return;
+            log.debug("No valid areas found in LOAD_ME trajectory: {}", trajectory.getFileName());
+            return Collections.emptyMap();
         }
 
-        // Reuse existing validation logic
-        validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, trajectory.getFileName(), studyId);
+        return validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, trajectory.getFileName(), studyId);
     }
 
     private Map<String, String> validateLoadMeAreasAgainstAreaMe(Map<String, String> loadsFileWithAreas, String trajectoryName, Integer studyId) {
@@ -1513,7 +1522,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
             case "LOAD_ME" -> validateLoadMeAreasAgainstAreaMeForTrajectory(studyId, trajectory);
-            case "STS_ME", "THERMAL_CAPACITY_ME", "EFFICIENCY_ME" -> multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, type, trajectory);
+            case "STS_ME", "THERMAL_CAPACITY_ME", "EFFICIENCY_ME", "HYDRO_CAPACITY_ME" -> multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, type, trajectory);
             case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS",
                  "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
@@ -1522,7 +1531,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                  "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "HYDRO_RESERVOIR_LEVELS_ME", "HYDRO_TIME_SERIES_ME", "HYDRO_WATER_VALUES_ME" ->
                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
                     log.info("No additional coherence check for Hydro trajectory type {} yet", type);
-            case "HYDRO_CAPACITY_ME" -> multiEnergyCoherenceCheckService.validateHydroCapacityMeCoherence(studyId, trajectory);
             case "CONSTRAINT_ME" -> multiEnergyCoherenceCheckService.validateConstraintMeCoherence(studyId, trajectory);
             case "HYDRO_PARAMETERS_ME" -> hydroParametersMeFileProcessorService.validateHydroParametersMeCoherence(studyId, trajectory);
 
