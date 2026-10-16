@@ -732,7 +732,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
         }
 
-        if (TrajectoryType.LOAD_ME.name().equals(trajectoryType) || TrajectoryType.STS_ME.name().equals(trajectoryType)) {
+        if (TrajectoryType.LOAD_ME.name().equals(trajectoryType) || TrajectoryType.STS_ME.name().equals(trajectoryType) || TrajectoryType.THERMAL_CAPACITY_ME.name().equals(trajectoryType) || TrajectoryType.EFFICIENCY_ME.name().equals(trajectoryType)) {
             multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, trajectoryType, trajectory);
         }
 
@@ -1102,10 +1102,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // Validate that at least one area from AREA_ME is present in LOAD_ME files
-        validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, loadMeTrajectory.getFileName(), studyId);
+        Map<String, String> loadFileWithAreaMe = validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, loadMeTrajectory.getFileName(), studyId);
 
         Set<LoadEntity> loadEntities = new HashSet<>();
-        for (Map.Entry<String, String> entry : loadsFileWithAreas.entrySet()) {
+        for (Map.Entry<String, String> entry : loadFileWithAreaMe.entrySet()) {
             String loadFileName = entry.getKey();
             String area = entry.getValue();
 
@@ -1119,6 +1119,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             loadEntity.addTrajectoryEntity(loadMeTrajectory);
             loadEntities.add(loadEntity);
         }
+        if (loadEntities.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}")
+                    .errorMessageArguments(List.of(loadMeTrajectory.getFileName()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
         loadMeTrajectory.setLoadEntities(loadEntities);
         return trajectoryRepository.save(loadMeTrajectory);
     }
@@ -1171,18 +1179,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         // Reuse existing validation logic
-        multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, TrajectoryType.LOAD_ME.name(), trajectory);
         validateLoadMeAreasAgainstAreaMe(loadsFileWithAreas, trajectory.getFileName(), studyId);
     }
 
-    private void validateLoadMeAreasAgainstAreaMe(Map<String, String> loadsFileWithAreas, String trajectoryName, Integer studyId) {
+    private Map<String, String> validateLoadMeAreasAgainstAreaMe(Map<String, String> loadsFileWithAreas, String trajectoryName, Integer studyId) {
         // Get AREA_ME trajectories for the study
         List<TrajectoryEntity> areaMeTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId);
 
         if (areaMeTrajectories.isEmpty()) {
             // If no AREA_ME trajectory exists, skip validation
             log.debug("No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.", studyId);
-            return;
+            throw BusinessException.builder()
+                    .message("No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
 
         // Extract area names from AREA_ME trajectory
@@ -1190,25 +1201,31 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (areaMeNames.isEmpty()) {
             log.debug("No areas found in AREA_ME trajectory for study ID: {}", studyId);
-            return;
-        }
-
-        // Check if at least one area from LOAD_ME files exists in AREA_ME
-        Set<String> loadMeAreas = loadsFileWithAreas.values().stream()
-                .map(String::toUpperCase)
-                .collect(Collectors.toSet());
-
-        boolean hasMatchingArea = loadMeAreas.stream()
-                .anyMatch(areaMeNames::contains);
-
-        if (!hasMatchingArea) {
-            log.error("No area from AREA_ME trajectory is present in LOAD_ME trajectory");
             throw BusinessException.builder()
-                    .message("No area from the AREAS_ME trajectory is present in LOAD_ME trajectory {0}")
+                    .message("No areas found in AREA_ME trajectory for study ID: {}\"")
                     .errorMessageArguments(List.of(trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+
+        // Filter load me file against area me name 
+        Map<String, String> loadFiles = loadsFileWithAreas.entrySet().stream()
+                .filter(entry -> areaMeNames.contains(entry.getValue().toUpperCase(Locale.ROOT)))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue
+                ));
+
+        if (loadFiles.isEmpty()) {
+            log.error("No area from LOAD_ME trajectory is present in AREA_ME trajectory");
+            throw BusinessException.builder()
+                    .message("No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        return loadFiles;
     }
 
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
@@ -1496,13 +1513,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             }
             case "RES_ZONAL_DISTRIBUTION" -> resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
             case "LOAD_ME" -> validateLoadMeAreasAgainstAreaMeForTrajectory(studyId, trajectory);
-            case "STS_ME" -> multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, "STS_ME", trajectory);
+            case "STS_ME", "THERMAL_CAPACITY_ME", "EFFICIENCY_ME" -> multiEnergyCoherenceCheckService.checkAreaMETrajectoryConsistency(studyId, type, trajectory);
             case "HYDRO_SERIES", "HYDRO_PSP_SERIES", "HYDRO_TECHNICAL_PARAMETERS", "HYDRO_PSP_TECHNICAL_PARAMETERS",
                  "HYDRO_ALLOCATION", "HYDRO_PARAMETERS",
                  "NUCLEAR_FR_MODULATION", "NUCLEAR_FR_TALON", "NUCLEAR_FR_TS_ERP", "NUCLEAR_FR_TS_LONG_TERM",
                  "NUCLEAR_FR_TS_SMR",
                  "DSR", "STS", "ADEQUACY_PATCH", "FLOWBASED", "SETTINGS", "SCENARIO_BUILDER", "AREA_ME",
-                 "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "THERMAL_CAPACITY_ME", "HYDRO_RESERVOIR_LEVELS_ME", "HYDRO_TIME_SERIES_ME", "HYDRO_WATER_VALUES_ME", "EFFICIENCY_ME" ->
+                 "P2G_CAPACITY_COST", "P2G_MARKET_MODULATION", "HYDRO_RESERVOIR_LEVELS_ME", "HYDRO_TIME_SERIES_ME", "HYDRO_WATER_VALUES_ME" ->
                 // No additional coherence checks needed here; validation is done in linkTrajectoryToStudy
                     log.info("No additional coherence check for Hydro trajectory type {} yet", type);
             case "HYDRO_CAPACITY_ME" -> multiEnergyCoherenceCheckService.validateHydroCapacityMeCoherence(studyId, trajectory);

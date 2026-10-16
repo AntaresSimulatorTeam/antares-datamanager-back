@@ -25,6 +25,8 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
     private static final String MSG_NODE_MUST_BELONG_AREA_ME = "Node {0} in {1} tab must belong to AREA_ME trajectory";
     private static final String MSG_NODE_MUST_BELONG_AREA_DESC = "Node {0} in {1} tab must belong to listArea_desc tab";
     private static final String MSG_CLUSTER_MUST_BELONG_DESC = "Cluster {0} in {1} tab must belong to listCluster_desc tab";
+    private static final String MSG_NO_AREA_ME = "No area {0} from the {1} trajectory is present in the AREA_ME trajectory";
+    private static final String PREFIX_EFFICIENCY_AREA = "z_p2g";
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
 
@@ -34,24 +36,27 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
             return;
         }
 
-        List<TrajectoryEntity> areaMeTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId);
-        Set<String> aresMeList = extractAreaNamesFromAreaMe(areaMeTrajectories);
+        Set<String> areasList = getAreasMe(studyId);
         
         Set<String> nodeList = getNodeListFromTrajectory(trajectoryType, trajectory);
-        Set<String> missingAreas = aresMeList.stream()
-                .filter(area -> !nodeList.contains(area))
-                .collect(Collectors.toSet());
+        boolean hasMatchingArea = nodeList.stream()
+                .anyMatch(areasList::contains);        
 
-        if (!missingAreas.isEmpty()) {
+        if (!hasMatchingArea) {
             String typeToUse = trajectoryType.equalsIgnoreCase(TrajectoryType.THERMAL_CAPACITY_ME.name() )? "THERMAL_ME" : trajectoryType;
-            throw createValidationError(List.of(String.join(", ", missingAreas), typeToUse));
+            throw createValidationError(typeToUse);
         }
     }
+    
+    public Set<String> getAreasMe(Integer studyId) {
+        List<TrajectoryEntity> areaMeTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId);
+        return extractAreaNamesFromAreaMe(areaMeTrajectories);
+    }
 
-    private BusinessException createValidationError(List<String> args) {
+    private BusinessException createValidationError(String typeToUse) {
         return BusinessException.builder()
-                .message("Areas {0} from AREA_ME trajectory is (are) not present in {1} trajectory")
-                .errorMessageArguments(args)
+                .message(MSG_NO_AREA_ME)
+                .errorMessageArguments(List.of(typeToUse.equalsIgnoreCase(TrajectoryType.EFFICIENCY_ME.name()) ? PREFIX_EFFICIENCY_AREA : "", typeToUse))
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }
@@ -79,7 +84,9 @@ public class MultiEnergyCoherenceCheckServiceImpl implements MultiEnergyCoherenc
             case LOAD_ME -> extractAreas(trajectory.getLoadEntities(), LoadEntity::getArea);
             case STS_ME  -> extractAreas(trajectory.getStStorageEntities(), StStorageEntity::getArea);
             case THERMAL_CAPACITY_ME  -> extractAreas(trajectory.getThermalMeEntities(), ThermalMeEntity::getNode);
-            case EFFICIENCY_ME  -> extractAreas(trajectory.getEfficiencyMeEntities(), EfficiencyMeEntity::getNodeCluster);
+            case EFFICIENCY_ME  -> extractAreas(trajectory.getEfficiencyMeEntities(), entity -> entity.getNodeCluster().startsWith(PREFIX_EFFICIENCY_AREA)
+                    ? entity.getNodeCluster()
+                    : null);
             default -> Collections.emptySet();
         };
     }

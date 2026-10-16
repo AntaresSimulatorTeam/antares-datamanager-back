@@ -5424,6 +5424,20 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
 
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        AreaConfigEntity areaConfigDe = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("DE").build())
+                .build();
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr, areaConfigDe))
+                .build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name()))
                 .thenReturn(Optional.empty());
         when(trajectoryRepository.save(any())).thenReturn(mockTrajectory);
@@ -5566,11 +5580,22 @@ class TrajectoryServiceImplTest {
         when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("");
         when(antaresDataManagerProperties.getLoadMeDirectory()).thenReturn("load_me");
 
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr))
+                .build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
         when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(trajectoryToUse, horizon, TrajectoryType.LOAD_ME.name()))
                 .thenReturn(Optional.of(existingTrajectory));
         when(trajectoryRepository.save(any())).thenReturn(newTrajectory);
 
-        try (var utilsMock = mockStatic(Utils.class)) {
+        try (var utilsMock = mockStatic(Utils.class, Mockito.CALLS_REAL_METHODS)) {
             utilsMock.when(() -> Utils.isSameTrajectory(any(Path.class), any(TrajectoryEntity.class))).thenReturn(false);
 
             // When
@@ -5705,7 +5730,6 @@ class TrajectoryServiceImplTest {
         // When - no exception should be thrown
         assertDoesNotThrow(() ->
                 trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
-        verify(multiEnergyCoherenceCheckService).checkAreaMETrajectoryConsistency(studyId, TrajectoryType.LOAD_ME.name(), loadMeTrajectory);
     }
 
     @Test
@@ -5721,25 +5745,29 @@ class TrajectoryServiceImplTest {
                 ))
                 .build();
 
-        doThrow(BusinessException.builder()
-                .message("Areas {0} from AREA_ME trajectory is (are) not present in LOAD_ME trajectory")
-                .errorMessageArguments(List.of("FR"))
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build())
-                .when(multiEnergyCoherenceCheckService)
-                .checkAreaMETrajectoryConsistency(studyId, TrajectoryType.LOAD_ME.name(), loadMeTrajectory);
+        AreaConfigEntity areaConfigFr = AreaConfigEntity.builder()
+                .area(AreaEntity.builder().name("FR").build())
+                .build();
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(List.of(areaConfigFr))
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
 
-        assertEquals("Areas {0} from AREA_ME trajectory is (are) not present in LOAD_ME trajectory", exception.getMessage());
-        assertEquals(List.of("FR"), exception.getErrorMessageArguments());
+        assertEquals("No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}", exception.getMessage());
+        assertEquals(List.of("testLoadMe"), exception.getErrorMessageArguments());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 
     @Test
-    void validateLoadMeAreasAgainstAreaMe_throwsExceptionWhenAreaFromAreaMeIsNotPresentInLoadMe() {
+    void validateLoadMeAreasAgainstAreaMe_throwsExceptionWhenNoAreaMeTrajectoryLinkedToStudy() {
         // Given
         Integer studyId = 1;
         TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
@@ -5751,20 +5779,46 @@ class TrajectoryServiceImplTest {
                 ))
                 .build();
 
-        doThrow(BusinessException.builder()
-                .message("Areas {0} from AREA_ME trajectory is (are) not present in LOAD_ME trajectory")
-                .errorMessageArguments(List.of("DE"))
-                .httpStatus(HttpStatus.BAD_REQUEST)
-                .build())
-                .when(multiEnergyCoherenceCheckService)
-                .checkAreaMETrajectoryConsistency(studyId, TrajectoryType.LOAD_ME.name(), loadMeTrajectory);
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(Collections.emptyList());
 
         // When & Then
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
 
-        assertEquals("Areas {0} from AREA_ME trajectory is (are) not present in LOAD_ME trajectory", exception.getMessage());
-        assertEquals(List.of("DE"), exception.getErrorMessageArguments());
+        assertEquals("No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.", exception.getMessage());
+        assertEquals(List.of("testLoadMe"), exception.getErrorMessageArguments());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void validateLoadMeAreasAgainstAreaMe_throwsExceptionWhenAreaMeHasNoAreas() {
+        // Given
+        Integer studyId = 1;
+        TrajectoryEntity loadMeTrajectory = TrajectoryEntity.builder()
+                .id(1)
+                .fileName("testLoadMe")
+                .type(TrajectoryType.LOAD_ME.name())
+                .loadEntities(Set.of(
+                        LoadEntity.builder().fileName("load_fr_2030-2031.csv").area("FR").build()
+                ))
+                .build();
+
+        TrajectoryEntity areaMeTrajectory = TrajectoryEntity.builder()
+                .id(2)
+                .type(TrajectoryType.AREA_ME.name())
+                .areaConfigEntities(Collections.emptyList())
+                .build();
+
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA_ME.name(), studyId))
+                .thenReturn(List.of(areaMeTrajectory));
+
+        // When & Then
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), loadMeTrajectory, "testUser"));
+
+        assertEquals("No areas found in AREA_ME trajectory for study ID: {}\"", exception.getMessage());
+        assertEquals(List.of("testLoadMe"), exception.getErrorMessageArguments());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 
@@ -5854,6 +5908,62 @@ class TrajectoryServiceImplTest {
     }
 
     @Test
+    void checkTrajectoryCoherence_whenTrajectoryTypeIsThermalCapacityMe_shouldCallMultiEnergyCoherenceCheckServiceAndSaveWarnings() {
+        // Given
+        Integer studyId = 1;
+        String userNni = "testUser";
+        ThermalMeEntity thermal = ThermalMeEntity.builder()
+                .node("FR")
+                .build();
+        TrajectoryEntity thermalMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.THERMAL_CAPACITY_ME.name())
+                .thermalMeEntities(List.of(thermal))
+                .build();
+
+        WarningMessageEntity warning = new WarningMessageEntity();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>(List.of(warning));
+
+        // When
+        assertDoesNotThrow(() ->
+                trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, thermalMeTrajectory, userNni));
+
+        // Then
+        verify(multiEnergyCoherenceCheckService, times(1))
+                .checkAreaMETrajectoryConsistency(studyId, TrajectoryType.THERMAL_CAPACITY_ME.name(), thermalMeTrajectory);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
+        assertEquals(thermalMeTrajectory, warning.getTrajectory());
+    }
+
+    @Test
+    void checkTrajectoryCoherence_whenTrajectoryTypeIsEfficiencyMe_shouldCallMultiEnergyCoherenceCheckServiceAndSaveWarnings() {
+        // Given
+        Integer studyId = 1;
+        String userNni = "testUser";
+        EfficiencyMeEntity efficiency = EfficiencyMeEntity.builder()
+                .nodeCluster("z_p2g_fr")
+                .build();
+        TrajectoryEntity efficiencyMeTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.EFFICIENCY_ME.name())
+                .efficiencyMeEntities(List.of(efficiency))
+                .build();
+
+        WarningMessageEntity warning = new WarningMessageEntity();
+        Set<WarningMessageEntity> warningMessages = new HashSet<>(List.of(warning));
+
+        // When
+        assertDoesNotThrow(() ->
+                trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, efficiencyMeTrajectory, userNni));
+
+        // Then
+        verify(multiEnergyCoherenceCheckService, times(1))
+                .checkAreaMETrajectoryConsistency(studyId, TrajectoryType.EFFICIENCY_ME.name(), efficiencyMeTrajectory);
+        verify(warningRepository, times(1)).saveAll(warningMessages);
+        assertEquals(efficiencyMeTrajectory, warning.getTrajectory());
+    }
+
+    @Test
     void checkTrajectoryCoherence_whenTrajectoryTypeIsStsMe_andConsistencyCheckThrowsException_shouldPropagateException() {
         // Given
         Integer studyId = 1;
@@ -5864,8 +5974,8 @@ class TrajectoryServiceImplTest {
                 .build();
 
         doThrow(BusinessException.builder()
-                .message("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory")
-                .errorMessageArguments(List.of("FR"))
+                .message("No area {0} from the {1} trajectory is present in the AREA_ME trajectory")
+                .errorMessageArguments(List.of("", "STS_ME"))
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build())
                 .when(multiEnergyCoherenceCheckService)
@@ -5877,8 +5987,8 @@ class TrajectoryServiceImplTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 trajectoryService.checkTrajectoryCoherence(studyId, warningMessages, stsMeTrajectory, userNni));
 
-        assertEquals("Areas {0} from AREA_ME trajectory is (are) not present in STS_ME trajectory", exception.getMessage());
-        assertEquals(List.of("FR"), exception.getErrorMessageArguments());
+        assertEquals("No area {0} from the {1} trajectory is present in the AREA_ME trajectory", exception.getMessage());
+        assertEquals(List.of("", "STS_ME"), exception.getErrorMessageArguments());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         verify(warningRepository, never()).saveAll(any());
     }
