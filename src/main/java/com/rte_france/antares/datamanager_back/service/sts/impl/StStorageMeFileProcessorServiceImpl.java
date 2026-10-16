@@ -96,7 +96,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                         .build();
             }
        }
-        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon, areasMeList);
+        TrajectoryEntity savedTrajectory = saveTrajectoryImport(stStorageEntityList, trajectoryFilePath, horizon);
 
         saveMissingColumnWarning(study, savedTrajectory, missingFilesMeKeysMap);
 
@@ -104,7 +104,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private TrajectoryEntity saveTrajectoryImport(List<StStorageEntity> stStorageEntityList, Path trajectoryFilePath,
-                                                   String horizon, Set<String> areasMeList) throws IOException {
+                                                   String horizon) throws IOException {
         if (stStorageEntityList.isEmpty()) {
             throw createValidationError("No area from the STS_ME trajectory is present in the AREA_ME trajectory", List.of());
         }
@@ -112,7 +112,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         boolean isSeriesTrue = stStorageEntityList.stream()
                 .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
         
-        TrajectoryEntity trajectoryEntity = buildStStorageMeTrajectory(trajectoryFilePath, horizon, isSeriesTrue, areasMeList);
+        TrajectoryEntity trajectoryEntity = buildStStorageMeTrajectory(trajectoryFilePath, horizon, isSeriesTrue);
 
         stStorageEntityList.forEach(stStorageEntity -> stStorageEntity.setTrajectory(trajectoryEntity));
         trajectoryEntity.setStStorageEntities(stStorageEntityList);
@@ -134,11 +134,8 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
-                if (row == null || isRowEmptyMe(row)) continue;
-
                 String node = row.getCell(0).getStringCellValue();
-                // areasMeList
-                if (!areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
+                if (row == null || isRowEmptyMe(row) || !areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
                 
                 String name = row.getCell(1).getStringCellValue();
                 String group = row.getCell(2).getStringCellValue();
@@ -417,7 +414,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         throw new NoSuchFileException("Trajectory file not found: " + trajectoryFileName + " in " + root);
     }
 
-    private TrajectoryEntity buildStStorageMeTrajectory(Path trajectoryFilePath, String horizon, Boolean hasSeries, Set<String> areasMeList) throws IOException {
+    private TrajectoryEntity buildStStorageMeTrajectory(Path trajectoryFilePath, String horizon, Boolean hasSeries) throws IOException {
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         String trajectoryName = getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS_ME.name());
 

@@ -181,7 +181,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
         }
     }
 
-    private List<ThermalMeEntity> buildEntities(Sheet sheet, TrajectoryEntity trajectory, String trajectoryToUse, Path trajectoryPath, Set<String> areasMeList) {
+    private void buildEntities(Sheet sheet, TrajectoryEntity trajectory, String trajectoryToUse, Path trajectoryPath, Set<String> areasMeList) {
         List<ThermalMeEntity> thermalMeEntities = new ArrayList<>();
         List<String> columnNames = new ArrayList<>();
         Set<String> seenCombinations = new HashSet<>();
@@ -199,74 +199,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
             String node = Objects.toString(getCellValue(row, 0), "").trim();
             if (!areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
             
-            if (getCellValue(row, 0) == null) {
-                throw BusinessException.builder()
-                        .message("{0} column must be filled in {1} trajectory {2}")
-                        .errorMessageArguments(List.of(columnNames.getFirst(), THERMAL_ME, trajectoryToUse))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-
-            for (Map.Entry<Integer, CheckValueDefinition<?>> entry : CHECK_VALUE_LIST.entrySet()) {
-                int columnIndex = entry.getKey();
-                Cell cell = row.getCell(columnIndex);
-                CheckValueType type = entry.getValue().type;
-                
-                switch (type) {
-                    case CheckValueType.LENGTH:
-                        String value = Objects.toString(getCellValue(row, columnIndex));
-                        int nbCharactersMax = (int) entry.getValue().value;
-                        if (value != null && value.length() > nbCharactersMax) {
-                            throw BusinessException.builder()
-                                    .message("{0} cannot exceed {1} characters in {2} trajectory {3}")
-                                    .errorMessageArguments(List.of(columnNames.get(columnIndex), Integer.toString(nbCharactersMax), THERMAL_ME, trajectoryToUse))
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        }
-                        break;
-                    case CheckValueType.BOOLEAN:
-                        if (!isBooleanCell(cell)) {
-                            throw BusinessException.builder()
-                                    .errorMessageArguments(List.of(columnNames.get(columnIndex), THERMAL_ME, trajectoryToUse))
-                                    .message("{0} must be boolean in {1} trajectory {2}")
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        }
-                        break;
-
-                    case CheckValueType.TIMESTEP:
-                        String valueTimeStep = cell.getStringCellValue();
-                        if (!isTimeStepValue(valueTimeStep)) {
-                            throw BusinessException.builder()
-                                    .errorMessageArguments(List.of(columnNames.get(columnIndex), THERMAL_ME, trajectoryToUse))
-                                    .message("Column {0} must be hourly or annual in {1} trajectory {2}")
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        }
-                        if (isTimeStepHourly(valueTimeStep)) {
-                            String folderName = (String) entry.getValue().value;
-                            boolean hasModulation = checkModulationFile(trajectoryPath, folderName, trajectoryToUse);
-                            if (!hasModulation) {
-                                throw BusinessException.builder()
-                                        .errorMessageArguments(List.of(THERMAL_ME, toTitleCase(folderName), trajectoryToUse))
-                                        .message("Missing {0} {1} TS in trajectory {2}")
-                                        .httpStatus(HttpStatus.BAD_REQUEST)
-                                        .build();
-                            }
-                        } 
-                        break;
-
-                    case CheckValueType.NUMERIC:
-                        if (!isNumericCellAndNotBlank(cell)) {
-                            throw BusinessException.builder()
-                                    .errorMessageArguments(List.of(columnNames.get(columnIndex), THERMAL_ME, trajectoryToUse))
-                                    .message("Column {0} must be numeric in {1} trajectory {2}")
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        } 
-                        break;
-                }
-            }
+            checkRow(row, columnNames, trajectoryToUse, trajectoryPath);
 
             // --- Récupération du cluster_name ---
             String clusterName = Objects.toString(getCellValue(row, 2), "").trim();
@@ -312,7 +245,86 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                     .build();
         }
         trajectory.setThermalMeEntities(thermalMeEntities);
-        return thermalMeEntities;
+    }
+    
+    private void checkRow(Row row, List<String> columnNames, String trajectoryToUse, Path trajectoryPath) {
+
+        if (getCellValue(row, 0) == null) {
+            throw BusinessException.builder()
+                    .message("{0} column must be filled in {1} trajectory {2}")
+                    .errorMessageArguments(List.of(columnNames.getFirst(), THERMAL_ME, trajectoryToUse))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        
+        for (Map.Entry<Integer, CheckValueDefinition<?>> entry : CHECK_VALUE_LIST.entrySet()) {
+            int columnIndex = entry.getKey();
+            Cell cell = row.getCell(columnIndex);
+            CheckValueType type = entry.getValue().type;
+
+            switch (type) {
+                case CheckValueType.LENGTH:
+                    String value = Objects.toString(getCellValue(row, columnIndex));
+                    int nbCharactersMax = (int) entry.getValue().value;
+                    checkValueLength(value, nbCharactersMax, columnNames.get(columnIndex), trajectoryToUse);
+                    break;
+                case CheckValueType.BOOLEAN:
+                    if (!isBooleanCell(cell)) {
+                        throw BusinessException.builder()
+                                .errorMessageArguments(List.of(columnNames.get(columnIndex), THERMAL_ME, trajectoryToUse))
+                                .message("{0} must be boolean in {1} trajectory {2}")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
+                    break;
+
+                case CheckValueType.TIMESTEP:
+                    String valueTimeStep = cell.getStringCellValue();
+                    String folderName = (String) entry.getValue().value;
+                    checkValueTimeStep(valueTimeStep, folderName, columnNames.get(columnIndex), trajectoryToUse, trajectoryPath);
+                    break;
+
+                case CheckValueType.NUMERIC:
+                    if (!isNumericCellAndNotBlank(cell)) {
+                        throw BusinessException.builder()
+                                .errorMessageArguments(List.of(columnNames.get(columnIndex), THERMAL_ME, trajectoryToUse))
+                                .message("Column {0} must be numeric in {1} trajectory {2}")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
+                    break;
+            }
+        }
+    }
+    
+    private void checkValueTimeStep(String valueTimeStep, String folderName, String columnName, String trajectoryToUse, Path trajectoryPath) {
+        if (!isTimeStepValue(valueTimeStep)) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(columnName, THERMAL_ME, trajectoryToUse))
+                    .message("Column {0} must be hourly or annual in {1} trajectory {2}")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        if (isTimeStepHourly(valueTimeStep)) {
+            boolean hasModulation = checkModulationFile(trajectoryPath, folderName, trajectoryToUse);
+            if (!hasModulation) {
+                throw BusinessException.builder()
+                        .errorMessageArguments(List.of(THERMAL_ME, toTitleCase(folderName), trajectoryToUse))
+                        .message("Missing {0} {1} TS in trajectory {2}")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        }
+    }
+    
+    private void checkValueLength (String valueRow, int nbCharactersMax, String columnName, String trajectoryToUse) {
+        if (valueRow != null && valueRow.length() > nbCharactersMax) {
+            throw BusinessException.builder()
+                    .message("{0} cannot exceed {1} characters in {2} trajectory {3}")
+                    .errorMessageArguments(List.of(columnName, Integer.toString(nbCharactersMax), THERMAL_ME, trajectoryToUse))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     private boolean isTimeStepValue(String value) {
