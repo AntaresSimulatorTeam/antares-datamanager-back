@@ -48,7 +48,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         if (horizon == null || !horizon.matches("[0-9]{4}(-[0-9]{4})?")) {
             throw invalid(fileName, String.valueOf(horizon), 0, 0, "Expected horizon YYYY or YYYY-YYYY");
         }
-        String year = horizon.substring(horizon.length() - 4);
+        String year = java.util.Arrays.stream(horizon.split("-")).max(String::compareTo).orElseThrow();
         if (workbook == null) {
             throw invalid(fileName, year, 0, 0, "Workbook is required");
         }
