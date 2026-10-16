@@ -192,7 +192,8 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
                 }
                 areas.add(FlowbasedAreaEntity.builder().area(area).build());
             }
-        } catch (IOException e) {
+        } catch (IOException | org.apache.poi.EmptyFileException
+                 | org.apache.poi.UnsupportedFileFormatException | org.apache.poi.ooxml.POIXMLException e) {
             log.error("Error reading areas_necessary.xlsx", e);
             throw BusinessException.builder()
                     .message("Error reading areas_necessary.xlsx: " + e.getMessage())
