@@ -1,6 +1,9 @@
 package com.rte_france.antares.datamanager_back.repository.model;
 
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedAreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedConstraintsRestrictionEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkListEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityEntity;
@@ -170,6 +173,16 @@ public class TrajectoryEntity {
     @BatchSize(size = 10000)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<FlowbasedTypeDayEntity> flowbasedTypeDays;
+
+    @BatchSize(size = 10000)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<FlowbasedAreaEntity> flowbasedAreas;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<FlowbasedConstraintsRestrictionEntity> flowbasedConstraintsRestrictions;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
+    List<FlowbasedLinkListEntity> flowbasedLinkLists;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "trajectory", cascade = {CascadeType.ALL})
     List<AdequacyModeEntity> adequacyModeEntities;

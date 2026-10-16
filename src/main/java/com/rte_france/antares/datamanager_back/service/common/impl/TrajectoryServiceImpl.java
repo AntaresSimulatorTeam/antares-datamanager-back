@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.area_link.impl.LinkMeProc
 import com.rte_france.antares.datamanager_back.service.common.DefaultConfigService;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
+import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
@@ -67,6 +68,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private final AreaFileProcessorService areaFileProcessorService;
 
     private final LinkFileProcessorService linkFileProcessorService;
+
+    private final FlowbasedFileProcessorService flowbasedFileProcessorService;
 
     private final LinkMeProcessorServiceImpl linkMeProcessorServiceImpl;
 
@@ -172,6 +175,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
+
+        validateFlowbasedDependenciesAfterLinkRemoval(studyId, ids);
 
         var requiresCmUnlink = isRemovingLastDsrWithTimeSeries(studyId, ids);
         var cmTrajectories = requiresCmUnlink
@@ -720,6 +725,15 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         String trajectoryType = trajectory.getType();
 
+        if (TrajectoryType.FLOWBASED.name().equals(trajectoryType)) {
+            flowbasedFileProcessorService.validateAreasExistInStudy(trajectory.getFlowbasedAreas(), studyId);
+            flowbasedFileProcessorService.validateVirtualNodesHvdcLinks(trajectory.getFlowbasedVirtualNodes(), studyId);
+        }
+
+        if (TrajectoryType.LINK.name().equals(trajectoryType)) {
+            validateSelectedFlowbasedHvdcLinks(studyId, trajectory.getLinkEntities(), List.of());
+        }
+
         // Validation de cohérence entre Hydro Series et Hydro Parameters déjà sélectionnée
         if (TrajectoryType.HYDRO_SERIES.name().equals(trajectoryType) || TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectoryType)) {
             hydroCoherenceCheckService.validateHydroSeriesCoherence(studyId, trajectory);
@@ -768,6 +782,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
+        if (TrajectoryType.LINK.name().equals(studyTrajectory.getTrajectory().getType())) {
+            validateFlowbasedDependenciesAfterLinkRemoval(studyId, List.of(trajectoryId));
+        }
+
         // First delete associated LINK_ME trajectories if this is AREA_ME
         if (studyTrajectory.getTrajectory().getType().equals(AREA_ME.name())) {
             unlinkLinkMeTrajectoriesToAreaMe(studyId);
@@ -786,6 +804,25 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 cmTrajectories.forEach(cm -> processCmTrajectoryUnlinking(cm, studyId));
             }
         }
+    }
+
+    private void validateFlowbasedDependenciesAfterLinkRemoval(Integer studyId, List<Integer> trajectoryIds) {
+        var linkTrajectories = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId);
+        if (linkTrajectories.stream().noneMatch(trajectory -> trajectoryIds.contains(trajectory.getId()))) {
+            return;
+        }
+        var remainingLinks = linkTrajectories.stream()
+                .filter(trajectory -> !trajectoryIds.contains(trajectory.getId()))
+                .flatMap(trajectory -> trajectory.getLinkEntities().stream())
+                .toList();
+        validateSelectedFlowbasedHvdcLinks(studyId, remainingLinks, trajectoryIds);
+    }
+
+    private void validateSelectedFlowbasedHvdcLinks(Integer studyId, List<LinkEntity> links, List<Integer> removedTrajectoryIds) {
+        trajectoryRepository.findByTypeAndStudyId(TrajectoryType.FLOWBASED.name(), studyId).stream()
+                .filter(trajectory -> !removedTrajectoryIds.contains(trajectory.getId()))
+                .forEach(trajectory -> flowbasedFileProcessorService.validateVirtualNodesHvdcLinks(
+                        trajectory.getFlowbasedVirtualNodes(), links));
     }
 
     /**

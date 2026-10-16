@@ -318,6 +318,37 @@ class LinksValidatorTest {
     }
 
     @Test
+    void testCheckLinksAlphabeticalOrderIgnoresCase() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir, "MixedCaseLinks.xlsx", "2030-2031", List.of("Name"),
+                List.of(
+                        List.of("Nos-DE"),
+                        List.of("Nos-NL"),
+                        List.of("NOS-de"),
+                        List.of("de-Nos"),
+                        List.of("nl-NOS"),
+                        List.of("DE-NL")
+                )
+        );
+
+        List<String> invalidLinks = LinksValidator.checkLinksAlphabeticalOrder(
+                tempFile, "2030-2031", "Name", List.of("nos", "DE", "nL"));
+
+        assertEquals(List.of("Nos-DE", "Nos-NL", "NOS-de"), invalidLinks);
+    }
+
+    @Test
+    void testCheckLinksAlphabeticalOrderSkipsAreasOutsideStudy() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(
+                tempDir, "UnknownAreas.xlsx", "2030-2031", List.of("Name"),
+                List.of(List.of("Nos-DE"), List.of("Nos-NL"))
+        );
+
+        assertTrue(LinksValidator.checkLinksAlphabeticalOrder(
+                tempFile, "2030-2031", "Name", List.of("DE", "NL")).isEmpty());
+    }
+
+    @Test
     void shouldFailWhenInvalidBooleanValuesArePresentInLinks() throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "InvalidBooleanLinks.xlsx", "2030-2031",
                 List.of("Name", "Winter_HP_Direct_MW", "Flowbased_perimeter", "HVDC_MW_direct",

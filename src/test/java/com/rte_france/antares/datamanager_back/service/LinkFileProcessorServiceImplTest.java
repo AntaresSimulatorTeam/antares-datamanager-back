@@ -21,6 +21,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -246,8 +248,9 @@ class LinkFileProcessorServiceImplTest {
         }));
     }
 
-    @Test
-    void testProcessLinkFileAlphebaticallyOrderedException() throws IOException {
+    @ParameterizedTest
+    @ValueSource(strings = {"FR-CH", "fr-ch"})
+    void testProcessLinkFileAlphebaticallyOrderedException(String reversedLink) throws IOException {
         tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
                 tempDir,
                 "TestFile.xlsx",
@@ -264,7 +267,7 @@ class LinkFileProcessorServiceImplTest {
                         List.of(List.of("Hurdle Costs", 0, 5), List.of("HVDC", false, false)),
                 List.of(
                         List.of("CH-IT", 10, 15, 10, 20, 10, 30, 10, 50, "TRUE", 10, 0, 1, 1, 1, 1),
-                        List.of("FR-CH", 10, 50, 30, 530, 50, 20, 70, 30, "TRUE", 0, 10, 1, 1, 1, 1),
+                        List.of(reversedLink, 10, 50, 30, 530, 50, 20, 70, 30, "TRUE", 0, 10, 1, 1, 1, 1),
                         List.of("GE-FR", 10, 20, 20, 50, 30, 80, 400, 100, "TRUE", 10, 10, 1, 1, 1, 1)
                 )
                 ));
@@ -285,7 +288,9 @@ class LinkFileProcessorServiceImplTest {
 
         System.out.println(exception.getMessage());
         assertTrue(exception.getMessage().contains("Links {1} must be arranged in alphabetical order."));
-        assertEquals(exception.getErrorMessageArguments().get(1), "FR-CH, GE-FR");
+        assertEquals(reversedLink + ", GE-FR", exception.getErrorMessageArguments().get(1));
+        verify(trajectoryRepository, never()).save(any());
+        verify(linkRepository, never()).saveAll(any());
     }
 
     @Test

@@ -3,17 +3,23 @@ package com.rte_france.antares.datamanager_back.service.flowbased.impl;
 import com.rte_france.antares.datamanager_back.dto.FlowbasedLinkCapacityType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
+import com.rte_france.antares.datamanager_back.repository.model.LinkEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedAreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +32,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.AREA;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 
 @Slf4j
@@ -34,8 +44,13 @@ import static com.rte_france.antares.datamanager_back.service.thermal.impl.Therm
 @RequiredArgsConstructor
 public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessorService {
 
+    private static final Pattern HVDC_NODE_PATTERN = Pattern.compile("z_([^_\\s]+)_([^_\\s]+)", Pattern.CASE_INSENSITIVE);
+
     private final TrajectoryRepository trajectoryRepository;
+    private final AreaRepository areaRepository;
     private final UserService userService;
+    private final FlowbasedConstraintsRestrictionsFileProcessorService restrictionsFileProcessorService;
+    private final PathSecurityUtil pathSecurityUtil;
 
     private static final String[] REQUIRED_FILES = {
             "Flowbased_nodes_links.xlsx",
@@ -43,6 +58,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
             "second_member.txt",
             "weight.txt",
             "ts.txt",
+            "areas_necessary.xlsx",
     };
 
     @Override
@@ -69,10 +85,21 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     @Override
     public TrajectoryEntity processFlowbasedFiles(Path trajectoryFilePath, String trajectoryToUse, Integer studyId, String horizon) {
         validateRequiredFiles(trajectoryFilePath);
-        
+
+        if (studyId == null) {
+            throw BusinessException.builder()
+                    .message("studyId is required to import a Flowbased trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        List<FlowbasedAreaEntity> areas = buildAreasNecessaryList(trajectoryFilePath);
+        validateAreasExistInStudy(areas, studyId);
         List<FlowbasedVirtualNodesEntity> virtualNodes = buildFlowbasedVirtualNodesList(trajectoryFilePath);
+        validateVirtualNodesHvdcLinks(virtualNodes, studyId);
         List<FlowbasedLinkCapacityEntity> linkCapacities = buildFlowbasedLinkCapacityList(trajectoryFilePath);
         List<FlowbasedTypeDayEntity> typeDays = buildFlowbasedTypeDayList(trajectoryFilePath);
+        var restrictions = restrictionsFileProcessorService.readRestrictions(trajectoryFilePath, horizon);
 
         String checksum;
         LocalDateTime lastModificationContentDate;
@@ -111,16 +138,107 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         }
 
         final TrajectoryEntity savedTrajectory = trajectoryRepository.save(trajectory);
-        
+
         virtualNodes.forEach(vn -> vn.setTrajectory(savedTrajectory));
         linkCapacities.forEach(lc -> lc.setTrajectory(savedTrajectory));
         typeDays.forEach(td -> td.setTrajectory(savedTrajectory));
-        
+        areas.forEach(area -> area.setTrajectory(savedTrajectory));
+        restrictions.constraints().forEach(constraint -> constraint.setTrajectory(savedTrajectory));
+        restrictions.links().forEach(link -> link.setTrajectory(savedTrajectory));
+
         savedTrajectory.setFlowbasedVirtualNodes(virtualNodes);
         savedTrajectory.setFlowbasedLinkCapacities(linkCapacities);
         savedTrajectory.setFlowbasedTypeDays(typeDays);
+        savedTrajectory.setFlowbasedAreas(areas);
+        savedTrajectory.setFlowbasedConstraintsRestrictions(restrictions.constraints());
+        savedTrajectory.setFlowbasedLinkLists(restrictions.links());
 
         return trajectoryRepository.save(savedTrajectory);
+    }
+
+    @Override
+    public List<FlowbasedAreaEntity> buildAreasNecessaryList(Path trajectoryFilePath) {
+        Path excelPath = pathSecurityUtil.resolveSafePath(trajectoryFilePath, "areas_necessary.xlsx");
+        DataFormatter formatter = new DataFormatter();
+        List<FlowbasedAreaEntity> areas = new ArrayList<>();
+
+        try (InputStream inputStream = Files.newInputStream(excelPath);
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+            if (workbook.getNumberOfSheets() == 0) {
+                throw invalidAreasFile();
+            }
+
+            Sheet sheet = workbook.getSheetAt(0);
+            Row header = sheet.getRow(0);
+            if (header == null || !"areas".equals(formatter.formatCellValue(header.getCell(0)).trim())
+                    || hasAdditionalNonEmptyCells(header, formatter)) {
+                throw invalidAreasFile();
+            }
+
+            for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+                if (row == null) {
+                    continue;
+                }
+                String area = formatter.formatCellValue(row.getCell(0)).trim();
+                if (area.isEmpty()) {
+                    if (hasAdditionalNonEmptyCells(row, formatter)) {
+                        throw invalidAreasFile();
+                    }
+                    continue;
+                }
+                if (hasAdditionalNonEmptyCells(row, formatter)) {
+                    throw invalidAreasFile();
+                }
+                areas.add(FlowbasedAreaEntity.builder().area(area).build());
+            }
+        } catch (IOException | org.apache.poi.EmptyFileException
+                 | org.apache.poi.UnsupportedFileFormatException | org.apache.poi.ooxml.POIXMLException e) {
+            log.error("Error reading areas_necessary.xlsx", e);
+            throw BusinessException.builder()
+                    .message("Error reading areas_necessary.xlsx: " + e.getMessage())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return areas;
+    }
+
+    private boolean hasAdditionalNonEmptyCells(Row row, DataFormatter formatter) {
+        for (int cellIndex = 0; cellIndex < row.getLastCellNum(); cellIndex++) {
+            if (cellIndex != 0 && !formatter.formatCellValue(row.getCell(cellIndex)).trim().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private BusinessException invalidAreasFile() {
+        return BusinessException.builder()
+                .message("Invalid areas_necessary.xlsx format: expected one column with header 'areas'")
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
+
+    @Override
+    public void validateAreasExistInStudy(List<FlowbasedAreaEntity> areas, Integer studyId) {
+        Set<String> studyAreas = areaRepository.findAllByStudyId(studyId, AREA.name()).stream()
+                .map(AreaEntity::getName)
+                .filter(Objects::nonNull)
+                .map(area -> area.toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        List<String> missingAreas = areas.stream()
+                .map(FlowbasedAreaEntity::getArea)
+                .filter(area -> !studyAreas.contains(area.toUpperCase(Locale.ROOT)))
+                .distinct()
+                .toList();
+        if (!missingAreas.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Mandatory Areas {0} in Flowbased trajectory are missing in AREA trajectory")
+                    .errorMessageArguments(List.of(String.join(", ", missingAreas)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
     }
 
     @Override
@@ -160,6 +278,64 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     }
 
     @Override
+    public void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, Integer studyId) {
+        validateVirtualNodesHvdcLinks(virtualNodes, () ->
+                trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId).stream()
+                        .flatMap(trajectory -> trajectory.getLinkEntities().stream())
+                        .toList());
+    }
+
+    @Override
+    public void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, List<LinkEntity> links) {
+        validateVirtualNodesHvdcLinks(virtualNodes, () -> links);
+    }
+
+    private void validateVirtualNodesHvdcLinks(List<FlowbasedVirtualNodesEntity> virtualNodes, Supplier<List<LinkEntity>> links) {
+        Map<String, List<String>> nodePairs = new LinkedHashMap<>();
+        for (FlowbasedVirtualNodesEntity node : virtualNodes) {
+            var matcher = HVDC_NODE_PATTERN.matcher(node.getName());
+            if (matcher.matches()) {
+                nodePairs.put(node.getName(), countryPair(matcher.group(1), matcher.group(2)));
+            }
+        }
+        if (nodePairs.isEmpty()) {
+            return;
+        }
+
+        Set<List<String>> hvdcPairs = links.get().stream()
+                .filter(link -> isNonZeroCapacity(link.getHvdcMwDirect()) && isNonZeroCapacity(link.getHvdcMwIndirect()))
+                .map(LinkEntity::getName)
+                .filter(Objects::nonNull)
+                .map(name -> name.split("-", -1))
+                .filter(parts -> parts.length == 2)
+                .map(parts -> countryPair(parts[0], parts[1]))
+                .collect(Collectors.toSet());
+
+        List<String> invalidNodes = nodePairs.entrySet().stream()
+                .filter(entry -> !hvdcPairs.contains(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        if (!invalidNodes.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Virtual nodes {0} in Flowbased trajectory require a matching link in the LINK trajectory associated with the study, with both hvdc_mw_direct and hvdc_mw_indirect non-null and different from zero")
+                    .errorMessageArguments(List.of(String.join(", ", invalidNodes)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private boolean isNonZeroCapacity(Double capacity) {
+        return capacity != null && capacity != 0;
+    }
+
+    private List<String> countryPair(String country1, String country2) {
+        return java.util.stream.Stream.of(country1, country2)
+                .map(country -> country.trim().toUpperCase(Locale.ROOT))
+                .sorted()
+                .toList();
+    }
+
+    @Override
     public List<FlowbasedLinkCapacityEntity> buildFlowbasedLinkCapacityList(Path trajectoryFilePath) {
         List<FlowbasedLinkCapacityEntity> result = new ArrayList<>();
         Path excelPath = trajectoryFilePath.resolve("Flowbased_nodes_links.xlsx");
@@ -174,6 +350,9 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
 
             // Get header row
             Row headerRow = sheet.getRow(0);
+            if (headerRow == null) {
+                throw new IOException("Header row not found in 'links' sheet of Flowbased_nodes_links.xlsx");
+            }
             Map<String, Integer> columnIndexMap = buildColumnIndexMap(headerRow);
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -232,13 +411,13 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         try (BufferedReader reader = Files.newBufferedReader(csvPath, StandardCharsets.UTF_8)) {
             String line;
             boolean headerSkipped = false;
-            
+
             while ((line = reader.readLine()) != null) {
                 if (!headerSkipped) {
                     headerSkipped = true;
                     continue;
                 }
-                
+
                 String[] parts = line.split(";");
                 if (parts.length >= 3) {
                     try {
@@ -266,7 +445,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     }
 
     private TrajectoryEntity createTrajectory(String trajectoryToUse, String checksum, LocalDateTime lastModificationContentDate, String horizon) {
-        String createdBy = userService.getCurrentUserDetails() != null ? 
+        String createdBy = userService.getCurrentUserDetails() != null ?
                 userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
 
         return TrajectoryEntity.builder()
@@ -430,4 +609,3 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         return columnIndexMap;
     }
 }
-

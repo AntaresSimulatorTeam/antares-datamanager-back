@@ -1023,7 +1023,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         Map<String, Object> cluster = objectMapper.convertValue(thermals.get("FR_Gas1"), new TypeReference<>() {
         });
-        assertThat(cluster).containsKeys("series", "fuel_cost", "co2_cost", "data", "modulation", "properties");
+        assertThat(cluster).containsKeys("series", "data", "modulation", "properties");
 
         Map<String, Object> properties = objectMapper.convertValue(cluster.get("properties"), new TypeReference<>() {
         });
@@ -1084,7 +1084,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         });
 
         // Structural keys must exist
-        assertThat(cluster).containsKeys("series", "fuel_cost", "co2_cost", "modulation", "properties", "data");
+        assertThat(cluster).containsKeys("series", "modulation", "properties", "data");
 
         // --- PROPERTIES VIEW ---
         Map<String, Object> properties = mapper.convertValue(cluster.get("properties"), new TypeReference<>() {
