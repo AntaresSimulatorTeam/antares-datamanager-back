@@ -1985,7 +1985,7 @@ class UtilsTest {
         Path dir = testDir.resolve("p2g");
         Files.createDirectories(dir);
 
-        Path capFile = dir.resolve("P2G_capacity.xlsx");
+        Path capFile = dir.resolve("p2g_P2G_capacity.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet pSheet = wb.createSheet("parameters");
             Row r0 = pSheet.createRow(0);
@@ -1998,7 +1998,7 @@ class UtilsTest {
             }
         }
 
-        Path costsFile = dir.resolve("P2G_costs.xlsx");
+        Path costsFile = dir.resolve("p2g_P2G_costs.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet cSheet = wb.createSheet("costs");
             Row r0 = cSheet.createRow(0);
@@ -2009,8 +2009,8 @@ class UtilsTest {
         }
 
         Map<String, List<String>> filesWithSheets = Map.of(
-                "P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
-                "P2G_costs.xlsx", List.of("costs")
+                "p2g_P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
+                "p2g_P2G_costs.xlsx", List.of("costs")
         );
 
         String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir, filesWithSheets);
@@ -2027,15 +2027,25 @@ class UtilsTest {
         Files.createDirectories(dir1);
         Files.createDirectories(dir2);
 
-        for (Path dir : List.of(dir1, dir2)) {
-            Path costsFile = dir.resolve("P2G_costs.xlsx");
-            try (Workbook wb = new XSSFWorkbook()) {
-                Sheet cSheet = wb.createSheet("costs");
-                Row r0 = cSheet.createRow(0);
-                r0.createCell(0).setCellValue("type P2G");
-                try (var out = Files.newOutputStream(costsFile)) {
-                    wb.write(out);
-                }
+        // Create p2g1_P2G_costs.xlsx
+        Path costsFile1 = dir1.resolve("p2g1_P2G_costs.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet cSheet = wb.createSheet("costs");
+            Row r0 = cSheet.createRow(0);
+            r0.createCell(0).setCellValue("type P2G");
+            try (var out = Files.newOutputStream(costsFile1)) {
+                wb.write(out);
+            }
+        }
+
+        // Create p2g2_P2G_costs.xlsx
+        Path costsFile2 = dir2.resolve("p2g2_P2G_costs.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet cSheet = wb.createSheet("costs");
+            Row r0 = cSheet.createRow(0);
+            r0.createCell(0).setCellValue("type P2G");
+            try (var out = Files.newOutputStream(costsFile2)) {
+                wb.write(out);
             }
         }
 
@@ -2043,7 +2053,7 @@ class UtilsTest {
             Sheet pSheet = wb.createSheet("parameters");
             pSheet.createRow(0).createCell(0).setCellValue("Val1");
             wb.createSheet("2025-2026");
-            try (var out = Files.newOutputStream(dir1.resolve("P2G_capacity.xlsx"))) {
+            try (var out = Files.newOutputStream(dir1.resolve("p2g1_P2G_capacity.xlsx"))) {
                 wb.write(out);
             }
         }
@@ -2052,58 +2062,63 @@ class UtilsTest {
             Sheet pSheet = wb.createSheet("parameters");
             pSheet.createRow(0).createCell(0).setCellValue("Val2");
             wb.createSheet("2025-2026");
-            try (var out = Files.newOutputStream(dir2.resolve("P2G_capacity.xlsx"))) {
+            try (var out = Files.newOutputStream(dir2.resolve("p2g2_P2G_capacity.xlsx"))) {
                 wb.write(out);
             }
         }
 
-        Map<String, List<String>> filesWithSheets = Map.of(
-                "P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
-                "P2G_costs.xlsx", List.of("costs")
+        Map<String, List<String>> filesWithSheets1 = Map.of(
+                "p2g1_P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
+                "p2g1_P2G_costs.xlsx", List.of("costs")
         );
 
-        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir1, filesWithSheets);
-        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir2, filesWithSheets);
+        Map<String, List<String>> filesWithSheets2 = Map.of(
+                "p2g2_P2G_capacity.xlsx", List.of("parameters", "2025-2026"),
+                "p2g2_P2G_costs.xlsx", List.of("costs")
+        );
+
+        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir1, filesWithSheets1);
+        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir2, filesWithSheets2);
 
         assertNotEquals(checksum1, checksum2);
     }
 
     @Test
     void calculateDirectoryChecksumWithSpecificSheets_ignoresUnspecifiedSheetsModifications(@TempDir Path testDir) throws IOException {
-        Path dir1 = testDir.resolve("p2g1");
-        Path dir2 = testDir.resolve("p2g2");
-        Files.createDirectories(dir1);
-        Files.createDirectories(dir2);
+        Path dir = testDir.resolve("p2g");
+        Files.createDirectories(dir);
 
-        // Same parameters and 2025-2026 sheets, but different other_sheet
+        // Same parameters and 2025-2026 sheets
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet pSheet = wb.createSheet("parameters");
             pSheet.createRow(0).createCell(0).setCellValue("ValSame");
             wb.createSheet("2025-2026");
             Sheet other = wb.createSheet("other_sheet");
             other.createRow(0).createCell(0).setCellValue("Extra1");
-            try (var out = Files.newOutputStream(dir1.resolve("P2G_capacity.xlsx"))) {
-                wb.write(out);
-            }
-        }
-
-        try (Workbook wb = new XSSFWorkbook()) {
-            Sheet pSheet = wb.createSheet("parameters");
-            pSheet.createRow(0).createCell(0).setCellValue("ValSame");
-            wb.createSheet("2025-2026");
-            Sheet other = wb.createSheet("other_sheet");
-            other.createRow(0).createCell(0).setCellValue("Extra2");
-            try (var out = Files.newOutputStream(dir2.resolve("P2G_capacity.xlsx"))) {
+            try (var out = Files.newOutputStream(dir.resolve("p2g_P2G_capacity.xlsx"))) {
                 wb.write(out);
             }
         }
 
         Map<String, List<String>> filesWithSheets = Map.of(
-                "P2G_capacity.xlsx", List.of("parameters", "2025-2026")
+                "p2g_P2G_capacity.xlsx", List.of("parameters", "2025-2026")
         );
 
-        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir1, filesWithSheets);
-        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir2, filesWithSheets);
+        String checksum1 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir, filesWithSheets);
+        
+        // Now modify the unspecified sheet (other_sheet)
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet pSheet = wb.createSheet("parameters");
+            pSheet.createRow(0).createCell(0).setCellValue("ValSame");
+            wb.createSheet("2025-2026");
+            Sheet other = wb.createSheet("other_sheet");
+            other.createRow(0).createCell(0).setCellValue("Extra2");  // Different value
+            try (var out = Files.newOutputStream(dir.resolve("p2g_P2G_capacity.xlsx"))) {
+                wb.write(out);
+            }
+        }
+        
+        String checksum2 = Utils.calculateDirectoryChecksumWithSpecificSheets(dir, filesWithSheets);
 
         assertEquals(checksum1, checksum2);
     }
