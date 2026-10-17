@@ -12,7 +12,6 @@ import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParameter
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.P2gColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -40,10 +39,8 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
     private final TrajectoryServiceImpl trajectoryService;
-    private static final String[] REQUIRED_FILES = {
-            "P2G_capacity.xlsx",
-            "P2G_costs.xlsx"
-    };
+    private static final String CAPACITY_SUFFIX = "_P2G_capacity.xlsx";
+    private static final String COSTS_SUFFIX = "_P2G_costs.xlsx";
     private static final String CAPACITY = "capacity";
     private static final String SHEET_PARAMETERS = "parameters";
     private static final String SHEET_COSTS = "costs";
@@ -51,6 +48,28 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             "FC_electrolyseur",
             "Facteur_surdimension_ENR",
             "Part_PV_mix"
+    );
+    
+    private static final Map<String, Integer> NUMERIC_COLUMN_NAMES = new LinkedHashMap<>();
+
+    private static final Map<String, Integer> OPTIONAL_NUMERIC_COLUMN_NAMES = new LinkedHashMap<>(Map.of(
+            "P2G_fatalband", 3,
+            "P2G_asservi", 4,
+            "P2G_marg", 5,
+            "P2G_methanation", 6,
+            "P2G_base_eff", 7,
+            "H2_capacity_total", 8,
+            "To_Links_p2G_marg", 9,
+            "To_Links_p2G_base (P2G base + fatal)", 10
+    ));
+
+    private static final Map<String, Integer> STRING_COLUMN_NAMES = Map.of(
+            "area_antares_name",2
+    );
+    
+    private static final Map<String, Integer> REQUIRED_COSTS_COLUMN_NAMES = Map.of(
+            "type P2G", 0,
+            "modulation",2
     );
     
     private static final Set<String> REQUIRED_TYPE_NAMES = Set.of(
@@ -70,7 +89,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         Path directoryPath = trajectoryService.normalizeAndValidateDirectory(TrajectoryType.P2G_CAPACITY_COST, null, null);
         Path trajectoryFilePath = validateAndResolveTrajectoryPath(directoryPath, trajectoryToUse);
 
-        Map<String, Path> files = validateRequiredFiles(trajectoryFilePath);
+        Map<String, Path> files = validateRequiredFiles(trajectoryFilePath, trajectoryToUse);
 
         // Construire la trajectoire complète AVANT la validation
         TrajectoryEntity trajectory = trajectoryService.buildDirectoryTrajectory(
@@ -137,11 +156,15 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         trajectory.setP2gCapacityEntities(capacityEntities);
     }
 
-    private Map<String, Path> validateRequiredFiles(Path trajectoryFilePath) {
+    private Map<String, Path> validateRequiredFiles(Path trajectoryFilePath, String trajectoryName) {
         List<String> missingFiles = new ArrayList<>();
         Map<String, Path> paths = new HashMap<>();
 
-        for (String fileName : REQUIRED_FILES) {
+        String capacityFileName = trajectoryName + CAPACITY_SUFFIX;
+        String costsFileName = trajectoryName + COSTS_SUFFIX;
+        String[] requiredFiles = {capacityFileName, costsFileName};
+
+        for (String fileName : requiredFiles) {
             Path filePath = trajectoryFilePath.resolve(fileName);
             if (!Files.exists(filePath)) {
                 missingFiles.add(fileName);
@@ -249,15 +272,13 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             return Collections.emptyList();
         }
         Map<String, Integer> allColumns = new LinkedHashMap<>();
-        allColumns.putAll(P2gColumns.getAllStringColumnNames());
-        allColumns.putAll(P2gColumns.getAllNumericColumnNames());
+        allColumns.putAll(STRING_COLUMN_NAMES);
+        allColumns.putAll(NUMERIC_COLUMN_NAMES);
         checkMissingColumns(sheet, allColumns.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
         List<String> studyAreas = loadStudyAreas(studyId);
 
         List<P2GCapacityEntity> capacities = new ArrayList<>();
         List<String> areaNames = new ArrayList<>();
-        List<String> columnsNonNumeric = new ArrayList<>();
-        Map<String, Double> capacityMap = new HashMap<>();
         FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
         for (Row row : sheet) {
             if (isRowEmpty(row) || row.getRowNum() == 0) {
@@ -265,23 +286,33 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             }
 
             String areaName = Objects.toString(getCellValue(row, 2, evaluator), null);
-            if (studyAreas.contains(areaName.toUpperCase())) {
+            if (studyAreas.contains(areaName)) {
                 areaNames.add(areaName);
 
-                for (Map.Entry<String, Integer> column : P2gColumns.getAllNumericColumnNames().entrySet()) {
+                Map<String, Double> capacityMap = new HashMap<>();
+
+                // Process optional numeric columns
+                for (Map.Entry<String, Integer> column : OPTIONAL_NUMERIC_COLUMN_NAMES.entrySet()) {
                     Cell capacityCell = row.getCell(column.getValue());
-                    if (!isNumericCellWithFormula(capacityCell, evaluator)) {
-                        columnsNonNumeric.add(column.getKey());
-                        throw BusinessException.builder()
-                                .errorMessageArguments(List.of(String.join(", ", columnsNonNumeric), trajectory.getFileName()))
-                                .message("Column value {0} must be numeric in horizon tab in P2G Capacity trajectory {1}")
-                                .httpStatus(HttpStatus.BAD_REQUEST)
-                                .build();
-                    } else {
-                        FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
-                        Double numVal = formulaAndValue.getNumericValue();
-                        capacityMap.put(column.getKey(), numVal);
+                    Double numVal = null;
+
+                    if (capacityCell != null) {
+                        if (capacityCell.getCellType() == CellType.BLANK) {
+                            // Cell is empty - keep numVal as null
+                        } else if (isNumericCellWithFormula(capacityCell, evaluator)) {
+                            FormulaAndValue formulaAndValue = getFormulaAndValue(capacityCell, evaluator);
+                            numVal = formulaAndValue.getNumericValue();
+                        } else {
+                            // Cell is not empty but not numeric - this is an error
+                            throw BusinessException.builder()
+                                    .errorMessageArguments(List.of(column.getKey(), trajectory.getFileName()))
+                                    .message("Column {0} must be numeric in horizon tab of trajectory {1}")
+                                    .httpStatus(HttpStatus.BAD_REQUEST)
+                                    .build();
+                        }
                     }
+
+                    capacityMap.put(column.getKey(), numVal);
                 }
 
                 P2GCapacityEntity capacityEntity = P2GCapacityEntity.builder()
@@ -317,7 +348,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
             return Collections.emptyList();
         }
 
-        checkMissingColumns(sheet, P2gColumns.getAllRequiredCostsColumnNames().keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
+        checkMissingColumns(sheet, REQUIRED_COSTS_COLUMN_NAMES.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
 
         Row header = sheet.getRow(0);
         int lastCol = header.getLastCellNum();

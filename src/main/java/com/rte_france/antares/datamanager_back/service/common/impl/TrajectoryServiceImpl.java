@@ -1965,8 +1965,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String checksum = "";
         if (P2G_CAPACITY_COST.name().equals(type)) {
             Map<String, List<String>> filesWithSheets = Map.of(
-                    "P2G_capacity.xlsx", List.of("parameters", horizon),
-                    "P2G_costs.xlsx", List.of("costs")
+                    trajectoryToUse + "_P2G_capacity.xlsx", List.of("parameters", horizon),
+                    trajectoryToUse + "_P2G_costs.xlsx", List.of("costs")
             );
             checksum = calculateDirectoryChecksumWithSpecificSheets(trajectoryFilePath, filesWithSheets);
         } else {

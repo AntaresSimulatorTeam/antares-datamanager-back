@@ -23,23 +23,29 @@ public class P2GCapacityEntity {
 
     private String area;
 
-    @Column(name = "base_fatal_band")
+    @Column(name = "base_fatal_band", nullable = true)
     private Double baseFatalBand;
     
-    @Column(name = "base_eff")
+    @Column(name = "base_eff", nullable = true)
     private Double baseEff;
 
-    @Column(name = "base_capacity")
+    @Column(name = "base_capacity", nullable = true)
     private Double baseCapacity;
 
-    @Column(name = "marg_capacity")
+    @Column(name = "marg_capacity", nullable = true)
     private Double margCapacity;
 
-    @Column(name = "methanation_capacity")
+    @Column(name = "marg", nullable = true)
+    private Double marg;
+
+    @Column(name = "methanation_capacity", nullable = true)
     private Double methanationCapacity;
 
-    @Column(name = "asservi_capacity")
+    @Column(name = "asservi_capacity", nullable = true)
     private Double asserviCapacity;
+
+    @Column(name = "h2_capacity_total", nullable = true)
+    private Double h2CapacityTotal;
 
     @ManyToOne
     @JoinColumn(name = "trajectory_id")
