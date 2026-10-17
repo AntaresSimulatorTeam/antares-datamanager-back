@@ -158,6 +158,40 @@ class P2gGenerationAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleP2g_shouldNotCreateCluster_whenCapacityColumnIsAllNull() {
+        when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                capacity("AT", null, 100.0, 90.0, null, null, null),
+                capacity("BE", null, 40.0, 35.0, null, null, null)
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        assertThat(dto.base()).isNotNull();
+        assertThat(dto.marg()).isNull();
+        assertThat(dto.methanation()).isNull();
+        assertThat(dto.asservi()).isNull();
+    }
+
+    @Test
+    void assembleP2g_shouldCreateLinkWithZeroCapacity() {
+        when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                capacity("AT", 2.0, 100.0, 90.0, 0.0, 30.0, 20.0),
+                capacity("BE", 1.0, 40.0, 35.0, null, 10.0, null)
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        // Marg cluster should exist (AT has 0.0 value)
+        assertThat(dto.marg()).isNotNull();
+        // Only AT link should be present (BE has null margCapacity)
+        assertThat(dto.marg().links()).hasSize(1);
+        assertThat(dto.marg().links().get("AT").capacity()).isEqualTo(0.0);
+        assertThat(dto.marg().links().get("BE")).isNull();
+        // Nominal capacity includes the 0.0 from AT
+        assertThat(dto.marg().properties().nominalCapacity()).isEqualTo(0.0);
+    }
+
+    @Test
     void assembleP2g_shouldSetAdequacyPatchMode_whenAdequacyTrajectoryLinkedAndZonesConfigured() {
         TrajectoryEntity adequacyTrajectory = trajectory(3, "adequacy_traj");
         when(adequacySettingsAssemblerService.findAdequacyTrajectory(study)).thenReturn(Optional.of(adequacyTrajectory));

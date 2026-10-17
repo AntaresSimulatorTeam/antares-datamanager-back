@@ -4150,8 +4150,8 @@ class TrajectoryServiceImplTest {
         String tech = null;
 
         Map<String, List<String>> expectedFilesWithSheets = Map.of(
-                "P2G_capacity.xlsx", List.of("parameters", horizon),
-                "P2G_costs.xlsx", List.of("costs")
+                "p2g_traj_P2G_capacity.xlsx", List.of("parameters", horizon),
+                "p2g_traj_P2G_costs.xlsx", List.of("costs")
         );
 
         when(userService.getCurrentUserDetails())
@@ -4192,8 +4192,8 @@ class TrajectoryServiceImplTest {
         String checkSum = "p2gChecksum123";
 
         Map<String, List<String>> expectedFilesWithSheets = Map.of(
-                "P2G_capacity.xlsx", List.of("parameters", horizon),
-                "P2G_costs.xlsx", List.of("costs")
+                "p2g_traj_P2G_capacity.xlsx", List.of("parameters", horizon),
+                "p2g_traj_P2G_costs.xlsx", List.of("costs")
         );
 
         TrajectoryEntity existing = TrajectoryEntity.builder()

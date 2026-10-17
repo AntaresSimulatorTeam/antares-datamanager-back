@@ -157,9 +157,16 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             P2gClusterGenerationDTO.AsserviParameters parameters,
             String adequacyPatchMode
     ) {
-        double nominalCapacity = capacities.stream()
+        List<Double> nominalCapacities = capacities.stream()
                 .map(columns.nominalCapacityColumn())
                 .filter(Objects::nonNull)
+                .toList();
+
+        if (nominalCapacities.isEmpty()) {
+            return null;
+        }
+
+        double nominalCapacity = nominalCapacities.stream()
                 .mapToDouble(Double::doubleValue)
                 .sum();
 

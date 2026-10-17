@@ -268,7 +268,7 @@ public class P2gFileProcessorServiceImplTest {
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
         // 1. Créer P2G_capacity.xlsx
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapSuccess_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             // Onglet parameters
             Sheet paramsSheet = wbCap.createSheet("parameters");
@@ -311,7 +311,7 @@ public class P2gFileProcessorServiceImplTest {
         }
 
         // 2. Créer P2G_costs.xlsx
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapSuccess_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -359,7 +359,7 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingHorizon_P2G_capacity.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet paramsSheet = wb.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -376,7 +376,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingHorizon_P2G_costs.xlsx");
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet costsSheet = wb.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -420,7 +420,7 @@ public class P2gFileProcessorServiceImplTest {
 
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of());
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapNoArea_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -457,7 +457,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapNoArea_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -503,7 +503,7 @@ public class P2gFileProcessorServiceImplTest {
         areaEntity.setName("FR");
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapNonNumericHorizon_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -540,7 +540,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapNonNumericHorizon_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -581,14 +581,14 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingParamsTab_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             wbCap.createSheet("2025-2026");
             try (FileOutputStream fos = new FileOutputStream(capacityFile.toFile())) {
                 wbCap.write(fos);
             }
         }
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingParamsTab_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             wbCost.createSheet("costs");
             try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
@@ -617,7 +617,7 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingHorizonInParams_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -627,7 +627,7 @@ public class P2gFileProcessorServiceImplTest {
                 wbCap.write(fos);
             }
         }
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingHorizonInParams_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             wbCost.createSheet("costs");
             try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
@@ -656,7 +656,7 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapNonNumericParam_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -670,7 +670,7 @@ public class P2gFileProcessorServiceImplTest {
                 wbCap.write(fos);
             }
         }
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapNonNumericParam_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             wbCost.createSheet("costs");
             try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
@@ -699,7 +699,7 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingReqParams_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -713,7 +713,7 @@ public class P2gFileProcessorServiceImplTest {
                 wbCap.write(fos);
             }
         }
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingReqParams_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             wbCost.createSheet("costs");
             try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
@@ -742,7 +742,7 @@ public class P2gFileProcessorServiceImplTest {
         when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockTrajectory);
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingColsHorizon_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -763,7 +763,7 @@ public class P2gFileProcessorServiceImplTest {
                 wbCap.write(fos);
             }
         }
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingColsHorizon_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             wbCost.createSheet("costs");
             try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
@@ -795,7 +795,7 @@ public class P2gFileProcessorServiceImplTest {
         areaEntity.setName("FR");
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingCostsTab_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -832,7 +832,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingCostsTab_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             wbCost.createSheet("other_tab");
             try (FileOutputStream fos = new FileOutputStream(costsFile.toFile())) {
@@ -865,7 +865,7 @@ public class P2gFileProcessorServiceImplTest {
         areaEntity.setName("FR");
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingColsCosts_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -902,7 +902,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingColsCosts_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -937,7 +937,7 @@ public class P2gFileProcessorServiceImplTest {
         areaEntity.setName("FR");
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingHorizonYearInCosts_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -974,7 +974,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingHorizonYearInCosts_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -1011,7 +1011,7 @@ public class P2gFileProcessorServiceImplTest {
         areaEntity.setName("FR");
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapNonNumericCost_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -1048,7 +1048,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapNonNumericCost_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
@@ -1090,7 +1090,7 @@ public class P2gFileProcessorServiceImplTest {
         areaEntity.setName("FR");
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString())).thenReturn(List.of(areaEntity));
 
-        Path capacityFile = trajectoryDir.resolve("P2G_capacity.xlsx");
+        Path capacityFile = trajectoryDir.resolve("trajCapMissingReqP2gType_P2G_capacity.xlsx");
         try (Workbook wbCap = new XSSFWorkbook()) {
             Sheet paramsSheet = wbCap.createSheet("parameters");
             Row headerParams = paramsSheet.createRow(0);
@@ -1127,7 +1127,7 @@ public class P2gFileProcessorServiceImplTest {
             }
         }
 
-        Path costsFile = trajectoryDir.resolve("P2G_costs.xlsx");
+        Path costsFile = trajectoryDir.resolve("trajCapMissingReqP2gType_P2G_costs.xlsx");
         try (Workbook wbCost = new XSSFWorkbook()) {
             Sheet costsSheet = wbCost.createSheet("costs");
             Row headerCosts = costsSheet.createRow(0);
