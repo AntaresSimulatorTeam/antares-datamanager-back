@@ -344,6 +344,24 @@ public class P2gFileProcessorServiceImplTest {
     }
 
     @Test
+    void testProcessCapacityP2gFile_AreasCaseInsensitivity(){
+        AreaEntity areaEntity = new AreaEntity();
+        areaEntity.setName("FR");
+
+        when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.toString()))
+                .thenReturn(List.of(areaEntity));
+
+        List<String> studyAreas = service.loadStudyAreas(1);
+
+        assertThat(studyAreas).containsExactly("FR");
+
+        String[] excelAreas = {"Fr", "FR", "fr"};
+        for(var excelArea : excelAreas){
+            assertThat(studyAreas).contains(excelArea.toUpperCase());
+        }
+    }
+
+    @Test
     void testProcessCapacityP2gFile_MissingHorizonTab() throws IOException {
         Path trajectoryDir = tempDir.resolve("trajCapMissingHorizon");
         Files.createDirectories(trajectoryDir);
