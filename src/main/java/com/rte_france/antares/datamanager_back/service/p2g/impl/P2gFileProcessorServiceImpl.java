@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GParameter
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -39,6 +40,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
     private final TrajectoryServiceImpl trajectoryService;
+    private final PathSecurityUtil pathSecurityUtil;
     private static final String CAPACITY_SUFFIX = "_P2G_capacity.xlsx";
     private static final String COSTS_SUFFIX = "_P2G_costs.xlsx";
     private static final String CAPACITY = "capacity";
@@ -165,7 +167,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         String[] requiredFiles = {capacityFileName, costsFileName};
 
         for (String fileName : requiredFiles) {
-            Path filePath = trajectoryFilePath.resolve(fileName);
+            Path filePath = pathSecurityUtil.resolveSafePath(trajectoryFilePath, fileName);
             if (!Files.exists(filePath)) {
                 missingFiles.add(fileName);
             } else {
@@ -429,7 +431,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         String horizonYear = horizon.split("-")[1];
         String modulationFileName = P2gFilePrefixes.MODULATION_PREFIX+"_"+trajectoryToUse+"_"+horizonYear+".csv";
         
-        Path modulationFilePath = trajectoryFilePath.resolve(modulationFileName);
+        Path modulationFilePath = pathSecurityUtil.resolveSafePath(trajectoryFilePath, modulationFileName);
         
         if (Files.notExists(modulationFilePath)) {
             throw BusinessException.builder()

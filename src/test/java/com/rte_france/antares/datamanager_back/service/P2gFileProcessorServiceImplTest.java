@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
+import com.rte_france.antares.datamanager_back.exception.AntaresErrorCode;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -8,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.p2g.impl.P2gFileProcessorServiceImpl;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils.FormulaAndValue;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -31,6 +33,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -46,6 +49,9 @@ public class P2gFileProcessorServiceImplTest {
     @Mock
     private TrajectoryServiceImpl trajectoryService;
 
+    @Mock
+    private PathSecurityUtil pathSecurityUtil;
+
     private P2gFileProcessorServiceImpl service;
 
     @TempDir
@@ -56,10 +62,27 @@ public class P2gFileProcessorServiceImplTest {
         service = new P2gFileProcessorServiceImpl(
                 trajectoryRepository,
                 areaRepository,
-                trajectoryService
+                trajectoryService,
+                pathSecurityUtil
         );
         lenient().when(trajectoryRepository.save(any(TrajectoryEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+        
+        // Mock PathSecurityUtil to resolve paths safely (simulate what it does)
+        lenient().when(pathSecurityUtil.resolveSafePath(any(Path.class), anyString()))
+                .thenAnswer(inv -> {
+                    Path base = inv.getArgument(0);
+                    String segment = inv.getArgument(1);
+                    Path resolved = base.resolve(segment).normalize();
+                    // Simulate path traversal check
+                    if (!resolved.startsWith(base.normalize())) {
+                        throw BusinessException.builder()
+                                .message("Resolved path is outside of the allowed directory")
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
+                    return resolved;
+                });
     }
 
     // -------------------------------------------------------------------------
@@ -1170,4 +1193,5 @@ public class P2gFileProcessorServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Missing P2G Type");
     }
+
 }
