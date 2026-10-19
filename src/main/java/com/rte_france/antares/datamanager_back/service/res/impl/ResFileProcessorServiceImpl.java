@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.service.res.*;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ResColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -50,19 +51,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private final PathSecurityUtil pathSecurityUtil;
     private final ResCoherenceCheckService resCoherenceCheckService;
 
-    protected static final String GROUP_COLUMN = "Group";
-    protected static final String CLUSTER_COLUMN = "Cluster";
-    protected static final String AREA_COLUMN = "Area";
-    protected static final String PECD_ZONE_COLUMN = "PECD_Zone";
-    protected static final String TO_USE = "ToUse";
-    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {
-            TO_USE, AREA_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN, "Category"};
-    protected static final String[] REQUIRED_OFFSHORE_CLUSTER_COLUMNS = {
-            TO_USE, AREA_COLUMN, PECD_ZONE_COLUMN, GROUP_COLUMN, CLUSTER_COLUMN};
-    protected static final String[] REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS = {
-            GROUP_COLUMN, CLUSTER_COLUMN, AREA_COLUMN, PECD_ZONE_COLUMN, "Techno_PECD"};
-    protected static final String[] REQUIRED_ZONAL_DISTRIBUTION_COLUMNS = {
-            AREA_COLUMN, "PECD_zone", GROUP_COLUMN};
     protected static final String OFFSHORE = "offshore";
     protected static final String FILE_FORMAT = ".xlsx";
     protected static final String FILE_NOT_FOUND = "File not found: ";
@@ -561,19 +549,19 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
              Workbook workbook = WorkbookFactory.create(is)) {
 
             int indexSheet = 0;
-            String[] requiredColumns = REQUIRED_CLUSTER_COLUMNS;
+            String[] requiredColumns = ResColumns.getRequiredClusterColumnNames();
             boolean isOffshoreTechnology = false;
             if (trajectoryType == TrajectoryType.RES_CAPACITY) {
                 isOffshoreTechnology = trajectoryToUse.contains(OFFSHORE);
                 if (isOffshoreTechnology) {
-                    requiredColumns = REQUIRED_OFFSHORE_CLUSTER_COLUMNS;
+                    requiredColumns = ResColumns.getRequiredOffshoreClusterColumnNames();
                 }
             }
             if (trajectoryType == TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION) {
-                requiredColumns = REQUIRED_TECHNOLOGY_DISTRIBUTION_COLUMNS;
+                requiredColumns = ResColumns.getRequiredTechnologyDistributionColumnNames();
             }
             if (trajectoryType == TrajectoryType.RES_ZONAL_DISTRIBUTION) {
-                requiredColumns = REQUIRED_ZONAL_DISTRIBUTION_COLUMNS;
+                requiredColumns = ResColumns.getRequiredZonalDistributionColumnNames();
             }
             Sheet sheet = getSheetOrThrow(workbook, filePath, indexSheet);
             Row header = getHeaderOrThrow(sheet, filePath, trajectoryType);
