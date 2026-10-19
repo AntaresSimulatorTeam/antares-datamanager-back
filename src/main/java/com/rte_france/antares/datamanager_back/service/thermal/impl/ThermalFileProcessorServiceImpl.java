@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCo
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalCommonParamColumns;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalRequiredColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -585,7 +586,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private void validateHeaderColumns(Row header, Path path) {
-        List<String> requiredColumns = List.of("ToUse", "Area", "Fuel", "Technology", "Cluster", "Category");
+        List<String> requiredColumns = ThermalRequiredColumns.getAllColumnNames();
         for (int i = 0; i < requiredColumns.size(); i++) {
             String cellValue = header.getCell(i).getStringCellValue();
             if (!cellValue.equalsIgnoreCase(requiredColumns.get(i))) {
