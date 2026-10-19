@@ -174,5 +174,3 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V83-create_areas_fb.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V84-create-flowbased-constraint-restriction-tables.sql
-
-
