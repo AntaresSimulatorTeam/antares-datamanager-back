@@ -35,9 +35,6 @@ public class P2GCapacityEntity {
     @Column(name = "marg_capacity", nullable = true)
     private Double margCapacity;
 
-    @Column(name = "marg", nullable = true)
-    private Double marg;
-
     @Column(name = "methanation_capacity", nullable = true)
     private Double methanationCapacity;
 
