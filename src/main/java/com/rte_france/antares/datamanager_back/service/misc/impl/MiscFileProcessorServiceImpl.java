@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.TrajectorySer
 import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.MiscClusterColumns;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +72,6 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     private final TrajectoryServiceImpl trajectoryService;
 
     private static final String INSTALLED_MISC_PREFIX = "installedMisc_";
-    protected static final String[] REQUIRED_CLUSTER_COLUMNS = {"ToUse", "Area", "Group", "Cluster", "Category"};
 
     // Error message constants
     private static final String ERROR_LOAD_FACTOR_NOT_FOUND = "Load factor file not found for group {0}: expected at {1}";
@@ -112,14 +112,14 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             if (lastCol < 6) {
                 throw BusinessException.builder().message("InstalledMisc header is invalid").httpStatus(HttpStatus.BAD_REQUEST).build();
             }
-
-            checkMissingColumns(sheet, REQUIRED_CLUSTER_COLUMNS, trajectoryToUse, TrajectoryType.MISC_CAPACITY);
+            var allColumns = MiscClusterColumns.getAllColumnNames();
+            checkMissingColumns(sheet, allColumns, trajectoryToUse, TrajectoryType.MISC_CAPACITY);
 
             // Détecter l'index de la colonne correspondant à l'horizon hors de la boucle de lignes
             int yearColIndex = -1;
             String horizonYear = horizon.split("-")[1];
 
-            yearColIndex = getYearColIndex(REQUIRED_CLUSTER_COLUMNS.length, lastCol, header, horizonYear, yearColIndex);
+            yearColIndex = getYearColIndex(allColumns.length, lastCol, header, horizonYear, yearColIndex);
             if (yearColIndex == -1) {
                 throw BusinessException.builder()
                         .message("Horizon '" + horizon + "' does not exist in the Misc trajectory " + filePath.getFileName())
