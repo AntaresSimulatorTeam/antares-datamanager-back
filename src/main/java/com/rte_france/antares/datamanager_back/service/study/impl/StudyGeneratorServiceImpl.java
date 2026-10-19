@@ -141,9 +141,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         dispatchResult.trajectoryOfType(TrajectoryType.NUCLEAR_FR_MODULATION).ifPresent(traj ->
                 dispatchResult.areasMap().put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps, nuclearAvailability)));
 
-        assembleAdequacyModeForStudyAreas(study, dispatchResult.areasMap());
-
         Map<String, Object> innerGeneratorMap = buildInnerGeneratorMap(study, dispatchResult, thermalClusterProps);
+        assembleAdequacyModeForStudyAreas(study, innerGeneratorMap);
 
         Map<String, Object> jsonForGenerator = new TreeMap<>();
         jsonForGenerator.put(study.getName(), innerGeneratorMap);
@@ -228,16 +227,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> innerGeneratorMap = new LinkedHashMap<>();
         innerGeneratorMap.put("version", "9.3");
 
-        // Build settings from parameters (general, optimization, advanced, seeds) if settings trajectory is available
-        Map<String, Object> settingsMap;
+        Map<String, Object> settingsMap = new LinkedHashMap<>();
         Optional<TrajectoryEntity> settingsTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.SETTINGS);
         if (settingsTrajectory.isPresent()) {
-            settingsMap = settingsToJsonService.buildSettingsMap(settingsTrajectory.get().getId());
-        } else {
-            // Fallback to adequacy settings if no dedicated settings trajectory
-            Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
-            settingsMap = adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings);
+            settingsMap.putAll(settingsToJsonService.buildSettingsMap(settingsTrajectory.get().getId()));
         }
+        Optional<AdequacySettingsEntity> adequacySettings = adequacySettingsAssemblerService.assembleAdequacySettings(study);
+        settingsMap.putAll(adequacySettingsToJsonService.buildAdequacySettingsMap(adequacySettings));
         Optional<TrajectoryEntity> flowbasedTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.FLOWBASED);
         Map<String, Object> flowbasedMap = new TreeMap<>();
         if (flowbasedTrajectory.isPresent()) {
@@ -247,15 +243,12 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Optional<TrajectoryEntity> scenarioBuilderTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.SCENARIO_BUILDER);
         if (scenarioBuilderTrajectory.isPresent()) {
             Map<String, Object> scenarioBuilderMap = buildScenarioBuilderDataMap(scenarioBuilderTrajectory.get());
-            if (settingsMap == null) {
-                settingsMap = new LinkedHashMap<>();
-            }
             if (!scenarioBuilderMap.isEmpty()) {
                 settingsMap.put("scenariobuilder", scenarioBuilderMap);
             }
         }
 
-        innerGeneratorMap.put("settings", Objects.requireNonNullElse(settingsMap, "settings work on going"));
+        innerGeneratorMap.put("settings", settingsMap);
         // TODO: get input for random generation flag, maybe also move them somewhere else
         innerGeneratorMap.put("enable_random_ts", true);
         innerGeneratorMap.put("areas", areasMap);
@@ -444,12 +437,23 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return areaMap;
     }
 
-    private void assembleAdequacyModeForStudyAreas(StudyEntity study, Map<String, Object> areasMap) throws BusinessException {
+    private void assembleAdequacyModeForStudyAreas(StudyEntity study, Map<String, Object> studyMap) throws BusinessException {
         TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
         Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
-        for (Map.Entry<String, Object> areaEntry : areasMap.entrySet()) {
-            String areaName = areaEntry.getKey();
+        if (studyMap.get("areas") instanceof Map<?, ?> areasMap) {
+            applyAdequacyModeToAreas(areasMap, adequacyTrajectory, adequacyModeByArea);
+        }
+        if (studyMap.get("ME") instanceof Map<?, ?> multiEnergyMap
+                && multiEnergyMap.get("area_me") instanceof Map<?, ?> areasMeMap) {
+            applyAdequacyModeToAreas(areasMeMap, adequacyTrajectory, adequacyModeByArea);
+        }
+    }
+
+    private void applyAdequacyModeToAreas(Map<?, ?> areasMap, TrajectoryEntity adequacyTrajectory,
+                                          Map<String, String> adequacyModeByArea) {
+        for (Map.Entry<?, ?> areaEntry : areasMap.entrySet()) {
+            String areaName = (String) areaEntry.getKey();
             if (areaEntry.getValue() instanceof Map<?, ?> rawAreaData) {
                 Map<String, Object> propertiesMap = getPropertiesMap((Map<String, Object>) rawAreaData);
                 adequacySettingsAssemblerService.resolveMode(areaName, adequacyTrajectory, adequacyModeByArea)

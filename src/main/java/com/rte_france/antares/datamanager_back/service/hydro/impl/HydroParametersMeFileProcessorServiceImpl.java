@@ -120,11 +120,15 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         Set<String> paramNodes = new HashSet<>();
         Set<String> loadAreas = new HashSet<>();
         Set<String> allocationNodes = new HashSet<>();
+        Set<String> areaMeNames = getStudyAreaNames(studyId, TrajectoryType.AREA_ME);
+        Set<String> validAreaNames = new HashSet<>(areaMeNames);
+        validAreaNames.addAll(getStudyAreaNames(studyId, TrajectoryType.AREA));
 
-        parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, trajectoryId, paramNodes);
-        parseAndInsertHydroAllocationMe(hydroAllocationPath, trajectoryToUse, horizon, trajectoryId, loadAreas, allocationNodes);
+        parseAndInsertParamHydroMe(paramHydroPath, trajectoryToUse, horizon, trajectoryId, areaMeNames, paramNodes);
+        parseAndInsertHydroAllocationMe(
+                hydroAllocationPath, trajectoryToUse, horizon, trajectoryId, validAreaNames, loadAreas, allocationNodes);
 
-        validateHydroMeCoherence(studyId, paramNodes, loadAreas, allocationNodes);
+        validateHydroMeCoherence(studyId, paramNodes, loadAreas, allocationNodes, true);
     }
 
     @Override
@@ -141,59 +145,61 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                 .map(HydroAllocationMeEntity::getNode)
                 .collect(Collectors.toSet());
 
-        validateHydroMeCoherence(studyId, paramNodes, loadAreas, allocationNodes);
+        validateHydroMeCoherence(studyId, paramNodes, loadAreas, allocationNodes, !allocations.isEmpty());
     }
 
-    private void validateHydroMeCoherence(Integer studyId, Set<String> paramNodes, Set<String> loadAreas, Set<String> allocationNodes) {
-        Set<String> areaMeNames = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA_ME.name()).stream()
+    private void validateHydroMeCoherence(
+            Integer studyId,
+            Set<String> paramNodes,
+            Set<String> loadAreas,
+            Set<String> allocationNodes,
+            boolean requireAllocationMatches) {
+        Set<String> areaMeNames = getStudyAreaNames(studyId, TrajectoryType.AREA_ME);
+        Set<String> validAreaNames = new HashSet<>(areaMeNames);
+        validAreaNames.addAll(getStudyAreaNames(studyId, TrajectoryType.AREA));
+
+        boolean hasMatchingParamNode = paramNodes.stream()
+                .map(HydroParametersMeFileProcessorServiceImpl::normalizeName)
+                .anyMatch(areaMeNames::contains);
+        if (!hasMatchingParamNode) {
+            throw BusinessException.builder()
+                    .message("No area from the HYDRO_ME Param Hydro trajectory is present in the AREA_ME trajectory.")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        boolean hasMatchingLoadArea = loadAreas.stream()
+                .map(HydroParametersMeFileProcessorServiceImpl::normalizeName)
+                .anyMatch(validAreaNames::contains);
+        boolean hasMatchingAllocationNode = allocationNodes.stream()
+                .map(HydroParametersMeFileProcessorServiceImpl::normalizeName)
+                .anyMatch(validAreaNames::contains);
+        if ((requireAllocationMatches || !loadAreas.isEmpty() || !allocationNodes.isEmpty())
+                && (!hasMatchingLoadArea || !hasMatchingAllocationNode)) {
+            throw BusinessException.builder()
+                    .message("No area from the HYDRO_ME Hydro Allocation trajectory is present in the AREA_ME trajectory")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private Set<String> getStudyAreaNames(Integer studyId, TrajectoryType trajectoryType) {
+        return areaRepository.findAllByStudyId(studyId, trajectoryType.name()).stream()
                 .map(area -> normalizeName(area.getName()))
                 .collect(Collectors.toSet());
-        Set<String> areaNames = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.name()).stream()
-                .map(area -> normalizeName(area.getName()))
-                .collect(Collectors.toSet());
-
-        String missingParamAreas = findMissingNames(paramNodes, areaMeNames);
-        if (!missingParamAreas.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Areas {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory")
-                    .errorMessageArguments(List.of(missingParamAreas))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        Set<String> areaMeOrArea = new HashSet<>(areaMeNames);
-        areaMeOrArea.addAll(areaNames);
-        String missingLoadAreas = findMissingNames(loadAreas, areaMeOrArea);
-        if (!missingLoadAreas.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Areas {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME or AREA trajectory")
-                    .errorMessageArguments(List.of(missingLoadAreas))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
-        String missingNodes = findMissingNames(allocationNodes, areaMeNames);
-        if (!missingNodes.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Nodes {0} from HYDRO_ME Param Hydro trajectory is (are) not present in AREAS_ME trajectory")
-                    .errorMessageArguments(List.of(missingNodes))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
     }
 
     private static String normalizeName(String name) {
         return name.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static String findMissingNames(Set<String> names, Set<String> validNames) {
-        return String.join(", ", names.stream()
-                .map(String::trim)
-                .filter(name -> !validNames.contains(normalizeName(name)))
-                .collect(Collectors.toCollection(TreeSet::new)));
-    }
-
-    private void parseAndInsertParamHydroMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Set<String> paramNodes) throws IOException {
+    private void parseAndInsertParamHydroMe(
+            Path filePath,
+            String trajectoryName,
+            String horizon,
+            Integer trajectoryId,
+            Set<String> areaMeNames,
+            Set<String> paramNodes) throws IOException {
         String horizonYear = extractHorizonYear(horizon);
         List<HydroParametersMeEntity> entitiesToInsert = new ArrayList<>();
 
@@ -233,6 +239,11 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                             .errorMessageArguments(List.of(trajectoryName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
+                }
+
+                String normalizedNodeName = nodeName.trim();
+                if (!areaMeNames.contains(normalizeName(normalizedNodeName))) {
+                    continue;
                 }
 
                 // Validate numeric columns: D (inter.daily.breakdown), E (inter.monthly.breakdown), F (initialize.reservoir.date), I (pumping.efficiency)
@@ -276,7 +287,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .powerToLevel(getBooleanCellValue(row.getCell(15)))
                         .build();
 
-                paramNodes.add(nodeName.trim());
+                paramNodes.add(normalizedNodeName);
                 entitiesToInsert.add(entity);
             }
         }
@@ -288,7 +299,14 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         }
     }
 
-    private void parseAndInsertHydroAllocationMe(Path filePath, String trajectoryName, String horizon, Integer trajectoryId, Set<String> loadAreas, Set<String> allocationNodes) throws IOException {
+    private void parseAndInsertHydroAllocationMe(
+            Path filePath,
+            String trajectoryName,
+            String horizon,
+            Integer trajectoryId,
+            Set<String> validAreaNames,
+            Set<String> loadAreas,
+            Set<String> allocationNodes) throws IOException {
         String horizonYear = extractHorizonYear(horizon);
         List<HydroAllocationMeEntity> entitiesToInsert = new ArrayList<>();
 
@@ -315,6 +333,18 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .build();
             }
 
+            Map<Integer, String> validNodesByColumn = new HashMap<>();
+            for (int cellIndex = 1; cellIndex < headerRow.getLastCellNum(); cellIndex++) {
+                String nodeName = getCellStringValue(headerRow.getCell(cellIndex));
+                if (nodeName != null
+                        && !nodeName.trim().isEmpty()
+                        && validAreaNames.contains(normalizeName(nodeName))) {
+                    String normalizedNodeName = nodeName.trim();
+                    validNodesByColumn.put(cellIndex, normalizedNodeName);
+                    allocationNodes.add(normalizedNodeName);
+                }
+            }
+
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
@@ -331,12 +361,21 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                             .build();
                 }
 
-                loadAreas.add(areaName.trim());
+                String normalizedAreaName = areaName.trim();
+                boolean isValidLoadArea = validAreaNames.contains(normalizeName(normalizedAreaName));
+                if (!isValidLoadArea) {
+                    continue;
+                }
+                loadAreas.add(normalizedAreaName);
 
                 // Validate node columns (from B onwards) are numeric and build entities
                 for (int cellIndex = 1; cellIndex < row.getLastCellNum(); cellIndex++) {
                     Cell cell = row.getCell(cellIndex);
                     if (cell != null && cell.getCellType() != CellType.BLANK) {
+                        String nodeName = validNodesByColumn.get(cellIndex);
+                        if (nodeName == null) {
+                            continue;
+                        }
                         if (!isNumeric(cell)) {
                             String columnLetter = getCellColumnLetter(cellIndex);
                             throw BusinessException.builder()
@@ -349,14 +388,10 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                             continue;
                         }
 
-                        // Get node name from header
-                        String nodeName = getCellStringValue(headerRow.getCell(cellIndex));
-                        allocationNodes.add(nodeName.trim());
-
                         // Build entity
                         HydroAllocationMeEntity entity = HydroAllocationMeEntity.builder()
                                 .trajectoryId(trajectoryId)
-                                .area(areaName)
+                                .area(normalizedAreaName)
                                 .node(nodeName)
                                 .allocationCoefficient(getNumericCellValue(cell))
                                 .build();
