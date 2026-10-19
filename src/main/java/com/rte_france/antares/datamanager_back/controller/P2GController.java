@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.controller;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.Pattern;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.toTrajectoryDTO;
 
@@ -26,6 +28,7 @@ import static com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper.to
 @RequiredArgsConstructor
 public class P2GController {
     private final P2gFileProcessorService p2gFileProcessorService;
+    private final PathSecurityUtil pathSecurityUtil;
 
     @Operation(summary = "import capacity cost trajectory to database ")
     @PostMapping("/capacity-cost-p2g")
@@ -34,6 +37,7 @@ public class P2GController {
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
             @RequestParam("studyId") Integer studyId,
             @RequestParam("isCivilYear") boolean isCivilYear) throws IOException {
+        pathSecurityUtil.resolveSafePath(properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()), trajectoryToUse);
 
         return new ResponseEntity<>(toTrajectoryDTO(
                 p2gFileProcessorService.processCapacityP2gFile(trajectoryToUse, horizon, studyId, isCivilYear)

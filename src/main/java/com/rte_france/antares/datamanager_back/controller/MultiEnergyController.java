@@ -128,10 +128,7 @@ public class MultiEnergyController {
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
             @Parameter(description = "example of horizon : 2020-2021") String horizon,
             @RequestParam("studyId") Integer studyId) throws IOException {
-        pathSecurityUtil.resolveSafePath(
-                properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()),
-                trajectoryToUse
-        );
+        pathSecurityUtil.resolveSafePath(properties -> Path.of(properties.getNasDirectory(), properties.getTrajectoryFilePath()), trajectoryToUse);
         return new ResponseEntity<>(toTrajectoryDTO(hydroTimeSeriesMeFileProcessorService.processHydroTimeSeriesMeDirectory(trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
