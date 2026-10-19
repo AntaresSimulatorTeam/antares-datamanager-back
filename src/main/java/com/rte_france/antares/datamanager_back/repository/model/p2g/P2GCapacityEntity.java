@@ -44,9 +44,6 @@ public class P2GCapacityEntity {
     @Column(name = "asservi_capacity", nullable = true)
     private Double asserviCapacity;
 
-    @Column(name = "h2_capacity_total", nullable = true)
-    private Double h2CapacityTotal;
-
     @ManyToOne
     @JoinColumn(name = "trajectory_id")
     private TrajectoryEntity trajectory;
