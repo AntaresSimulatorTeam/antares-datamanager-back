@@ -41,6 +41,8 @@ import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemble
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -1553,6 +1555,69 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         assertEquals("generator down", exception.getMessage());
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "true, true, false",
+            "true, false, false",
+            "false, true, false",
+            "false, false, false",
+            "true, true, true",
+            "true, false, true",
+            "false, true, true",
+            "false, false, true"
+    })
+    void buildJsonForStudyGeneration_shouldCombineIndependentSettingsContributions(
+            boolean includeSettings, boolean includeAdequacy, boolean includeScenarioBuilder) throws Exception {
+        Set<TrajectoryEntity> trajectories = new LinkedHashSet<>();
+        var area = AreaEntity.builder().name("FR").build();
+        trajectories.add(TrajectoryEntity.builder().type("AREA")
+                .areaConfigEntities(List.of(AreaConfigEntity.builder().area(area)
+                        .unsuppliedEnergyCost(3000.0).spilledEnergyCost(0.0).build()))
+                .build());
+        Map<String, Object> dedicatedSettings = Map.of(
+                "general_parameters", Map.of("mode", "economy"),
+                "optimization_parameters", Map.of("simplex_range", "week"),
+                "advanced_parameters", Map.of("hydro_pricing_mode", "fast"),
+                "seeds_parameters", Map.of("seed_tsnumbers", 123));
+        if (includeSettings) {
+            trajectories.add(TrajectoryEntity.builder().id(20).type("SETTINGS").build());
+            when(settingsToJsonService.buildSettingsMap(20)).thenReturn(dedicatedSettings);
+        }
+        if (includeAdequacy) {
+            trajectories.add(TrajectoryEntity.builder().id(30).type("ADEQUACY_PATCH")
+                    .adequacyModeEntities(List.of(AdequacyModeEntity.builder().area("FR").mode("inside").build()))
+                    .adequacySettingsEntities(List.of(AdequacySettingsEntity.builder()
+                            .includeAdqPatch(true).priceTakingOrder("DENS").build()))
+                    .build());
+        }
+        Map<String, Object> scenarioBuilder = Map.of("thermal", List.of("nuclear@fr"));
+        if (includeScenarioBuilder) {
+            trajectories.add(TrajectoryEntity.builder().id(50).type("SCENARIO_BUILDER").build());
+            when(scenarioBuilderToJsonService.buildScenarioBuilderMap(50)).thenReturn(scenarioBuilder);
+        }
+        var study = StudyEntity.builder().id(1).name("studyTest").trajectories(trajectories).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var mapper = new ObjectMapper();
+        Map<String, Object> root = mapper.readValue(captureGeneratedJson(1), new TypeReference<>() {});
+        Map<String, Object> studyMap = mapper.convertValue(root.get("studyTest"), new TypeReference<>() {});
+        Map<String, Object> settings = mapper.convertValue(studyMap.get("settings"), new TypeReference<>() {});
+        Map<String, Object> expectedSettings = new LinkedHashMap<>();
+        if (includeSettings) {
+            expectedSettings.putAll(dedicatedSettings);
+        }
+        if (includeAdequacy) {
+            expectedSettings.put("adequacy", Map.of("include_adq_patch", true, "price_taking_order", "DENS"));
+        }
+        if (includeScenarioBuilder) {
+            expectedSettings.put("scenariobuilder", scenarioBuilder);
+        }
+        assertThat(settings).isEqualTo(expectedSettings);
+    }
+
     @Test
     void buildJsonForStudyGeneration_shouldIncludeScenarioBuilderInSettings_whenScenarioBuilderTrajectoryPresent() throws Exception {
         var areaEntity = AreaEntity.builder().name("FR").build();
@@ -1666,6 +1731,43 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
                 .containsEntry("energy_cost_unsupplied", 4000.0)
                 .containsEntry("energy_cost_spilled", 200.0)
                 .containsEntry("adequacy_patch_mode", "outside");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"late_area, true", "LATE_AREA, true", "missing_area, false"})
+    void buildJsonForStudyGeneration_shouldCheckFinalMultiEnergyAreas(
+            String configuredArea, boolean expectedSuccess) throws Exception {
+        var areaMeTrajectory = TrajectoryEntity.builder().type("AREA_ME").build();
+        var adequacyTrajectory = TrajectoryEntity.builder().type("ADEQUACY_PATCH")
+                .fileName("adequacy.xlsx")
+                .adequacyModeEntities(List.of(AdequacyModeEntity.builder()
+                        .area(configuredArea).mode("outside").build()))
+                .adequacySettingsEntities(List.of())
+                .build();
+        var study = StudyEntity.builder().id(1).name("studyTest")
+                .trajectories(new LinkedHashSet<>(List.of(areaMeTrajectory, adequacyTrajectory))).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        Map<String, Object> lateArea = new LinkedHashMap<>();
+        lateArea.put("properties", new LinkedHashMap<>());
+        doReturn(Map.of("area_me", Map.of("late_area", lateArea)))
+                .when(multiEnergyService).buildMultiEnergyMapWithThermalClusterProps(
+                        any(), any(), any(), any(), any(), any(), any(), any(),
+                        any(), any(), any(), any(), any(), any(), any());
+
+        if (!expectedSuccess) {
+            BusinessException exception = assertThrows(BusinessException.class,
+                    () -> studyGeneratorService.buildJsonForStudyGeneration(1));
+            assertThat(exception.getErrorMessageArguments()).contains("late_area");
+            verify(nasFileService, never()).saveFile(anyString(), any(byte[].class), any());
+            return;
+        }
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var json = new ObjectMapper().readTree(captureGeneratedJson(1));
+        assertThat(json.path("studyTest").path("ME").path("area_me").path("late_area")
+                .path("properties").path("adequacy_patch_mode").asText()).isEqualTo("outside");
     }
 
     @Test
