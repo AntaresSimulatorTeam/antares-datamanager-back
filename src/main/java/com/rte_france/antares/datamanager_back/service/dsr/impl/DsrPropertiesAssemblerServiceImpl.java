@@ -65,8 +65,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                         DsrGenerationDTO dto = DsrMapper.mapToDsrGenerationDTO(dsr);
                         if (Boolean.TRUE.equals(dsr.getModulation())) {
                             String clusterKey = this.buildDsrKey(dsr);
-                            String nameKey = dsr.getName();
-                            List<String> clusterModulationFiles = getClusterModulationFiles(modulationFiles, clusterKey, nameKey);
+                            List<String> clusterModulationFiles = getClusterModulationFiles(modulationFiles, clusterKey);
                             dto.setDsrTsList(clusterModulationFiles);
                         }
                         return dto;
@@ -75,16 +74,11 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
             ));
 }
 
-    private static @NonNull List<String> getClusterModulationFiles(List<String> modulationFiles, String clusterKey, String nameKey) {
+    private static @NonNull List<String> getClusterModulationFiles(List<String> modulationFiles, String clusterKey) {
         String clusterSuffix = "_" + clusterKey + ".";
-        String nameSuffix = (nameKey != null) ? "_" + nameKey + "." : null;
 
         return modulationFiles.stream()
-                .filter(fileName -> {
-                    String lowerFileName = fileName.toLowerCase();
-                    return lowerFileName.contains(clusterSuffix.toLowerCase()) ||
-                            (nameSuffix != null && lowerFileName.contains(nameSuffix.toLowerCase()));
-                })
+                .filter(fileName -> fileName.toLowerCase().contains(clusterSuffix.toLowerCase()))
                 .toList();
     }
 

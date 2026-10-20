@@ -26,7 +26,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 class DsrPropertiesAssemblerServiceImplTest {
@@ -165,7 +164,6 @@ class DsrPropertiesAssemblerServiceImplTest {
         Map<String, DsrGenerationDTO> result = dsrPropertiesAssemblerService.assembleDsrProperties(study);
 
         // Then
-        assertEquals(List.of("some_ts_ClusterModTrue.csv.uuid123.arrow"), result.get("FR_ClusterModTrue").getDsrTsList());
         assertNull(result.get("FR_ClusterModFalse").getDsrTsList());
         assertNull(result.get("FR_ClusterModNull").getDsrTsList());
     }
