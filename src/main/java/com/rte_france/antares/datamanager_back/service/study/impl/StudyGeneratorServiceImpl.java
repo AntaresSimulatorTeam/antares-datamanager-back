@@ -102,9 +102,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     .message("Error when generating JSON file : " + e)
                     .cause(e)
                     .build();
-        } finally {
-            MDC.remove("studyId");
-            log.debug("MDC studyId removed for studyId={}", sid);
         }
     }
 

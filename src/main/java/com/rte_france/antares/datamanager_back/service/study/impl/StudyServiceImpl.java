@@ -1,7 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
-import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StudyMapper;
@@ -11,7 +10,6 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
-import com.rte_france.antares.datamanager_back.service.load.impl.LoadFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorService;
 import com.rte_france.antares.datamanager_back.service.study.StudyService;
