@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.AreasValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,9 +93,9 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
 
                 AreaEntity areaEntity = findOrCreateAreaEntity(row);
 
-                var value1 = Objects.requireNonNull(getCellValue(row, 1)).toString().toUpperCase(Locale.ROOT);
-                var value2 = castDouble(getCellValue(row,2), header.getCell(2).getStringCellValue(), row.getRowNum());
-                var value3 = castDouble(getCellValue(row,3), header.getCell(3).getStringCellValue(), row.getRowNum());
+                var value1 = Objects.requireNonNull(getCellValue(row, AreaColumns.DISTRICT.getIndex())).toString().toUpperCase(Locale.ROOT);
+                var value2 = castDouble(getCellValue(row,AreaColumns.SPILLED_ENERGY_COST.getIndex()), header.getCell(AreaColumns.SPILLED_ENERGY_COST.getIndex()).getStringCellValue(), row.getRowNum());
+                var value3 = castDouble(getCellValue(row,AreaColumns.UNSUPPLIED_ENERGY_COST.getIndex()), header.getCell(AreaColumns.UNSUPPLIED_ENERGY_COST.getIndex()).getStringCellValue(), row.getRowNum());
 
 
                areaConfigEntities.add(new AreaConfigEntity(value1, value2, value3, areaEntity));
@@ -106,20 +107,20 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     }
 
     private boolean isRowEmpty(Row row) {
-        Cell firstCell = row.getCell(0, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        Cell firstCell = row.getCell(AreaColumns.AREAS.getIndex(), Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         return firstCell == null || firstCell.getCellType() == CellType.BLANK ||
                 (firstCell.getCellType() == CellType.STRING && firstCell.getStringCellValue().trim().isEmpty());
     }
 
     private AreaEntity findOrCreateAreaEntity(Row area) {
-        String name = area.getCell(0).getStringCellValue().toUpperCase(Locale.ROOT);
+        String name = area.getCell(AreaColumns.AREAS.getIndex()).getStringCellValue().toUpperCase(Locale.ROOT);
 
         AreaEntity entity = areaRepository.findAreaByNameIgnoreCase(name).orElseGet(() -> AreaEntity.builder().name(name).build());
-        entity.setX(area.getCell(4).getNumericCellValue());
-        entity.setY(area.getCell(5).getNumericCellValue());
-        entity.setR(area.getCell(6).getNumericCellValue());
-        entity.setG(area.getCell(7).getNumericCellValue());
-        entity.setB(area.getCell(8).getNumericCellValue());
+        entity.setX(area.getCell(AreaColumns.X.getIndex()).getNumericCellValue());
+        entity.setY(area.getCell(AreaColumns.Y.getIndex()).getNumericCellValue());
+        entity.setR(area.getCell(AreaColumns.R.getIndex()).getNumericCellValue());
+        entity.setG(area.getCell(AreaColumns.G.getIndex()).getNumericCellValue());
+        entity.setB(area.getCell(AreaColumns.B.getIndex()).getNumericCellValue());
 
         return areaRepository.save(entity);
     }
