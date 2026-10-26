@@ -5,6 +5,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -14,7 +15,8 @@ public class ExecutionTimeAdvice {
 
 
     @Pointcut("@annotation(com.rte_france.antares.datamanager_back.util.ExecutionTime)")
-    public void executionTimePointcut() {}
+    public void executionTimePointcut() {
+    }
 
     @Around("executionTimePointcut()")
     public Object executionTime(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -23,9 +25,9 @@ public class ExecutionTimeAdvice {
         Object proceed = joinPoint.proceed();
 
         long executionTime = System.currentTimeMillis() - start;
-
-        log.info("{} executed in {}ms", joinPoint.getSignature().getName(), executionTime);
-
+        String methode = joinPoint.getSignature().getName();
+        log.info("{} executed in {}ms", methode, executionTime);
+        MDC.put(methode, String.valueOf(executionTime));
         return proceed;
     }
 }
