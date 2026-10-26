@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.EfficiencyMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -119,12 +120,12 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
             
-            String nodeCluster = getCellStringValue(row, 0);
+            String nodeCluster = getCellStringValue(row, EfficiencyMeColumns.NODE_CLUSTER.getIndex());
             if (nodeCluster == null || nodeCluster.trim().isEmpty() || !nodeCluster.toLowerCase(Locale.ROOT).startsWith(PREFIX_EFFICIENCY_AREA) || !areasMeList.contains(nodeCluster.toUpperCase(Locale.ROOT))) continue;
             
-            String type = getCellStringValue(row, 1);
-            String comments = getCellStringValue(row, 2);
-            BigDecimal efficiency = getCellNumericValue(row, 3);
+            String type = getCellStringValue(row, EfficiencyMeColumns.TYPE.getIndex());
+            String comments = getCellStringValue(row, EfficiencyMeColumns.COMMENTS.getIndex());
+            BigDecimal efficiency = getCellNumericValue(row, EfficiencyMeColumns.EFFICIENCY.getIndex());
             
             EfficiencyMeEntity efficiencyMe = EfficiencyMeEntity.builder()
                     .nodeCluster(nodeCluster.trim())
@@ -203,7 +204,7 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
             
-            String nodeCluster = getCellStringValue(row, 0);
+            String nodeCluster = getCellStringValue(row, EfficiencyMeColumns.NODE_CLUSTER.getIndex());
             if (nodeCluster != null && !nodeCluster.trim().isEmpty()) {
                 if (nodeCluster.length() > 60) {
                     throw BusinessException.builder()
@@ -213,7 +214,7 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
                             .build();
                 }
                 
-                BigDecimal efficiency = getCellNumericValue(row, 3);
+                BigDecimal efficiency = getCellNumericValue(row, EfficiencyMeColumns.EFFICIENCY.getIndex());
                 if (efficiency == null) {
                     throw BusinessException.builder()
                             .message("Column efficiency must be numeric in EFFICIENCY_ME trajectory {0}")
@@ -223,7 +224,7 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
                 }
             } else {
                 boolean hasOtherData = false;
-                for (int i = 1; i < 4; i++) {
+                for (int i = EfficiencyMeColumns.TYPE.getIndex(); i <= EfficiencyMeColumns.EFFICIENCY.getIndex(); i++) {
                     String cellValue = getCellStringValue(row, i);
                     if (cellValue != null && !cellValue.trim().isEmpty()) {
                         hasOtherData = true;
