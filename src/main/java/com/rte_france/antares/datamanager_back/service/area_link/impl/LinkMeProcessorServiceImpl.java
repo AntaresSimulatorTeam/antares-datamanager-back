@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.area_link.LinkMeCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinkMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -251,12 +252,12 @@ public class LinkMeProcessorServiceImpl {
                     continue;
                 }
 
-                Cell cellA = row.getCell(0);
-                Cell cellB = row.getCell(1);
-                Cell cellC = row.getCell(2);
-                Cell cellD = row.getCell(3);
-                Cell cellE = row.getCell(4);
-                Cell cellF = row.getCell(5);
+                Cell cellA = row.getCell(LinkMeColumns.NODE_FROM.getIndex());
+                Cell cellB = row.getCell(LinkMeColumns.NODE_TO.getIndex());
+                Cell cellC = row.getCell(LinkMeColumns.DIRECT_MW.getIndex());
+                Cell cellD = row.getCell(LinkMeColumns.INDIRECT_MW.getIndex());
+                Cell cellE = row.getCell(LinkMeColumns.HURDLE_COSTS_DIRECT.getIndex());
+                Cell cellF = row.getCell(LinkMeColumns.HURDLE_COSTS_INDIRECT.getIndex());
 
                 // Skip completely empty rows (all cells A-F are null or empty)
                 if (isRowEmpty(cellA) && isRowEmpty(cellB) && isRowEmpty(cellC) && 
