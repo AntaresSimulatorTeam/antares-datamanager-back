@@ -25,8 +25,7 @@ public class ExecutionTimeAdvice {
         Object proceed = joinPoint.proceed();
 
         long executionTime = System.currentTimeMillis() - start;
-        log.info("Method executed in {}ms", executionTime);
-        MDC.put("executionTime", String.valueOf(executionTime));
+        log.info("{} executed in {}ms", joinPoint.getSignature().getName(), executionTime);
         return proceed;
     }
 }
