@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.thermal_me.ThermalMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalCapacityMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -47,7 +48,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private static final String CAPACITY_MODULATION = "capacity_modulation";
     
     private static final List<String> TIMESTEP_VALUES = List.of("hourly", "annual");
-    private static final Map<Integer, String> MODULATION_FOLDERS = Map.of(7, MARGINAL_COST_MODULATION, 10, MARKET_BID_MODULATION, 13, MUST_RUN_MODULATION, 15, CAPACITY_MODULATION); 
+    private static final Map<Integer, String> MODULATION_FOLDERS = Map.of(ThermalCapacityMeColumns.MARGINAL_COST_TIMESTEP.getIndex(), MARGINAL_COST_MODULATION, ThermalCapacityMeColumns.MARKET_BID_COST_TIMESTEP.getIndex(), MARKET_BID_MODULATION, ThermalCapacityMeColumns.MR_TIMESTEP.getIndex(), MUST_RUN_MODULATION, ThermalCapacityMeColumns.CM_TIMESTEP.getIndex(), CAPACITY_MODULATION);
     
     enum CheckValueType {
         BOOLEAN,
@@ -63,11 +64,11 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     private static final Map<Integer, CheckValueDefinition<?>> CHECK_VALUE_LIST = new LinkedHashMap<>();
 
     static {
-        Set<Integer> lengthValues = Set.of(0, 1, 2);
-        Set<Integer> booleanValues = Set.of(3, 12);
-        Set<Integer> timestepValues = Set.of(7, 10, 13, 15);
+        Set<Integer> lengthValues = Set.of(ThermalCapacityMeColumns.NODE.getIndex(), ThermalCapacityMeColumns.GROUP_NAME.getIndex(), ThermalCapacityMeColumns.CLUSTER_NAME.getIndex());
+        Set<Integer> booleanValues = Set.of(ThermalCapacityMeColumns.ENABLED.getIndex(), ThermalCapacityMeColumns.MUST_RUN.getIndex());
+        Set<Integer> timestepValues = Set.of(ThermalCapacityMeColumns.MARGINAL_COST_TIMESTEP.getIndex(), ThermalCapacityMeColumns.MARKET_BID_COST_TIMESTEP.getIndex(), ThermalCapacityMeColumns.MR_TIMESTEP.getIndex(), ThermalCapacityMeColumns.CM_TIMESTEP.getIndex());
 
-        for (int i = 0; i <= 16; i++) {
+        for (int i = 0; i <= ThermalCapacityMeColumns.CM_MODULATION.getIndex(); i++) {
             CHECK_VALUE_LIST.put(
                     i,
                     buildCheckValueDefinition(i, lengthValues, booleanValues, timestepValues)
@@ -97,11 +98,12 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     }
 
     private static int getLengthValue(int index) {
-        return switch (index) {
-            case 0 -> 60;
-            case 1 -> 20;
-            default -> 40;
-        };
+        if(index == ThermalCapacityMeColumns.NODE.getIndex()){
+            return 60;
+        } else if(index == ThermalCapacityMeColumns.GROUP_NAME.getIndex()){
+            return 20;
+        }
+        return 40;
     }
 
     @Transactional(rollbackFor = {IOException.class})
@@ -196,13 +198,13 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
                 continue;
             }
             
-            String node = Objects.toString(getCellValue(row, 0), "").trim();
+            String node = Objects.toString(getCellValue(row, ThermalCapacityMeColumns.NODE.getIndex()), "").trim();
             if (!areasMeList.contains(node.toUpperCase(Locale.ROOT))) continue;
             
             checkRow(row, columnNames, trajectoryToUse, trajectoryPath);
 
             // --- Récupération du cluster_name ---
-            String clusterName = Objects.toString(getCellValue(row, 2), "").trim();
+            String clusterName = Objects.toString(getCellValue(row, ThermalCapacityMeColumns.CLUSTER_NAME.getIndex()), "").trim();
 
             // --- Validation d'unicité (insensible à la casse) ---
             String uniqueKey = node.toUpperCase() + "|" + clusterName.toUpperCase();
@@ -216,22 +218,22 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
 
             ThermalMeEntity thermalMeEntity = ThermalMeEntity.builder()
                     .node(node)
-                    .groupName(row.getCell(1).getStringCellValue())
+                    .groupName(row.getCell(ThermalCapacityMeColumns.GROUP_NAME.getIndex()).getStringCellValue())
                     .clusterName(clusterName)
-                    .enabled(getBooleanCell(row,3))
-                    .nominalCapacity(row.getCell(4).getNumericCellValue())
-                    .nbUnit((int) row.getCell(5).getNumericCellValue())
-                    .marginalCost(row.getCell(6).getNumericCellValue())
-                    .marginalCostTimestep(row.getCell(7).getStringCellValue())
-                    .marginalCostModulation(row.getCell(8).getNumericCellValue())
-                    .marketBidCost(row.getCell(9).getNumericCellValue())
-                    .marketBidCostTimestep(row.getCell(10).getStringCellValue())
-                    .marketBidCostModulation(row.getCell(11).getNumericCellValue())
-                    .mustRun(getBooleanCell(row, 12))
-                    .mrTimestep(row.getCell(13).getStringCellValue())
-                    .mrModulation(row.getCell(14).getNumericCellValue())
-                    .cmTimestep(row.getCell(15).getStringCellValue())
-                    .cmModulation(row.getCell(16).getNumericCellValue())
+                    .enabled(getBooleanCell(row,ThermalCapacityMeColumns.ENABLED.getIndex()))
+                    .nominalCapacity(row.getCell(ThermalCapacityMeColumns.NOMINAL_CAPACITY.getIndex()).getNumericCellValue())
+                    .nbUnit((int) row.getCell(ThermalCapacityMeColumns.NB_UNIT.getIndex()).getNumericCellValue())
+                    .marginalCost(row.getCell(ThermalCapacityMeColumns.MARGINAL_COST.getIndex()).getNumericCellValue())
+                    .marginalCostTimestep(row.getCell(ThermalCapacityMeColumns.MARGINAL_COST_TIMESTEP.getIndex()).getStringCellValue())
+                    .marginalCostModulation(row.getCell(ThermalCapacityMeColumns.MARGINAL_COST_MODULATION.getIndex()).getNumericCellValue())
+                    .marketBidCost(row.getCell(ThermalCapacityMeColumns.MARKET_BID_COST.getIndex()).getNumericCellValue())
+                    .marketBidCostTimestep(row.getCell(ThermalCapacityMeColumns.MARKET_BID_COST_TIMESTEP.getIndex()).getStringCellValue())
+                    .marketBidCostModulation(row.getCell(ThermalCapacityMeColumns.MARKET_BID_COST_MODULATION.getIndex()).getNumericCellValue())
+                    .mustRun(getBooleanCell(row, ThermalCapacityMeColumns.MUST_RUN.getIndex()))
+                    .mrTimestep(row.getCell(ThermalCapacityMeColumns.MR_TIMESTEP.getIndex()).getStringCellValue())
+                    .mrModulation(row.getCell(ThermalCapacityMeColumns.MR_MODULATION.getIndex()).getNumericCellValue())
+                    .cmTimestep(row.getCell(ThermalCapacityMeColumns.CM_TIMESTEP.getIndex()).getStringCellValue())
+                    .cmModulation(row.getCell(ThermalCapacityMeColumns.CM_MODULATION.getIndex()).getNumericCellValue())
                     .trajectory(trajectory)
                     .build();
 
@@ -249,7 +251,7 @@ public class ThermalMeFileProcessorServiceImpl implements ThermalMeFileProcessor
     
     private void checkRow(Row row, List<String> columnNames, String trajectoryToUse, Path trajectoryPath) {
 
-        if (getCellValue(row, 0) == null) {
+        if (getCellValue(row, ThermalCapacityMeColumns.NODE.getIndex()) == null) {
             throw BusinessException.builder()
                     .message("{0} column must be filled in {1} trajectory {2}")
                     .errorMessageArguments(List.of(columnNames.getFirst(), THERMAL_ME, trajectoryToUse))
