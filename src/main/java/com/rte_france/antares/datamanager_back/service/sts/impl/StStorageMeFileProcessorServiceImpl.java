@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.StsMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -43,7 +44,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private final StudyRepository studyRepository;
     private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService; 
 
-    private static final Integer SERIES_INDEX_ME = 10;
     private static final String EXCEL_EXTENSION = ".xlsx";
     private static final int NODE_MAX_LENGTH = 60;
     private static final int NAME_MAX_LENGTH = 40;
@@ -137,9 +137,9 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                 if (!isValidMeRow(row, areasMeList)) {
                     continue;
                 }
-                String node = row.getCell(0).getStringCellValue();
-                String name = row.getCell(1).getStringCellValue();
-                String group = row.getCell(2).getStringCellValue();
+                String node = row.getCell(StsMeColumns.NODE.getIndex()).getStringCellValue();
+                String name = row.getCell(StsMeColumns.NAME.getIndex()).getStringCellValue();
+                String group = row.getCell(StsMeColumns.GROUP.getIndex()).getStringCellValue();
 
                 // Validations
                 validateMeNodeField(node, trajectoryFileName);
@@ -163,7 +163,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         if (row == null || isRowEmptyMe(row)) {
             return false;
         }
-        String node = row.getCell(0).getStringCellValue();
+        String node = row.getCell(StsMeColumns.NODE.getIndex()).getStringCellValue();
         return areasMeList.contains(node.toUpperCase(Locale.ROOT));
     }
 
@@ -171,7 +171,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                                             String horizonYear, Map<Path, Set<String>> headersCache, Map<String, List<String>> missingFilesMeKeysMap) throws IOException {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
-        Boolean hasSeriesMe = getBooleanCell(row, SERIES_INDEX_ME);
+        Boolean hasSeriesMe = getBooleanCell(row, StsMeColumns.SERIES.getIndex());
         if (hasSeriesMe) {
             Path seriesPath = buildStsOptionalFilesPathMe(trajectoryFilePath);
             if(!Files.exists(seriesPath) || !Files.isDirectory(seriesPath)) {
@@ -190,15 +190,15 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         stStorageEntity.setArea(node);
         stStorageEntity.setName(name);
         stStorageEntity.setGroupe(group);
-        stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
-        stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(4).getNumericCellValue()));
-        stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
-        stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(6).getNumericCellValue()));
-        stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
-        stStorageEntity.setInitialLevelOptim(getBooleanCell(row, 8));
-        stStorageEntity.setEnabled(getBooleanCell(row, 9));
+        stStorageEntity.setInjection(BigDecimal.valueOf(row.getCell(StsMeColumns.INJECTION.getIndex()).getNumericCellValue()));
+        stStorageEntity.setWithdrawal(BigDecimal.valueOf(row.getCell(StsMeColumns.WITHDRAWAL.getIndex()).getNumericCellValue()));
+        stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(StsMeColumns.STORAGE.getIndex()).getNumericCellValue()));
+        stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(StsMeColumns.EFFICIENCY.getIndex()).getNumericCellValue()));
+        stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(StsMeColumns.INITIAL_LEVEL.getIndex()).getNumericCellValue()));
+        stStorageEntity.setInitialLevelOptim(getBooleanCell(row, StsMeColumns.INITIAL_LEVEL_OPTIM.getIndex()));
+        stStorageEntity.setEnabled(getBooleanCell(row, StsMeColumns.ENABLED.getIndex()));
         stStorageEntity.setSeries(hasSeriesMe);
-        stStorageEntity.setConstraintsFlag(getBooleanCell(row, 11));
+        stStorageEntity.setConstraintsFlag(getBooleanCell(row, StsMeColumns.CONSTRAINTS_FLAG.getIndex()));
         return stStorageEntity;
     }
 
@@ -356,7 +356,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private void validateNumericRangeMe(Row row, String trajectoryFileName) {
-        for (int idx = 3; idx <= 7; idx++) {
+        for (int idx = StsMeColumns.INJECTION.getIndex(); idx <= StsMeColumns.INITIAL_LEVEL.getIndex(); idx++) {
             Cell numericCell = row.getCell(idx);
             if (!isNumericCell(numericCell)) {
                 throw createValidationError("Columns Injection [MW], Withdrawal [MW], Storage [MWh], Efficiency and initial_level must be numeric in ST_STORAGE_ME Clusters trajectory {0}",
@@ -366,14 +366,14 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private void validateMeInitialLevelRange(Row row, String trajectoryFileName) {
-        double initialLevel = row.getCell(7).getNumericCellValue();
+        double initialLevel = row.getCell(StsMeColumns.INITIAL_LEVEL.getIndex()).getNumericCellValue();
         if (initialLevel < 0 || initialLevel > 1) {
             throw createValidationError("initial_level must be between 0 and 1 in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
         }
     }
 
     private void validateBooleanRangeMe(Row row, String trajectoryFileName) {
-        for (int idx = 8; idx <= 10; idx++) {
+        for (int idx = StsMeColumns.INITIAL_LEVEL_OPTIM.getIndex(); idx <= StsMeColumns.SERIES.getIndex(); idx++) {
             Cell cell = row.getCell(idx);
             if (!isBooleanCell(cell)) {
                 throw createValidationError("Columns initial_level_optim , Enabled and Series must be boolean in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
@@ -382,7 +382,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private boolean isRowEmptyMe(Row row) {
-        for (int c = 0; c <= 9; c++) {
+        for (int c = 0; c <= StsMeColumns.ENABLED.getIndex(); c++) {
             Cell cell = row.getCell(c);
             if (cell != null && cell.getCellType() != CellType.BLANK) return false;
         }
