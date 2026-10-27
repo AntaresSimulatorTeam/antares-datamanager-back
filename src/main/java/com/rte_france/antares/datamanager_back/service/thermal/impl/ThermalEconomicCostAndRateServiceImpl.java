@@ -239,6 +239,9 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
 
 
     ThermalCostTypeEntity findOrCreateThermalEconomicCostType(Row row, Row header) {
+        if(row == null || header == null){
+            return null;
+        }
         String country = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.COUNTRY.getIndex())));
         String fuel = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.FUEL.getIndex())));
         String comment = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.COMMENT.getIndex())));
