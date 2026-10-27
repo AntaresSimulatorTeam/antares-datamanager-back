@@ -27,7 +27,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 
@@ -222,8 +221,8 @@ class ThermalEconomicServiceImplTest {
         header.createCell(0).setCellValue("fuel");
         header.createCell(1).setCellValue("country");
         header.createCell(2).setCellValue("year");
-        header.createCell(3).setCellValue("co2");
-        header.createCell(4).setCellValue("unit");
+        header.createCell(3).setCellValue("CO2_EmissionFuel");
+        header.createCell(4).setCellValue("unitCO2");
         header.createCell(5).setCellValue("comment");
         int r = 1;
         for (String[] rowData : rows) {
