@@ -351,6 +351,59 @@ class ThermalEconomicCostAndRateServiceImplTest {
             assertTrue(ex.getMessage().contains("Could not read thermal economic costs file"));
         }
     }
+
+    @Test
+    void buildThermalEconomicCostValueList_shouldThrowBusinessException_whenSheetIsNull() throws Exception {
+        Workbook workbook = mock(Workbook.class);
+        Path fakePath = mock(Path.class);
+        InputStream fakeInput = mock(InputStream.class);
+
+        try (MockedStatic<WorkbookFactory> workbookFactoryMock = mockStatic(WorkbookFactory.class);
+             MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+
+            filesMock.when(() -> Files.newInputStream(fakePath)).thenReturn(fakeInput);
+            workbookFactoryMock.when(() -> WorkbookFactory.create(fakeInput)).thenReturn(workbook);
+
+            when(workbook.getSheet("costs")).thenReturn(null);
+
+            BusinessException exception = assertThrows(
+                    BusinessException.class,
+                    () -> service.buildThermalEconomicCostValueList("costs_trajectoryTest", fakePath, "2025", 1)
+            );
+
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals("Sheet 'costs' is missing in trajectory {0}", exception.getMessage());
+            assertEquals(List.of("costs_trajectoryTest"), exception.getErrorMessageArguments());
+        }
+    }
+
+    @Test
+    void buildThermalEconomicCostValueList_shouldThrowBusinessException_whenHeaderIsNull() throws Exception {
+        Workbook workbook = mock(Workbook.class);
+        Sheet sheet = mock(Sheet.class);
+        Path fakePath = mock(Path.class);
+        InputStream fakeInput = mock(InputStream.class);
+
+        try (MockedStatic<WorkbookFactory> workbookFactoryMock = mockStatic(WorkbookFactory.class);
+             MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+
+            filesMock.when(() -> Files.newInputStream(fakePath)).thenReturn(fakeInput);
+            workbookFactoryMock.when(() -> WorkbookFactory.create(fakeInput)).thenReturn(workbook);
+
+            when(workbook.getSheet("costs")).thenReturn(sheet);
+            when(sheet.getRow(0)).thenReturn(null);
+
+            BusinessException exception = assertThrows(
+                    BusinessException.class,
+                    () -> service.buildThermalEconomicCostValueList("costs_trajectoryTest", fakePath, "2025", 1)
+            );
+
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals("Header row is missing in 'costs' sheet for trajectory {0}", exception.getMessage());
+            assertEquals(List.of("costs_trajectoryTest"), exception.getErrorMessageArguments());
+        }
+    }
+
     @Test
     void buildThermalEconomicRateValueList_shouldParseRateSheetWithValidData() throws Exception {
         Workbook workbook = mock(Workbook.class);
