@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Getter
-public enum ThermalRequiredColumns {
+public enum ThermalClusterColumns {
     TO_USE("ToUse"),
     AREA("Area"),
     FUEL("Fuel"),
@@ -16,13 +16,13 @@ public enum ThermalRequiredColumns {
 
     private final String displayName;
 
-    ThermalRequiredColumns(String displayName) {
+    ThermalClusterColumns(String displayName) {
         this.displayName = displayName;
     }
 
     public static List<String> getAllColumnNames() {
         return Arrays.stream(values())
-                .map(ThermalRequiredColumns::getDisplayName)
+                .map(ThermalClusterColumns::getDisplayName)
                 .toList();
     }
 }
