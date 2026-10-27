@@ -166,7 +166,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
 
 
     @Test
-    void testBuildThermalEconomicCostValueList_shouldParseFullCostRowCorrectly() throws Exception {
+    void testBuildThermalEconomicCostValueList_shouldParseFullCostRowCorrectly() {
 
         Workbook workbook = mock(Workbook.class);
         Sheet sheet = mock(Sheet.class);
@@ -316,7 +316,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
 
 
     @Test
-    void testBuildThermalEconomicRateValueList_shouldThrowBusinessExceptionWhenFileMissing() throws Exception {
+    void testBuildThermalEconomicRateValueList_shouldThrowBusinessExceptionWhenFileMissing() {
         Path fakePath = mock(Path.class);
 
         try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
@@ -335,7 +335,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
 
 
     @Test
-    void testBuildThermalEconomicCostValueList_shouldThrowBusinessExceptionWhenFileMissing() throws Exception {
+    void testBuildThermalEconomicCostValueList_shouldThrowBusinessExceptionWhenFileMissing() {
         Path fakePath = mock(Path.class);
 
         try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
@@ -353,7 +353,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicCostValueList_shouldThrowBusinessException_whenSheetIsNull() throws Exception {
+    void buildThermalEconomicCostValueList_shouldThrowBusinessException_whenSheetIsNull() {
         Workbook workbook = mock(Workbook.class);
         Path fakePath = mock(Path.class);
         InputStream fakeInput = mock(InputStream.class);
@@ -378,7 +378,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicCostValueList_shouldThrowBusinessException_whenHeaderIsNull() throws Exception {
+    void buildThermalEconomicCostValueList_shouldThrowBusinessException_whenHeaderIsNull() {
         Workbook workbook = mock(Workbook.class);
         Sheet sheet = mock(Sheet.class);
         Path fakePath = mock(Path.class);
@@ -405,7 +405,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicRateValueList_shouldParseRateSheetWithValidData() throws Exception {
+    void buildThermalEconomicRateValueList_shouldParseRateSheetWithValidData() {
         Workbook workbook = mock(Workbook.class);
         Sheet sheet = mock(Sheet.class);
         Row header = mock(Row.class);
@@ -462,7 +462,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
 
 
     @Test
-    void buildThermalEconomicRateValueList_shouldHandleEmptySheetGracefully() throws Exception {
+    void buildThermalEconomicRateValueList_shouldHandleEmptySheetGracefully() {
         Workbook workbook = mock(Workbook.class);
         Sheet sheet = mock(Sheet.class);
         Row header = mock(Row.class);
@@ -488,7 +488,7 @@ class ThermalEconomicCostAndRateServiceImplTest {
     }
 
     @Test
-    void buildThermalEconomicRateValueList_shouldSkipRowsWithBlankRateType() throws Exception {
+    void buildThermalEconomicRateValueList_shouldSkipRowsWithBlankRateType() {
         Workbook workbook = mock(Workbook.class);
         Sheet sheet = mock(Sheet.class);
         Row header = mock(Row.class);
