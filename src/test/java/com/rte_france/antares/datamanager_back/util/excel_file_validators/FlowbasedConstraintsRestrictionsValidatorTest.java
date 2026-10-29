@@ -79,7 +79,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     }
 
     @Test
-    void preservesOptionalNullsAndSharesOnlyReferencedListsInConstraintOrder() {
+    void mapsConstraintsAndSharesReferencedLists() {
         constraint(3, "Other", " nO ", "listLinks1");
         constraint(4, "Third", "yEs", "Second LIST");
         lists.getRow(0).createCell(4).setCellValue(" Second LIST ");
@@ -98,7 +98,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
         lists.getRow(5).createCell(1).setCellValue(3);
         lists.createRow(4).createCell(0).setCellValue("   ");
 
-        ParsedRestrictions result = parse("2026-2027");
+        ParsedRestrictions result = parse("2027");
 
         assertEquals(3, result.constraints().size());
         assertEquals(new RestrictionRow("Other", false, null, null, null, "listLinks1", null),
@@ -110,10 +110,19 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     }
 
     @Test
-    void selectsSecondYearWithoutReadingOtherYearSheets() {
+    void selectsExactHorizonSheetWithoutReadingOtherYearSheets() {
         workbook.createSheet("2026").createRow(0).createCell(0).setCellValue("invalid other year");
         workbook.createSheet("2021");
-        assertEquals("Restriction", parse("2026-2027").constraints().getFirst().name());
+        Sheet horizonSheet = workbook.createSheet("2026-2027");
+        Row header = horizonSheet.createRow(0);
+        for (var column : FlowbasedConstraintsRestrictionsColumns.values()) {
+            header.createCell(column.ordinal()).setCellValue(column.getDisplayName());
+        }
+        Row row = horizonSheet.createRow(1);
+        row.createCell(0).setCellValue("Range restriction");
+        row.createCell(1).setCellValue("YES");
+        row.createCell(6).setCellValue("listLinks1");
+        assertEquals("Range restriction", parse("2026-2027").constraints().getFirst().name());
     }
 
     @Test
@@ -265,17 +274,22 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"2027", "listLinks"})
-    void rejectsMissingRequiredSheetWithoutFallback(String sheet) {
+    @CsvSource({"2027,Missing horizon", "listLinks,Missing required sheet"})
+    void rejectsMissingRequiredSheetWithoutFallback(String sheet, String reason) {
         workbook.removeSheetAt(workbook.getSheetIndex(sheet));
         workbook.createSheet("2021");
-        assertInvalid("2026-2027", sheet, 1, 0, "Required sheet is missing");
+        BusinessException error = assertThrows(BusinessException.class, () -> parse("2027"));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getHttpStatus());
+        assertEquals(List.of(reason, sheet, "trajectory", FILE_NAME), error.getErrorMessageArguments());
     }
 
     @Test
     void requiresExactListSheetName() {
         workbook.setSheetName(workbook.getSheetIndex(lists), "LISTLINKS");
-        assertInvalid("2027", "listLinks", 1, 0, "Required sheet is missing");
+        BusinessException error = assertThrows(BusinessException.class, () -> parse("2027"));
+        assertEquals(HttpStatus.BAD_REQUEST, error.getHttpStatus());
+        assertEquals(List.of("Missing required sheet", "listLinks", "trajectory", FILE_NAME),
+                error.getErrorMessageArguments());
     }
 
     @ParameterizedTest
@@ -288,7 +302,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     @Test
     void rejectsMissingWorkbook() {
         BusinessException error = assertThrows(BusinessException.class,
-                () -> FlowbasedConstraintsRestrictionsValidator.parse(null, "2027", FILE_NAME));
+                () -> FlowbasedConstraintsRestrictionsValidator.parse(null, "2027", FILE_NAME, "trajectory"));
         assertEquals(HttpStatus.BAD_REQUEST, error.getHttpStatus());
     }
 
@@ -411,7 +425,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     }
 
     @Test
-    void returnsImmutableCollections() {
+    void parsedWorkbookReturnsImmutableCollections() {
         ParsedRestrictions result = parse("2027");
         assertThrows(UnsupportedOperationException.class, () -> result.constraints().clear());
         assertThrows(UnsupportedOperationException.class, () -> result.linkLists().clear());
@@ -436,7 +450,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     }
 
     private ParsedRestrictions parse(String horizon) {
-        return FlowbasedConstraintsRestrictionsValidator.parse(workbook, horizon, FILE_NAME);
+        return FlowbasedConstraintsRestrictionsValidator.parse(workbook, horizon, FILE_NAME, "trajectory");
     }
 
     private void assertInvalid(String horizon, String sheet, int row, int column, String reason) {

@@ -30,7 +30,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
 
     @Test
     void absentWorkbookLeavesRestrictionsEmpty() {
-        var result = processor.readRestrictions(tempDir, "2027");
+        var result = processor.readRestrictions(tempDir, "2027", "trajectory");
 
         assertThat(result.constraints()).isEmpty();
         assertThat(result.links()).isEmpty();
@@ -38,7 +38,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
 
     @Test
     void absentWorkbookReturnsModifiableCollections() {
-        var result = processor.readRestrictions(tempDir, "2027");
+        var result = processor.readRestrictions(tempDir, "2027", "trajectory");
 
         result.constraints().clear();
         result.links().clear();
@@ -51,8 +51,8 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
 
     @Test
     void parsedWorkbookReturnsModifiableCollections() throws IOException {
-        createWorkbook("2027");
-        var result = processor.readRestrictions(tempDir, "2026-2027");
+        createWorkbook("2026-2027");
+        var result = processor.readRestrictions(tempDir, "2026-2027", "trajectory");
         var constraints = new ArrayList<>(result.constraints());
         var links = new ArrayList<>(result.links());
 
@@ -67,9 +67,9 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
 
     @Test
     void mapsConstraintsAndSharesReferencedLists() throws IOException {
-        createWorkbook("2027");
+        createWorkbook("2026-2027");
 
-        var result = processor.readRestrictions(tempDir, "2026-2027");
+        var result = processor.readRestrictions(tempDir, "2026-2027", "trajectory");
 
         assertThat(result.constraints()).hasSize(2);
         var constraint = result.constraints().getFirst();
@@ -105,7 +105,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         }
 
         var exception = org.junit.jupiter.api.Assertions.assertThrows(BusinessException.class,
-                () -> processor.readRestrictions(tempDir, "2027"));
+                () -> processor.readRestrictions(tempDir, "2027", "trajectory"));
 
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(exception.getErrorMessageArguments()).contains("listLinks", "2", "B");
@@ -116,7 +116,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         createWorkbook("2021");
 
         var exception = org.junit.jupiter.api.Assertions.assertThrows(BusinessException.class,
-                () -> processor.readRestrictions(tempDir, "2027"));
+                () -> processor.readRestrictions(tempDir, "2027", "trajectory"));
         assertThat(exception.getErrorMessageArguments()).contains("2027");
         assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -126,7 +126,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         Path file = restrictionsFile();
         Files.writeString(file, "not an Excel workbook");
 
-        assertThatThrownBy(() -> processor.readRestrictions(tempDir, "2027"))
+        assertThatThrownBy(() -> processor.readRestrictions(tempDir, "2027", "trajectory"))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(error -> assertThat(((BusinessException) error).getHttpStatus())
                         .isEqualTo(HttpStatus.BAD_REQUEST));
@@ -139,7 +139,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         Path outside = Files.writeString(tempDir.resolve("outside.xlsx"), "outside");
         Files.createSymbolicLink(restrictions.resolve("contrainte_restriction_ahc.xlsx"), outside);
 
-        assertThatThrownBy(() -> processor.readRestrictions(base, "2027"))
+        assertThatThrownBy(() -> processor.readRestrictions(base, "2027", "trajectory"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("outside of the allowed directory");
     }
@@ -150,7 +150,7 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
         Path outside = Files.createDirectory(tempDir.resolve("outside"));
         Files.createSymbolicLink(base.resolve("restriction_ahc"), outside);
 
-        assertThatThrownBy(() -> processor.readRestrictions(base, "2027"))
+        assertThatThrownBy(() -> processor.readRestrictions(base, "2027", "trajectory"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("outside of the allowed directory");
     }

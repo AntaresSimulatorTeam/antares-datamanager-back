@@ -45,7 +45,7 @@ import static com.rte_france.antares.datamanager_back.service.thermal.impl.Therm
 public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessorService {
 
     private static final Pattern HVDC_NODE_PATTERN = Pattern.compile("z_([^_\\s]+)_([^_\\s]+)", Pattern.CASE_INSENSITIVE);
-
+    private static final String FLOWBASED_NODES_LINKS_FILE = "Flowbased_nodes_links.xlsx";
     private final TrajectoryRepository trajectoryRepository;
     private final AreaRepository areaRepository;
     private final UserService userService;
@@ -53,7 +53,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     private final PathSecurityUtil pathSecurityUtil;
 
     private static final String[] REQUIRED_FILES = {
-            "Flowbased_nodes_links.xlsx",
+            FLOWBASED_NODES_LINKS_FILE,
             "IdTypDays.csv",
             "second_member.txt",
             "weight.txt",
@@ -99,7 +99,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         validateVirtualNodesHvdcLinks(virtualNodes, studyId);
         List<FlowbasedLinkCapacityEntity> linkCapacities = buildFlowbasedLinkCapacityList(trajectoryFilePath);
         List<FlowbasedTypeDayEntity> typeDays = buildFlowbasedTypeDayList(trajectoryFilePath);
-        var restrictions = restrictionsFileProcessorService.readRestrictions(trajectoryFilePath, horizon);
+        var restrictions = restrictionsFileProcessorService.readRestrictions(trajectoryFilePath, horizon, trajectoryToUse);
 
         String checksum;
         LocalDateTime lastModificationContentDate;
@@ -127,7 +127,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("Trajectory already processed with same checksum")
+                        .message("File already processed with same content: " + trajectoryToUse)
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
             } else {
@@ -244,14 +244,14 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     @Override
     public List<FlowbasedVirtualNodesEntity> buildFlowbasedVirtualNodesList(Path trajectoryFilePath) {
         List<FlowbasedVirtualNodesEntity> result = new ArrayList<>();
-        Path excelPath = trajectoryFilePath.resolve("Flowbased_nodes_links.xlsx");
+        Path excelPath = trajectoryFilePath.resolve(FLOWBASED_NODES_LINKS_FILE);
 
         try (InputStream inputStream = Files.newInputStream(excelPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheet("nodes");
             if (sheet == null) {
-                throw new IOException("Sheet 'nodes' not found in Flowbased_nodes_links.xlsx");
+                throw new IOException("Sheet 'nodes' not found in "+ FLOWBASED_NODES_LINKS_FILE);
             }
 
             for (int i = 0; i <= sheet.getLastRowNum(); i++) {
@@ -338,7 +338,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
     @Override
     public List<FlowbasedLinkCapacityEntity> buildFlowbasedLinkCapacityList(Path trajectoryFilePath) {
         List<FlowbasedLinkCapacityEntity> result = new ArrayList<>();
-        Path excelPath = trajectoryFilePath.resolve("Flowbased_nodes_links.xlsx");
+        Path excelPath = trajectoryFilePath.resolve(FLOWBASED_NODES_LINKS_FILE);
 
         try (InputStream inputStream = Files.newInputStream(excelPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {

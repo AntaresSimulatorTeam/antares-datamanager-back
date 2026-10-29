@@ -34,7 +34,7 @@ public class FlowbasedConstraintsRestrictionsFileProcessorService {
 
     private final PathSecurityUtil pathSecurityUtil;
 
-    public RestrictionsData readRestrictions(Path trajectoryDirectory, String horizon) {
+    public RestrictionsData readRestrictions(Path trajectoryDirectory, String horizon, String trajectoryName) {
         Path file = pathSecurityUtil.resolveSafePath(trajectoryDirectory, DIRECTORY, FILE_NAME);
         if (Files.notExists(file, LinkOption.NOFOLLOW_LINKS)) {
             return new RestrictionsData(new ArrayList<>(), new ArrayList<>());
@@ -42,7 +42,7 @@ public class FlowbasedConstraintsRestrictionsFileProcessorService {
 
         try (InputStream input = Files.newInputStream(file);
              Workbook workbook = WorkbookFactory.create(input)) {
-            var parsed = FlowbasedConstraintsRestrictionsValidator.parse(workbook, horizon, FILE_NAME);
+            var parsed = FlowbasedConstraintsRestrictionsValidator.parse(workbook, horizon, FILE_NAME, trajectoryName);
             List<FlowbasedConstraintsRestrictionEntity> constraints = parsed.constraints().stream()
                     .map(row -> FlowbasedConstraintsRestrictionEntity.builder()
                             .name(row.name())

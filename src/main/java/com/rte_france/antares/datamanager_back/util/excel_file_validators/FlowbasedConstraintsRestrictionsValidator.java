@@ -44,7 +44,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
                                  String constraintType, String listLinks, String secondMember) {
     }
 
-    public static ParsedRestrictions parse(Workbook workbook, String horizon, String fileName) {
+    public static ParsedRestrictions parse(Workbook workbook, String horizon, String fileName, String trajectoryName) {
         if (horizon == null || !horizon.matches("[0-9]{4}(-[0-9]{4})?")) {
             throw invalid(fileName, String.valueOf(horizon), 0, 0, "Expected horizon YYYY or YYYY-YYYY");
         }
@@ -53,8 +53,8 @@ public final class FlowbasedConstraintsRestrictionsValidator {
             throw invalid(fileName, year, 0, 0, "Workbook is required");
         }
         var parser = new FlowbasedConstraintsRestrictionsValidator(workbook, fileName);
-        Sheet constraintsSheet = parser.requiredSheet(workbook, year);
-        Sheet listsSheet = parser.requiredSheet(workbook, LIST_LINKS_SHEET);
+        Sheet listsSheet = parser.requiredSheet("Missing required sheet", workbook, LIST_LINKS_SHEET, trajectoryName);
+        Sheet constraintsSheet = parser.requiredSheet("Missing horizon", workbook, horizon, trajectoryName);
         parser.validateHeaders(constraintsSheet);
         Map<String, List<WeightedLink>> allLists = parser.readLists(listsSheet);
         Map<String, List<WeightedLink>> referencedLists = new LinkedHashMap<>();
@@ -62,10 +62,10 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         return new ParsedRestrictions(List.copyOf(constraints), Collections.unmodifiableMap(referencedLists));
     }
 
-    private Sheet requiredSheet(Workbook workbook, String name) {
+    private Sheet requiredSheet(String reason, Workbook workbook, String name, String trajectoryName) {
         Sheet sheet = workbook.getSheet(name);
         if (sheet == null || !sheet.getSheetName().equals(name)) {
-            throw invalid(fileName, name, 0, 0, "Required sheet is missing");
+            throw invalidSheet(reason, name, trajectoryName, fileName);
         }
         return sheet;
     }
@@ -312,6 +312,14 @@ public final class FlowbasedConstraintsRestrictionsValidator {
                 .message("Invalid restrictions file {0}, sheet {1}, row {2}, column {3}: {4}")
                 .errorMessageArguments(List.of(String.valueOf(fileName), sheet, Integer.toString(row + 1),
                         CellReference.convertNumToColString(column), reason))
+                .httpStatus(HttpStatus.BAD_REQUEST)
+                .build();
+    }
+
+    private static BusinessException invalidSheet(String reason, String sheet, String trajectoryName, String fileName) {
+        return BusinessException.builder()
+                .message("{0} {1} in FLOWBASED {2} in file {3}")
+                .errorMessageArguments(List.of(reason, sheet, trajectoryName, String.valueOf(fileName)))
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }

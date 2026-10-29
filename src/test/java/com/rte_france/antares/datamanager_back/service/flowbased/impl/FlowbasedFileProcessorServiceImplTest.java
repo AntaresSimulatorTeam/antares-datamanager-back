@@ -68,7 +68,7 @@ class FlowbasedFileProcessorServiceImplTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        when(restrictionsFileProcessorService.readRestrictions(any(Path.class), anyString()))
+        when(restrictionsFileProcessorService.readRestrictions(any(Path.class), anyString(), anyString()))
                 .thenReturn(new FlowbasedConstraintsRestrictionsFileProcessorService.RestrictionsData(List.of(), List.of()));
         when(areaRepository.findAllByStudyId(1, TrajectoryType.AREA.name()))
                 .thenReturn(List.of(AreaEntity.builder().name("FR").build()));
@@ -191,7 +191,7 @@ class FlowbasedFileProcessorServiceImplTest {
                 .name("restriction_ahc").enabled(true).listLinks("listLinks1").build();
         var link = FlowbasedLinkListEntity.builder()
                 .listName("listLinks1").link("ch-fr").poids(-1.0).build();
-        when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027"))
+        when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027", "trajectory"))
                 .thenReturn(new FlowbasedConstraintsRestrictionsFileProcessorService.RestrictionsData(
                         List.of(constraint), List.of(link)));
         when(trajectoryRepository.save(any(TrajectoryEntity.class)))
@@ -212,7 +212,7 @@ class FlowbasedFileProcessorServiceImplTest {
                 .message("Missing listLinks1 in restrictions workbook")
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
-        when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027"))
+        when(restrictionsFileProcessorService.readRestrictions(tempDir, "2026-2027", "trajectory"))
                 .thenThrow(invalidRestrictions);
 
         assertSame(invalidRestrictions, assertThrows(BusinessException.class,
