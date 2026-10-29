@@ -126,11 +126,13 @@ public class StudyServiceImpl implements StudyService {
                         .build());
     }
 
-    @Transactional
     @Override
     public void generateStudy(Integer studyId) throws TechnicalException {
+        // Transaction split: fetch data once, release lock before heavy processing
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
         studyGeneratorService.callGenerateStudyService(studyId);
+        
+        // Update status in its own transaction after generation completes
         updateStudyStatusAsGenerated(studyId);
     }
 
@@ -386,6 +388,7 @@ public class StudyServiceImpl implements StudyService {
 
 
     @Override
+    @Transactional
     public void updateStudyStatusAsGenerated(Integer studyId) {
         studyRepository.findById(studyId).ifPresentOrElse(
                 studyEntity -> {

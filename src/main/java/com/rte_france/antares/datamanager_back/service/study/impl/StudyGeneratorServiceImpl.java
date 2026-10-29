@@ -33,11 +33,14 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 
@@ -88,7 +91,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         String sid = studyId != null ? String.valueOf(studyId) : "null";
         MDC.put("studyId", sid);
         log.info("Début de la génération du JSON pour l'étude id={}", studyId);
-        Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGeneration(studyId);
+        
+        // Transaction 1: Fetch study data (minimal scope)
+        Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGenerationWithTransactionSplit(studyId);
+        
+        // Transaction released - now process data without locking DB
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             String generatorJson = objectMapper.writeValueAsString(jsonStudyDataForGeneration);
@@ -108,36 +115,52 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
     }
 
-    private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) throws BusinessException, TechnicalException {
-        log.info("Construction des données JSON pour génération - étude id={}", studyId);
+    private Map<String, Object> buildJsonStudyDataForGenerationWithTransactionSplit(Integer studyId) throws TechnicalException {
+        // Step 1: Fetch data in minimal transaction
+        StudyDataForGeneration studyData = fetchStudyDataInTransaction(studyId);
+        
+        // Step 2: Process data WITHOUT transaction (no DB locks held)
+        return buildJsonStudyDataOutsideTransaction(studyData);
+    }
 
+    @Transactional(readOnly = true)
+    private StudyDataForGeneration fetchStudyDataInTransaction(Integer studyId) throws TechnicalException {
+        log.info("Fetching study data in read-only transaction - étude id={}", studyId);
+        
         Optional<StudyEntity> studyEntity = studyRepository.findById(studyId);
         if (studyEntity.isEmpty()) {
             log.error("Study not found with ID: {}", studyId);
             throw TechnicalException.builder().message("Study not found with ID: " + studyId).build();
         }
-
+        
         StudyEntity study = studyEntity.get();
         Set<TrajectoryEntity> trajectories = study.getTrajectories();
-        log.info("Study found id={} name={} with {} trajectories", studyId, study.getName(), trajectories != null ? trajectories.size() : 0);
-
+        log.info("Study found id={} name={} with {} trajectories", studyId, study.getName(), 
+                 trajectories != null ? trajectories.size() : 0);
+        
         if (trajectories == null || trajectories.isEmpty()) {
             throw BusinessException.builder()
                     .message("No trajectories found for study id=" + studyId + "; cannot build areas/links")
                     .build();
         }
+        
+        // Return a detached copy of the data (entities will be lazy-loaded before exiting transaction)
+        return new StudyDataForGeneration(study, new HashSet<>(trajectories));
+    }
 
-        // Get thermal cluster generation DTOs for all trajectories in the study
+    private Map<String, Object> buildJsonStudyDataOutsideTransaction(StudyDataForGeneration studyData) 
+            throws BusinessException, TechnicalException {
+        StudyEntity study = studyData.study();
+        Set<TrajectoryEntity> trajectories = studyData.trajectories();
+        
+        log.info("Construction des données JSON pour génération (sans transaction) - étude id={}", study.getId());
+
         var thermalClusterProps = thermalPropertiesAssemblerService.assembleForTrajectories(study);
-
-        // Must run before dispatchTrajectories/area JSON assembly because it produces a result keyed by cluster
-        // that both the FR node and y_nuc_modulation node need
         NuclearAvailabilityAssemblyResult nuclearAvailability = nuclearAvailabilityAssemblerService.assembleAvailability(
                 study, thermalClusterProps);
 
         TrajectoryDispatchResult dispatchResult = dispatchTrajectories(study, trajectories, thermalClusterProps, nuclearAvailability);
 
-        // y_nuc_modulation is a virtual node that only contains nuclear clusters
         dispatchResult.trajectoryOfType(TrajectoryType.NUCLEAR_FR_MODULATION).ifPresent(traj ->
                 dispatchResult.areasMap().put("y_nuc_modulation", buildYNucModulationAreaMap(thermalClusterProps, nuclearAvailability)));
 
@@ -151,6 +174,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         return jsonForGenerator;
     }
+
+    private record StudyDataForGeneration(StudyEntity study, Set<TrajectoryEntity> trajectories) {}
 
     /**
      * {@code singleTrajectoryByType} holds trajectory types that are unique in the study and
@@ -340,7 +365,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .map(AreaMapper::toAreaDto)
                 .toList();
 
-        // Get LOAD files by area from all study trajectories
+        // Pre-fetch shared context data (only done once, not per area)
         Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Number of zones LOAD found: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
 
@@ -385,14 +410,45 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .nuclearSmrMixageByClusterKey(projectByClusterKey(nuclearAvailability.smrMixageByCluster()))
                 .build();
 
-        Map<String, Map<String, Object>> areasDataMap = areaDTOs.stream()
-                .collect(Collectors.toMap(
-                        AreaDTO::getName,
-                        areaDTO -> areasMapGenerator(areaDTO, context)
-                ));
+        // Parallelize area generation: each area is independent
+        Map<String, Map<String, Object>> areasDataMap = buildAreasDataMapParallel(areaDTOs, context);
 
         areasMap.putAll(areasDataMap);
         log.info("Areas data with {} entries", areasDataMap.size());
+    }
+
+    private Map<String, Map<String, Object>> buildAreasDataMapParallel(List<AreaDTO> areaDTOs, 
+                                                                        AreasGenerationContextDTO context) {
+        if (areaDTOs.isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+
+        // Use parallel stream for area generation (independent operations)
+        // Collect into LinkedHashMap to maintain order
+        Map<String, CompletableFuture<Map<String, Object>>> futureMap = new LinkedHashMap<>();
+        
+        for (AreaDTO areaDTO : areaDTOs) {
+            futureMap.put(areaDTO.getName(), CompletableFuture.supplyAsync(
+                    () -> {
+                        log.debug("Generating area data for area={}", areaDTO.getName());
+                        return areasMapGenerator(areaDTO, context);
+                    },
+                    ForkJoinPool.commonPool()
+            ));
+        }
+
+        // Collect results
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, CompletableFuture<Map<String, Object>>> entry : futureMap.entrySet()) {
+            try {
+                result.put(entry.getKey(), entry.getValue().join());
+            } catch (Exception e) {
+                log.error("Error generating area data for area={}: {}", entry.getKey(), e.getMessage());
+                throw new RuntimeException("Failed to generate area data for area=" + entry.getKey(), e);
+            }
+        }
+
+        return result;
     }
 
     private <T> Map<String, T> projectByClusterKey(Map<AreaClusterRefKey, T> byRefKey) {
