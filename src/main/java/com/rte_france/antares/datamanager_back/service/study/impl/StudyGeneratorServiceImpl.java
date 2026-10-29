@@ -82,7 +82,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
 
 
-    @ExecutionTime
+    @ExecutionTime(description = "Génération complète du JSON d'étude", isRootStep = true)
     @Override
     public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
         String sid = studyId != null ? String.valueOf(studyId) : "null";
@@ -105,6 +105,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
     }
 
+    @ExecutionTime(description = "Construction des données JSON pour génération")
     private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) throws BusinessException, TechnicalException {
         log.info("Construction des données JSON pour génération - étude id={}", studyId);
 
@@ -163,6 +164,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
     }
 
+    @ExecutionTime(description = "Distribution des trajectoires par type")
     private TrajectoryDispatchResult dispatchTrajectories(StudyEntity study, Set<TrajectoryEntity> trajectories,
                                                            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
                                                            NuclearAvailabilityAssemblyResult nuclearAvailability) {
@@ -218,6 +220,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     }
 
+    @ExecutionTime(description = "Construction de la carte générale d'étude")
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                          Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> areasMap = dispatchResult.areasMap();
@@ -252,9 +255,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         innerGeneratorMap.put("links", dispatchResult.linksMap());
         innerGeneratorMap.put("flowbased", flowbasedMap);
 
-        dispatchResult.trajectoryOfType(TrajectoryType.P2G_CAPACITY_COST).ifPresent(capacityCostTraj ->
-                innerGeneratorMap.put("p2g", p2gGenerationAssemblerService.assembleP2g(
-                        study, capacityCostTraj, dispatchResult.trajectoryOfType(TrajectoryType.P2G_MARKET_MODULATION).orElse(null))));
+        // Tracing P2G
+        P2gGenerationDTO p2gData = buildP2gMap(study, dispatchResult);
+        if (p2gData != null) {
+            innerGeneratorMap.put("p2g", p2gData);
+        }
 
         Map<String, Object> bindingConstraints = buildBindingConstraintsMap(study, dispatchResult, thermalClusterProps);
         if (!bindingConstraints.isEmpty()) {
@@ -280,31 +285,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         if (areaMeTrajectory.isPresent() || efficiencyMeTrajectory.isPresent() || constraintMeTrajectory.isPresent()
                 || hydroCapacityMeTrajectory.isPresent()) {
-            Optional<TrajectoryEntity> linkMeTrajectory =
-                    dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
-            Optional<TrajectoryEntity> loadMeTrajectory =
-                    dispatchResult.trajectoryOfType(TrajectoryType.LOAD_ME);
-            Optional<TrajectoryEntity> stsMeTrajectory =
-                    dispatchResult.trajectoryOfType(TrajectoryType.STS_ME);
-            Optional<TrajectoryEntity> thermalMeTrajectory =
-                    dispatchResult.trajectoryOfType(TrajectoryType.THERMAL_CAPACITY_ME);
-
-            Map<String, Object> meMap = multiEnergyService.buildMultiEnergyMapWithThermalClusterProps(
-                    study,
-                    thermalClusterProps,
-                    areaMeTrajectory.orElse(null),
-                    linkMeTrajectory.orElse(null),
-                    loadMeTrajectory.orElse(null),
-                    stsMeTrajectory.orElse(null),
-                    efficiencyMeTrajectory.orElse(null),
-                    constraintMeTrajectory.orElse(null),
-                    thermalMeTrajectory.orElse(null),
-                    constraintMeTrajectory.orElse(null),
-                    hydroCapacityMeTrajectory.orElse(null),
-                    hydroParametersMeTrajectory.orElse(null),
-                    hydroReservoirLevelsMeTrajectory.orElse(null),
-                    hydroTimeSeriesMeTrajectory.orElse(null),
-                    hydroWaterValuesMeTrajectory.orElse(null));
+            // Tracing ME - Multi-Énergie
+            Map<String, Object> meMap = buildMultiEnergyMap(study, thermalClusterProps, dispatchResult);
 
             if (meMap != null && !meMap.isEmpty()) {
                 innerGeneratorMap.put("ME", meMap);
@@ -434,6 +416,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         return areaMap;
     }
 
+    @ExecutionTime(description = "Configuration du mode adéquation pour les zones")
     private void assembleAdequacyModeForStudyAreas(StudyEntity study, Map<String, Object> studyMap) throws BusinessException {
         TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
         Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
@@ -503,9 +486,9 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, Object> thermalsMap = thermalToJsonService.thermalsMapGenerator(nonNuclearClusters);
         Map<String, Object> nuclearClustersMap = thermalToJsonService.thermalsMapGenerator(
                 nuclearClusters, context.getNuclearSeriesByClusterKey(), context.getNuclearSmrMixageByClusterKey());
-        Map<String, Object> stsMap = stsToJsonService.stsMapGenerator(areaDTO.getName(), context.getStsClusterProps());
-        Map<String, Object> dsrMap = dsrToJsonService.buildDsrDataMap(areaDTO.getName(), context.getDsrClusterProps());
-        Map<String, Object> miscMap = miscToJsonService.buildMiscDataMap(areaDTO.getName(), context.getMiscProps());
+        Map<String, Object> stsMap = buildStsDataForArea(areaDTO.getName(), context.getStsClusterProps());
+        Map<String, Object> dsrMap = buildDsrDataForArea(areaDTO.getName(), context.getDsrClusterProps());
+        Map<String, Object> miscMap = buildMiscDataForArea(areaDTO.getName(), context.getMiscProps());
         var resMap = resToJsonService.buildResDataMap(areaDTO.getName(), context.getResProps());
         Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), context.getHydroProps());
 
@@ -560,6 +543,67 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                     .cause(ex)
                     .build();
         }
+    }
+
+    // ============= Méthodes wrapper annotées pour traçage ELK des services manquants =============
+
+    @ExecutionTime(description = "Génération de la configuration Multi-Énergie (ME)")
+    private Map<String, Object> buildMultiEnergyMap(StudyEntity study, 
+                                                     Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
+                                                     TrajectoryDispatchResult dispatchResult) {
+        Optional<TrajectoryEntity> areaMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.AREA_ME);
+        Optional<TrajectoryEntity> linkMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.LINK_ME);
+        Optional<TrajectoryEntity> loadMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.LOAD_ME);
+        Optional<TrajectoryEntity> efficiencyMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.EFFICIENCY_ME);
+        Optional<TrajectoryEntity> constraintMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.CONSTRAINT_ME);
+        Optional<TrajectoryEntity> hydroCapacityMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_CAPACITY_ME);
+        Optional<TrajectoryEntity> hydroParametersMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_PARAMETERS_ME);
+        Optional<TrajectoryEntity> hydroReservoirLevelsMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_RESERVOIR_LEVELS_ME);
+        Optional<TrajectoryEntity> hydroTimeSeriesMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_TIME_SERIES_ME);
+        Optional<TrajectoryEntity> hydroWaterValuesMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.HYDRO_WATER_VALUES_ME);
+        Optional<TrajectoryEntity> stsMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.STS_ME);
+        Optional<TrajectoryEntity> thermalMeTrajectory = dispatchResult.trajectoryOfType(TrajectoryType.THERMAL_CAPACITY_ME);
+
+        return multiEnergyService.buildMultiEnergyMapWithThermalClusterProps(
+                study,
+                thermalClusterProps,
+                areaMeTrajectory.orElse(null),
+                linkMeTrajectory.orElse(null),
+                loadMeTrajectory.orElse(null),
+                stsMeTrajectory.orElse(null),
+                efficiencyMeTrajectory.orElse(null),
+                constraintMeTrajectory.orElse(null),
+                thermalMeTrajectory.orElse(null),
+                constraintMeTrajectory.orElse(null),
+                hydroCapacityMeTrajectory.orElse(null),
+                hydroParametersMeTrajectory.orElse(null),
+                hydroReservoirLevelsMeTrajectory.orElse(null),
+                hydroTimeSeriesMeTrajectory.orElse(null),
+                hydroWaterValuesMeTrajectory.orElse(null));
+    }
+
+    @ExecutionTime(description = "Génération de la configuration P2G (Power-to-Gas)")
+    private P2gGenerationDTO buildP2gMap(StudyEntity study, TrajectoryDispatchResult dispatchResult) {
+        return dispatchResult.trajectoryOfType(TrajectoryType.P2G_CAPACITY_COST)
+                .map(capacityCostTraj -> p2gGenerationAssemblerService.assembleP2g(
+                        study, capacityCostTraj, 
+                        dispatchResult.trajectoryOfType(TrajectoryType.P2G_MARKET_MODULATION).orElse(null)))
+                .orElse(null);
+    }
+
+    @ExecutionTime(description = "Génération des données STS (Short-Term Storage)")
+    private Map<String, Object> buildStsDataForArea(String areaName, Map<String, StsGenerationDTO> stsProps) {
+        return stsToJsonService.stsMapGenerator(areaName, stsProps);
+    }
+
+    @ExecutionTime(description = "Génération des données DSR (Demand-Side Response)")
+    private Map<String, Object> buildDsrDataForArea(String areaName, Map<String, DsrGenerationDTO> dsrProps) {
+        return dsrToJsonService.buildDsrDataMap(areaName, dsrProps);
+    }
+
+    @ExecutionTime(description = "Génération des données MISC (Miscellaneous)")
+    private Map<String, Object> buildMiscDataForArea(String areaName, Map<String, List<MiscGenerationDTO>> miscProps) {
+        return miscToJsonService.buildMiscDataMap(areaName, miscProps);
     }
 
 }
