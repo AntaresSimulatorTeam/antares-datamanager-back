@@ -51,8 +51,8 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
 
     @Test
     void parsedWorkbookReturnsModifiableCollections() throws IOException {
-        createWorkbook("2026-2027");
-        var result = processor.readRestrictions(tempDir, "2026-2027", "trajectory");
+        createWorkbook("2027");
+        var result = processor.readRestrictions(tempDir, "2027", "trajectory");
         var constraints = new ArrayList<>(result.constraints());
         var links = new ArrayList<>(result.links());
 
@@ -67,9 +67,9 @@ class FlowbasedConstraintsRestrictionsFileProcessorServiceTest {
 
     @Test
     void mapsConstraintsAndSharesReferencedLists() throws IOException {
-        createWorkbook("2026-2027");
+        createWorkbook("2027");
 
-        var result = processor.readRestrictions(tempDir, "2026-2027", "trajectory");
+        var result = processor.readRestrictions(tempDir, "2027", "trajectory");
 
         assertThat(result.constraints()).hasSize(2);
         var constraint = result.constraints().getFirst();
