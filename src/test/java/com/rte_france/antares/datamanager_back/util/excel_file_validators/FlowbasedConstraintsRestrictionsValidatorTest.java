@@ -113,7 +113,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
     void selectsExactHorizonSheetWithoutReadingOtherYearSheets() {
         workbook.createSheet("2026").createRow(0).createCell(0).setCellValue("invalid other year");
         workbook.createSheet("2021");
-        Sheet horizonSheet = workbook.createSheet("2026-2027");
+        Sheet horizonSheet = workbook.getSheet("2027");
         Row header = horizonSheet.createRow(0);
         for (var column : FlowbasedConstraintsRestrictionsColumns.values()) {
             header.createCell(column.ordinal()).setCellValue(column.getDisplayName());
@@ -122,7 +122,7 @@ class FlowbasedConstraintsRestrictionsValidatorTest {
         row.createCell(0).setCellValue("Range restriction");
         row.createCell(1).setCellValue("YES");
         row.createCell(6).setCellValue("listLinks1");
-        assertEquals("Range restriction", parse("2026-2027").constraints().getFirst().name());
+        assertEquals("Range restriction", parse("2027").constraints().getFirst().name());
     }
 
     @Test

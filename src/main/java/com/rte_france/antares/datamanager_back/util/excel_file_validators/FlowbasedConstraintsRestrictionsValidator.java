@@ -54,7 +54,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
         }
         var parser = new FlowbasedConstraintsRestrictionsValidator(workbook, fileName);
         Sheet listsSheet = parser.requiredSheet("Missing required sheet", workbook, LIST_LINKS_SHEET, trajectoryName);
-        Sheet constraintsSheet = parser.requiredSheet("Missing horizon", workbook, horizon, trajectoryName);
+        Sheet constraintsSheet = parser.requiredSheet("Missing horizon", workbook, year, trajectoryName);
         parser.validateHeaders(constraintsSheet);
         Map<String, List<WeightedLink>> allLists = parser.readLists(listsSheet);
         Map<String, List<WeightedLink>> referencedLists = new LinkedHashMap<>();
