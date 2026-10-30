@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.dsr.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -42,6 +43,7 @@ public class DsrPropertiesAssemblerServiceImpl implements DsrGenerationAssembler
     private final TimeSeriesReader timeSeriesReader;
 
 @Override
+@ExecutionTime
 public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
 
     // Compute modulation files only once

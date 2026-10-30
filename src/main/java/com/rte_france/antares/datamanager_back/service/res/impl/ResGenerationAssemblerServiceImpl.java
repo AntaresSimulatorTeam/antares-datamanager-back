@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
 import com.rte_france.antares.datamanager_back.dto.ResFrAggregationDto;
@@ -76,6 +77,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private record ClusterGroupKey(String group, String cluster) {}
 
     @Override
+    @ExecutionTime
     public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
         var trajectories = studyEntity.getTrajectories();
         if (trajectories == null || trajectories.isEmpty()) {

@@ -126,7 +126,6 @@ public class StudyServiceImpl implements StudyService {
                         .build());
     }
 
-    @Transactional
     @Override
     public void generateStudy(Integer studyId) throws TechnicalException {
         studyGeneratorService.buildJsonForStudyGeneration(studyId);

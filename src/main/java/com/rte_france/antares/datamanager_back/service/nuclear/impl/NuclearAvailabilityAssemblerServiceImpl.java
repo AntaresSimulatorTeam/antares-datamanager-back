@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.service.nuclear.NuclearAvailabili
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearClusterNames;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.NuclearTimeSeriesReader;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
@@ -66,6 +67,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private final PathSecurityUtil pathSecurityUtil;
     private final ClusterDesignationRepository clusterDesignationRepository;
 
+    @ExecutionTime
     @Override
     public NuclearAvailabilityAssemblyResult assembleAvailability(StudyEntity study,
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {

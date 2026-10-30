@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
@@ -34,6 +35,7 @@ public class LoadToJsonService {
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
+    @ExecutionTime
     public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         log.info("Retrieve LOAD files for study = {}", studyEntity.getId());
         Map<Integer, String> arrowFileCache = new HashMap<>();

@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.sts.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -37,6 +38,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     private final TimeSeriesReader timeSeriesReader;
 
     @Override
+    @ExecutionTime
     public Map<String, StsGenerationDTO> assembleStsProperties(
             StudyEntity studyEntity) {
         if (studyEntity == null || studyEntity.getTrajectories() == null) {
