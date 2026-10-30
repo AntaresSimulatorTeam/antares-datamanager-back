@@ -9,7 +9,7 @@ import java.util.Map;
 
 public interface ThermalPropertiesAssemblerService {
 
-    Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleForTrajectories(StudyEntity study);
+    Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleThermalForTrajectories(StudyEntity study);
 
     Map<String, ThermalMEClusterGenerationDto> assembleThermalMeProperties(TrajectoryEntity trajectoryEntity);
 

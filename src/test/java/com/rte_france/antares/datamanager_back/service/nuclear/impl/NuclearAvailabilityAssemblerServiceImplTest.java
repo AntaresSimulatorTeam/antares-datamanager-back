@@ -45,7 +45,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anySet;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -152,7 +151,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             props.put(smrKey, ThermalClusterGenerationDto.builder().build());
             props.put(peakKey, ThermalClusterGenerationDto.builder().build());
 
-            NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(ltTrajectory()), props);
+            NuclearAvailabilityAssemblyResult result = assembler.assembleNuclearAvailability(studyWith(ltTrajectory()), props);
 
             assertThat(result.seriesByCluster())
                     .containsEntry(cp0Key, "lt_cp0_cp1_cp2_arrow_file.arrow")
@@ -184,7 +183,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             )));
             // day 1: 10.005 + 20.004 = 30.009 -> 30.01
 
-            assembler.assembleAvailability(studyWith(ltTrajectory()), props);
+            assembler.assembleNuclearAvailability(studyWith(ltTrajectory()), props);
 
             ArgumentCaptor<TimeSeriesMatrix> captor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
             verify(capturingWriter).writeToByteArray(captor.capture());
@@ -246,7 +245,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             props.put(eprKey, ThermalClusterGenerationDto.builder().build());
             props.put(ltKey, ThermalClusterGenerationDto.builder().build());
 
-            NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(eprTrajectory(STORED_NAME)), props);
+            NuclearAvailabilityAssemblyResult result = assembler.assembleNuclearAvailability(studyWith(eprTrajectory(STORED_NAME)), props);
 
             assertThat(result.seriesByCluster())
                     .containsEntry(eprKey, "epr_arrow_file.arrow")
@@ -282,7 +281,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
             props.put(key("fr", "Nuclear_epr"), ThermalClusterGenerationDto.builder().build());
 
-            assembler.assembleAvailability(studyWith(eprTrajectory(storedName)), props);
+            assembler.assembleNuclearAvailability(studyWith(eprTrajectory(storedName)), props);
 
             ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
             verify(nuclearTimeSeriesReader).readFromXlsx(pathCaptor.capture(), any(), anyBoolean());
@@ -294,7 +293,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
             StudyEntity study = studyWith(eprTrajectory("no_such_file"));
 
-            assertThatThrownBy(() -> assembler.assembleAvailability(study, props))
+            assertThatThrownBy(() -> assembler.assembleNuclearAvailability(study, props))
                     .isInstanceOf(TechnicalException.class);
         }
     }
@@ -335,7 +334,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             AreaClusterRefKey smrKey = key("fr", "Nuclear_smr");
             props.put(smrKey, ThermalClusterGenerationDto.builder().unitCount(3).build());
 
-            NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(smrTrajectory()), props);
+            NuclearAvailabilityAssemblyResult result = assembler.assembleNuclearAvailability(studyWith(smrTrajectory()), props);
 
             ArgumentCaptor<TimeSeriesMatrix> captor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
             verify(capturingWriter).writeToByteArray(captor.capture());
@@ -372,7 +371,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             AreaClusterRefKey smrKey = key("fr", "Nuclear_smr");
             props.put(smrKey, ThermalClusterGenerationDto.builder().unitCount(1).build());
 
-            assembler.assembleAvailability(studyWith(smrTrajectory()), props);
+            assembler.assembleNuclearAvailability(studyWith(smrTrajectory()), props);
 
             ArgumentCaptor<TimeSeriesMatrix> captor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
             verify(capturingWriter).writeToByteArray(captor.capture());
@@ -395,7 +394,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             props.put(smrKey1, ThermalClusterGenerationDto.builder().unitCount(1).build());
             props.put(smrKey2, ThermalClusterGenerationDto.builder().unitCount(2).build());
 
-            NuclearAvailabilityAssemblyResult result = assembler.assembleAvailability(studyWith(smrTrajectory()), props);
+            NuclearAvailabilityAssemblyResult result = assembler.assembleNuclearAvailability(studyWith(smrTrajectory()), props);
 
             String smrKey2Series = result.seriesByCluster().get(smrKey2);
             assertThat(result.seriesByCluster()).containsEntry(smrKey1, smrKey2Series);
@@ -411,7 +410,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
             props.put(key("fr", "Nuclear_smr"), ThermalClusterGenerationDto.builder().build());
             StudyEntity study = studyWith(smrTrajectory());
 
-            assertThatThrownBy(() -> assembler.assembleAvailability(study, props))
+            assertThatThrownBy(() -> assembler.assembleNuclearAvailability(study, props))
                     .isInstanceOf(BusinessException.class);
         }
     }
