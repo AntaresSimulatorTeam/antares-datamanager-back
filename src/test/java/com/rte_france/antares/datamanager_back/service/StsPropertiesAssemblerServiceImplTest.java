@@ -40,6 +40,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -672,6 +675,144 @@ class StsPropertiesAssemblerServiceImplTest {
 
         assertEquals(2, result.size());
         verify(nasFileService, times(StsTsFile.requiredFiles().size())).readMatrix(any(Path.class), eq(horizon), any(), any());
+        verify(timeSeriesWriter, times(StsTsFile.requiredFiles().size())).writeToByteArray(any());
+        verify(nasFileService, times(StsTsFile.requiredFiles().size()))
+                .saveMatrixBytesToNas(any(), any(), eq("/output"));
+        assertThat(result.get("FR_S1").getStsTsList())
+                .containsExactlyElementsOf(result.get("FR_S2").getStsTsList());
+        assertThat(result.get("FR_S1").getStsTsList())
+                .isNotSameAs(result.get("FR_S2").getStsTsList());
+    }
+
+    @Test
+    void createMatrixStsTsFiles_ShouldProcessFourFilesConcurrentlyAndPreserveOrder() throws Exception {
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
+            Files.createFile(file.resolve(tempDir));
+        }
+        Thread caller = Thread.currentThread();
+        StStorageEntity storage = spy(StStorageEntity.builder().tsPath(tempDir.toString()).build());
+        doAnswer(invocation -> {
+            assertThat(Thread.currentThread()).isSameAs(caller);
+            return null;
+        }).when(storage).getTrajectory();
+        doAnswer(invocation -> {
+            assertThat(Thread.currentThread()).isSameAs(caller);
+            return "battery";
+        }).when(storage).getGroupe();
+
+        CountDownLatch started = new CountDownLatch(4);
+        AtomicInteger active = new AtomicInteger();
+        AtomicInteger maxActive = new AtomicInteger();
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("series", new double[]{1.0})));
+        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq("STS"), eq("battery")))
+                .thenAnswer(invocation -> {
+                    int count = active.incrementAndGet();
+                    maxActive.accumulateAndGet(count, Math::max);
+                    started.countDown();
+                    try {
+                        assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+                        return matrix;
+                    } finally {
+                        active.decrementAndGet();
+                    }
+                });
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(matrix)).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output")))
+                .thenAnswer(invocation -> invocation.getArgument(1) + ".arrow");
+
+        List<String> result = stsPropertiesAssemblerService.createMatrixStsTsFiles(storage, "2030");
+
+        assertThat(maxActive.get()).isEqualTo(4);
+        assertThat(result).containsExactly(
+                "inflows.xlsx.arrow",
+                "lower_curve.xlsx.arrow",
+                "Pmax_injection.xlsx.arrow",
+                "Pmax_soutirage.xlsx.arrow",
+                "upper_curve.xlsx.arrow");
+    }
+
+    @Test
+    void createMatrixStsTsFiles_ShouldNotReuseFilesAcrossCallsOrHorizons() throws Exception {
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
+            Files.createFile(file.resolve(tempDir));
+        }
+        StStorageEntity storage = StStorageEntity.builder().tsPath(tempDir.toString()).build();
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(nasFileService.readMatrix(any(Path.class), any(), any(), any()))
+                .thenReturn(new TimeSeriesMatrix(List.of()));
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        AtomicInteger sequence = new AtomicInteger();
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output")))
+                .thenAnswer(invocation -> "series-" + sequence.incrementAndGet() + ".arrow");
+
+        List<String> first = stsPropertiesAssemblerService.createMatrixStsTsFiles(storage, "2030");
+        List<String> second = stsPropertiesAssemblerService.createMatrixStsTsFiles(storage, "2040");
+
+        assertThat(first).hasSize(5).doesNotContainAnyElementsOf(second);
+        assertThat(second).hasSize(5);
+        verify(nasFileService, times(5)).readMatrix(any(Path.class), eq("2030"), any(), any());
+        verify(nasFileService, times(5)).readMatrix(any(Path.class), eq("2040"), any(), any());
+        verify(nasFileService, times(10)).saveMatrixBytesToNas(any(), any(), eq("/output"));
+    }
+
+    @Test
+    void createMatrixStsTsFiles_ShouldPropagateWriteFailure() throws Exception {
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
+            Files.createFile(file.resolve(tempDir));
+        }
+        StStorageEntity storage = StStorageEntity.builder().tsPath(tempDir.toString()).build();
+        when(nasFileService.readMatrix(any(Path.class), any(), any(), any()))
+                .thenReturn(new TimeSeriesMatrix(List.of()));
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), any()))
+                .thenThrow(new java.io.IOException("NAS write failed"));
+
+        assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(storage, "2030"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("NAS write failed")
+                .satisfies(error -> assertThat(((BusinessException) error).getHttpStatus())
+                        .isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
+    void assembleStsProperties_ShouldWriteOneRealArrowFilePerSharedInput() throws Exception {
+        Path seriesDir = Files.createDirectory(tempDir.resolve("series"));
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
+            Files.createFile(file.resolve(seriesDir));
+        }
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("output");
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn("series", new double[]{1.0, 2.0, 3.0})));
+        when(timeSeriesReader.readFromXlsx(any(), eq("2030"), eq(true))).thenReturn(matrix);
+        NasFileService realNas = new NasFileService(
+                timeSeriesReader, new TimeSeriesWriter(), antaresDataManagerProperties);
+        StsPropertiesAssemblerServiceImpl assembler = new StsPropertiesAssemblerServiceImpl(
+                antaresDataManagerProperties, realNas, timeSeriesReader);
+        StStorageEntity first = StStorageEntity.builder()
+                .area("FR").name("S1").injection(BigDecimal.ONE).tsPath(seriesDir.toString()).build();
+        StStorageEntity second = StStorageEntity.builder()
+                .area("FR").name("S2").injection(BigDecimal.ONE).tsPath(seriesDir.toString()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type("STS").stStorageEntities(List.of(first, second)).build();
+        StudyEntity study = StudyEntity.builder().horizon("2030").trajectories(Set.of(trajectory)).build();
+
+        Map<String, StsGenerationDTO> result = assembler.assembleStsProperties(study);
+
+        List<String> files = result.get("FR_S1").getStsTsList();
+        assertThat(files).hasSize(5).doesNotHaveDuplicates();
+        assertThat(result.get("FR_S2").getStsTsList()).containsExactlyElementsOf(files);
+        for (String file : files) {
+            assertThat(tempDir.resolve("output").resolve(file)).isRegularFile().hasExtension("arrow");
+            assertThat(Files.size(tempDir.resolve("output").resolve(file))).isPositive();
+        }
+        try (var outputFiles = Files.list(tempDir.resolve("output"))) {
+            assertThat(outputFiles.count()).isEqualTo(5);
+        }
     }
 
     @Test
@@ -1258,5 +1399,47 @@ class StsPropertiesAssemblerServiceImplTest {
         assertThat(result).containsKeys("V_ME_H2_SHORT_FR_st_storage1", "V_ME_POWER_FR_st_storage2");
         assertThat(result.get("V_ME_H2_SHORT_FR_st_storage1").getStsTsList()).hasSize(4);
         assertThat(result.get("V_ME_POWER_FR_st_storage2").getStsTsList()).hasSize(4);
+        verify(nasFileService, times(4)).readMatrix(any(Path.class), eq("2030"), eq("STS_ME"), any());
+        ArgumentCaptor<TimeSeriesMatrix> matrices = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
+        verify(timeSeriesWriter, times(8)).writeToByteArray(matrices.capture());
+        assertThat(matrices.getAllValues().stream().map(m -> m.columns().getFirst().values()[0]).toList())
+                .containsExactlyInAnyOrder(1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0);
+    }
+
+    @Test
+    void assembleStsMeProperties_ShouldSaveSharedColumnOnceIgnoringCaseAndKeepFirstMatch() throws Exception {
+        for (StsTsFile file : StsTsFile.requiredFiles(TrajectoryType.STS_ME)) {
+            Files.createFile(file.resolve(tempDir));
+        }
+        StStorageEntity first = StStorageEntity.builder()
+                .area("FR").name("storage").injection(BigDecimal.ONE).tsPath(tempDir.toString()).build();
+        StStorageEntity second = StStorageEntity.builder()
+                .area("fr").name("STORAGE").injection(BigDecimal.ONE).tsPath(tempDir.toString()).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type("STS_ME").stStorageEntities(List.of(first, second)).build();
+        StudyEntity study = StudyEntity.builder().horizon("2029-2030").trajectories(Set.of(trajectory)).build();
+        TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
+                new TimeSeriesMatrixColumn(" fr.Storage ", new double[]{1.0}),
+                new TimeSeriesMatrixColumn("FR.STORAGE", new double[]{2.0})));
+        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq("STS_ME"), any())).thenReturn(matrix);
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenAnswer(invocation -> {
+            TimeSeriesMatrix selected = invocation.getArgument(0);
+            assertThat(selected.columns()).hasSize(1);
+            assertThat(selected.columns().getFirst().name()).isEqualTo(" fr.Storage ");
+            assertThat(selected.columns().getFirst().values()).containsExactly(1.0);
+            return new byte[]{1};
+        });
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("output")))
+                .thenAnswer(invocation -> invocation.getArgument(1) + ".arrow");
+
+        Map<String, StsGenerationDTO> result = stsPropertiesAssemblerService.assembleStsMeProperties(study, trajectory);
+
+        assertThat(result).containsOnlyKeys("FR_storage", "FR_STORAGE");
+        assertThat(result.get("FR_storage").getStsTsList()).hasSize(4)
+                .containsExactlyElementsOf(result.get("FR_STORAGE").getStsTsList());
+        verify(timeSeriesWriter, times(4)).writeToByteArray(any());
+        verify(nasFileService, times(4)).saveMatrixBytesToNas(any(), any(), eq("output"));
     }
 }

@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
 import com.rte_france.antares.datamanager_back.dto.StsGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.StStorageMapper;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
@@ -25,6 +26,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -32,6 +36,8 @@ import java.util.stream.IntStream;
 @Service
 @RequiredArgsConstructor
 public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssemblerService {
+
+    private static final int MAX_CONCURRENT_SERIES_FILES = 4;
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final NasFileService nasFileService;
@@ -142,25 +148,22 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                                 }
                         ));
 
-        ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache = new ConcurrentHashMap<>();
-        ConcurrentHashMap<Path, byte[]> bytesCache = new ConcurrentHashMap<>();
-
-        return eligibleEntities.stream()
-                .collect(Collectors.toConcurrentMap(
-                        sts -> sts.getArea().toUpperCase() + "_" + sts.getName(),
-                        sts -> {
-                            StsGenerationDTO dto = isMe
-                                    ? StStorageMapper.mapToStsGenerationDTOForMe(sts)
-                                    : StStorageMapper.mapToStsGenerationDTO(sts);
-                            dto.setStsTsList(this.createMatrixStsTsFiles(sts, horizon, matrixCache, bytesCache));
-                            String clusterKey = sts.getArea().toUpperCase(Locale.ROOT) + "_" + sts.getName();
-                            dto.setStsConstraintsSeriesList(
-                                    constraintsByArea.getOrDefault(clusterKey, List.of()));
-                            dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
-                            return dto;
-                        },
-                        (existing, replacement) -> existing
-                ));
+        Map<String, StsGenerationDTO> result = new LinkedHashMap<>();
+        Map<Path, SeriesFileJob> seriesJobs = new LinkedHashMap<>();
+        for (StStorageEntity sts : eligibleEntities) {
+            StsGenerationDTO dto = isMe
+                    ? StStorageMapper.mapToStsGenerationDTOForMe(sts)
+                    : StStorageMapper.mapToStsGenerationDTO(sts);
+            List<String> savedFiles = new ArrayList<>();
+            dto.setStsTsList(savedFiles);
+            addSeriesJobs(sts, savedFiles, seriesJobs);
+            String clusterKey = sts.getArea().toUpperCase(Locale.ROOT) + "_" + sts.getName();
+            dto.setStsConstraintsSeriesList(constraintsByArea.getOrDefault(clusterKey, List.of()));
+            dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
+            result.putIfAbsent(sts.getArea().toUpperCase() + "_" + sts.getName(), dto);
+        }
+        generateSeriesFiles(seriesJobs, horizon);
+        return result;
     }
 
     private String getMeHorizon(String studyHorizon) {
@@ -325,36 +328,114 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
     @Override
     public List<String> createMatrixStsTsFiles(StStorageEntity stsEntity, String horizon) {
-        return createMatrixStsTsFiles(stsEntity, horizon, new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+        List<String> savedFiles = new ArrayList<>();
+        Map<Path, SeriesFileJob> seriesJobs = new LinkedHashMap<>();
+        addSeriesJobs(stsEntity, savedFiles, seriesJobs);
+        generateSeriesFiles(seriesJobs, horizon);
+        return savedFiles;
     }
 
-    private List<String> createMatrixStsTsFiles(StStorageEntity stsEntity, String horizon,
-                                                ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache,
-                                                ConcurrentHashMap<Path, byte[]> bytesCache) {
+    private void addSeriesJobs(StStorageEntity stsEntity, List<String> savedFiles,
+                               Map<Path, SeriesFileJob> seriesJobs) {
         if (stsEntity == null || stsEntity.getTsPath() == null || stsEntity.getTsPath().isBlank()) {
-            return Collections.emptyList();
+            return;
         }
-        Path tsDir = Path.of(stsEntity.getTsPath());
+        Path tsDir = Path.of(stsEntity.getTsPath()).normalize();
         TrajectoryType trajectoryType = resolveTrajectoryType(stsEntity);
-
-        String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
-        List<String> saved = new ArrayList<>();
+        String meKey = trajectoryType == TrajectoryType.STS_ME
+                ? buildMeKey(stsEntity) : "";
         for (StsTsFile stsTsFile : StsTsFile.requiredFiles(trajectoryType)) {
             Path inputPath = stsTsFile.resolve(tsDir);
-            TimeSeriesMatrix matrix = getRequiredSeriesMatrix(inputPath, horizon, matrixCache, stsEntity.getGroupe(), trajectoryType);
-            if (trajectoryType == TrajectoryType.STS_ME) {
-                String meKey = buildMeKey(stsEntity);
-                Optional<TimeSeriesMatrixColumn> columnOpt = extractMeColumn(matrix, meKey);
-                if (columnOpt.isPresent()) {
-                    TimeSeriesMatrix singleColMatrix = new TimeSeriesMatrix(List.of(columnOpt.get()));
-                    saved.add(saveSeriesMatrixMe(inputPath, singleColMatrix, outputDir));
-                }
-            } else {
-                saved.add(saveSeriesMatrix(inputPath, matrix, outputDir, bytesCache));
+            SeriesFileJob job = seriesJobs.computeIfAbsent(inputPath,
+                    path -> new SeriesFileJob(path, stsEntity.getGroupe(), trajectoryType, new ArrayList<>()));
+            job.targets().add(new SeriesTarget(meKey, savedFiles));
+        }
+    }
+
+    private record SeriesTarget(String meKey, List<String> savedFiles) {}
+
+    private record SeriesFileJob(Path path, String group, TrajectoryType type, List<SeriesTarget> targets) {}
+
+    /**
+     * Reads, serializes and saves each shared series only once per assembly.
+     * Workers use snapshots, never Hibernate entities, and retain at most four input matrices.
+     */
+    private void generateSeriesFiles(Map<Path, SeriesFileJob> jobs, String horizon) {
+        if (jobs.isEmpty()) {
+            return;
+        }
+        for (Path path : jobs.keySet()) {
+            if (!Files.exists(path)) {
+                throw BusinessException.builder()
+                        .message("Required STS series file not found: {0}")
+                        .errorMessageArguments(List.of(path.toString()))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
             }
         }
+        String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
+        try (var executor = Executors.newFixedThreadPool(Math.min(MAX_CONCURRENT_SERIES_FILES, jobs.size()))) {
+            List<Future<Map<String, String>>> futures = new ArrayList<>();
+            for (SeriesFileJob job : jobs.values()) {
+                futures.add(executor.submit(() -> generateSeriesFile(job, horizon, outputDir)));
+            }
+            int index = 0;
+            try {
+                // Apply results on the caller thread in required-file order.
+                for (SeriesFileJob job : jobs.values()) {
+                    Map<String, String> savedByKey = futures.get(index++).get();
+                    for (SeriesTarget target : job.targets()) {
+                        String savedFile = savedByKey.get(target.meKey());
+                        if (savedFile != null) {
+                            target.savedFiles().add(savedFile);
+                        }
+                    }
+                }
+            } catch (InterruptedException e) {
+                futures.forEach(future -> future.cancel(true));
+                Thread.currentThread().interrupt();
+                throw TechnicalException.builder()
+                        .message("Interrupted while generating STS series files")
+                        .cause(e)
+                        .build();
+            } catch (ExecutionException e) {
+                futures.forEach(future -> future.cancel(true));
+                if (e.getCause() instanceof RuntimeException cause) {
+                    throw cause;
+                }
+                if (e.getCause() instanceof Error cause) {
+                    throw cause;
+                }
+                throw TechnicalException.builder()
+                        .message("Failed to generate STS series files")
+                        .cause(e.getCause())
+                        .build();
+            }
+        }
+    }
 
-        return saved;
+    private Map<String, String> generateSeriesFile(SeriesFileJob job, String horizon, String outputDir) {
+        TimeSeriesMatrix matrix = getRequiredSeriesMatrix(job.path(), horizon, job.group(), job.type());
+        if (job.type() != TrajectoryType.STS_ME) {
+            return Map.of("", saveSeriesMatrix(job.path(), matrix, outputDir));
+        }
+        Map<String, TimeSeriesMatrixColumn> columnsByKey = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        if (matrix != null && matrix.columns() != null) {
+            for (TimeSeriesMatrixColumn column : matrix.columns()) {
+                if (column.name() != null) {
+                    columnsByKey.putIfAbsent(column.name().trim(), column);
+                }
+            }
+        }
+        Map<String, String> savedByKey = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (SeriesTarget target : job.targets()) {
+            TimeSeriesMatrixColumn column = columnsByKey.get(target.meKey());
+            if (column != null) {
+                savedByKey.computeIfAbsent(target.meKey(), key ->
+                        saveSeriesMatrix(job.path(), new TimeSeriesMatrix(List.of(column)), outputDir));
+            }
+        }
+        return savedByKey;
     }
 
     private TrajectoryType resolveTrajectoryType(StStorageEntity stsEntity) {
@@ -370,16 +451,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         return area + "." + name;
     }
 
-    private Optional<TimeSeriesMatrixColumn> extractMeColumn(TimeSeriesMatrix matrix, String meKey) {
-        if (matrix == null || matrix.columns() == null || matrix.columns().isEmpty()) {
-            return Optional.empty();
-        }
-        return matrix.columns().stream()
-                .filter(c -> c.name() != null && c.name().trim().equalsIgnoreCase(meKey))
-                .findFirst();
-    }
-
-    private String saveSeriesMatrixMe(
+    private String saveSeriesMatrix(
             Path inputPath,
             TimeSeriesMatrix matrix,
             String outputDir
@@ -404,71 +476,30 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     private TimeSeriesMatrix getRequiredSeriesMatrix(
             Path inputPath,
             String horizon,
-            ConcurrentHashMap<Path, TimeSeriesMatrix> matrixCache,
             String groupe,
             TrajectoryType trajectoryType
     ) {
-        if (!Files.exists(inputPath)) {
+        try {
+            return nasFileService.readMatrix(inputPath, horizon, trajectoryType.name(), groupe);
+        } catch (BusinessException e) {
+            String seriesPath = extractSeriesDisplayPath(inputPath);
             throw BusinessException.builder()
-                    .message("Required STS series file not found: {0}")
-                    .errorMessageArguments(List.of(inputPath.toString()))
+                    .message(e.getMessage() + " for series in " + seriesPath + " for STS " + groupe)
+                    .errorMessageArguments(e.getErrorMessageArguments())
+                    .httpStatus(e.getHttpStatus())
+                    .build();
+        } catch (Exception e) {
+            throw BusinessException.builder()
+                    .message(e.getMessage())
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-
-        return matrixCache.computeIfAbsent(inputPath, path -> {
-            try {
-                return nasFileService.readMatrix(path, horizon,  trajectoryType.name(),groupe);
-            } catch (BusinessException e) {
-                String seriesPath = extractSeriesDisplayPath(path);
-                throw BusinessException.builder()
-                        .message(e.getMessage() + " for series in " + seriesPath + " for STS " + groupe)
-                        .errorMessageArguments(e.getErrorMessageArguments())
-                        .httpStatus(e.getHttpStatus())
-                        .build();
-            } catch (Exception e) {
-                throw BusinessException.builder()
-                        .message(e.getMessage())
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
-        });
     }
 
     private static String extractSeriesDisplayPath(Path inputPath) {
         String dir = inputPath.getParent().toString().replace("\\", "/");
         int idx = dir.toLowerCase().indexOf("/series/");
         return idx >= 0 ? dir.substring(idx + "/series/".length()) : dir;
-    }
-
-    private String saveSeriesMatrix(
-            Path inputPath,
-            TimeSeriesMatrix matrix,
-            String outputDir,
-            ConcurrentHashMap<Path, byte[]> bytesCache
-    ) {
-        try {
-            // Serialize once per unique inputPath; reuse bytes when multiple entities share the same tsPath.
-            byte[] bytes = bytesCache.computeIfAbsent(inputPath, p -> {
-                try {
-                    return nasFileService.getWriter().writeToByteArray(matrix);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            });
-            String baseName = inputPath.getFileName().toString();
-            return nasFileService.saveMatrixBytesToNas(bytes, baseName, outputDir);
-        } catch (UncheckedIOException e) {
-            throw BusinessException.builder()
-                    .message(e.getCause().getMessage())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        } catch (IOException e) {
-            throw BusinessException.builder()
-                    .message(e.getMessage())
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
     }
 
     public record StorageConstraintsContext(

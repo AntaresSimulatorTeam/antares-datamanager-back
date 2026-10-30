@@ -110,7 +110,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
 
         // then
         var key = new AreaClusterRefKey("FR", refIncluded);
@@ -146,7 +146,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
 
         // then
         var key = new AreaClusterRefKey("FR", refWithNullName);
@@ -208,7 +208,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // when
         StudyEntity study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory)).build();
-        var out = service.assembleForTrajectories(study);
+        var out = service.assembleThermalForTrajectories(study);
 
         // then
         var key = new AreaClusterRefKey("FR", gasRef);
@@ -261,7 +261,7 @@ class ThermalPropertiesAssemblerServiceTest {
         // when
         StudyEntity study = StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build();
 
-        var out = service.assembleForTrajectories(study);
+        var out = service.assembleThermalForTrajectories(study);
 
         // then
         assertThat(out).hasSize(1).containsKey(new AreaClusterRefKey("FR", gasRef));
@@ -305,7 +305,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // when
 
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
 
         // then
         assertThat(out.keySet()).containsExactlyInAnyOrder(
@@ -338,7 +338,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTrajectory, paramTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTrajectory, paramTraj)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("FR", gasRef));
@@ -377,7 +377,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, parameterTrajectory)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, parameterTrajectory)).build());
 
         // then
         assertThat(out)
@@ -419,7 +419,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj)).build());
 
         // then
         assertThat(out).hasSize(1);
@@ -455,7 +455,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("FR", gasRef));
@@ -515,7 +515,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj, economicTrajectory, specificTrajectory)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj, economicTrajectory, specificTrajectory)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("FR", gasRef));
@@ -598,7 +598,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
 
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTrajectory, econTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTrajectory, econTraj)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("FR", gasRef));
@@ -662,7 +662,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTraj)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("AT", gasRef));
@@ -804,7 +804,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, specificTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, specificTraj)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("FR", gasRef));
@@ -883,7 +883,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, costTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, costTraj)).build());
 
         // then
         var dto = out.get(new AreaClusterRefKey("FR", gasRef));
@@ -933,7 +933,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, TrajectoryEntity.builder()
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalCommonParameters(List.of(commonParam))
                 .build(), specificTraj)).build());
@@ -979,7 +979,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, TrajectoryEntity.builder()
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, TrajectoryEntity.builder()
                 .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
                 .thermalCommonParameters(List.of(commonParam))
                 .build(), specificTraj)).build());
@@ -1027,7 +1027,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(
                 capacityTrajectory,
                 TrajectoryEntity.builder().type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name()).thermalCommonParameters(List.of(commonParam)).build(),
                 TrajectoryEntity.builder().type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name()).thermalSpecificParameters(List.of(specificParam)).build()
@@ -1096,7 +1096,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build();
 
 
-        var out = service.assembleForTrajectories(StudyEntity.builder()
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder()
                 .trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory, economicTrajectory)).build());
 
         // then
@@ -1143,7 +1143,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var resultMapFinal = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, specificTraj)).build());
+        var resultMapFinal = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, specificTraj)).build());
 
         // then
         assertNotNull(resultMapFinal);
@@ -1190,7 +1190,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(
+        var out = service.assembleThermalForTrajectories(
                 StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build()
         );
 
@@ -1253,7 +1253,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // when
         StudyEntity study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory)).build();
-        var out = service.assembleForTrajectories(study);
+        var out = service.assembleThermalForTrajectories(study);
 
         // then
         var key = new AreaClusterRefKey("FR", gasRef);
@@ -1306,7 +1306,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // when
         StudyEntity study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory)).build();
-        var out = service.assembleForTrajectories(study);
+        var out = service.assembleThermalForTrajectories(study);
 
         // then
         var key = new AreaClusterRefKey("FR", gasRef);
@@ -1364,7 +1364,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("ClusterX")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, specificTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, specificTraj)).build());
 
         // then
         var key = new AreaClusterRefKey("FR", standardRef);
@@ -1394,7 +1394,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory)).build();
 
         // when & then
-        var exception = assertThrows(BusinessException.class, () -> service.assembleForTrajectories(study));
+        var exception = assertThrows(BusinessException.class, () -> service.assembleThermalForTrajectories(study));
 
         assertThat(exception.getMessage()).contains("Failed to generate study. unit count must not be zero for thermal cluster");
         assertThat(exception.getErrorMessageArguments()).contains(gasRef.getName(), "capacity.xlsx");
@@ -1422,7 +1422,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var study = StudyEntity.builder().trajectories(Set.of(capacityTrajectory)).build();
 
         // when & then
-        var exception = assertThrows(BusinessException.class, () -> service.assembleForTrajectories(study));
+        var exception = assertThrows(BusinessException.class, () -> service.assembleThermalForTrajectories(study));
 
         assertThat(exception.getMessage()).contains("Failed to generate study. unit count must not be zero for thermal cluster");
         assertThat(exception.getErrorMessageArguments()).contains(gasRef.getName(), "capacity_null.xlsx");
@@ -1530,7 +1530,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var out = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
+        var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
 
         // then
         var key = new AreaClusterRefKey("FR", refWithoutTech);
@@ -1621,13 +1621,13 @@ class ThermalPropertiesAssemblerServiceTest {
 
     @Test
     void assembleForTrajectories_whenStudyIsNull_returnsEmptyMap() {
-        assertThat(service.assembleForTrajectories(null)).isEmpty();
+        assertThat(service.assembleThermalForTrajectories(null)).isEmpty();
     }
 
     @Test
     void assembleForTrajectories_whenTrajectoriesNull_throwsNPE() {
         StudyEntity study = StudyEntity.builder().trajectories(null).build();
-        assertThrows(NullPointerException.class, () -> service.assembleForTrajectories(study));
+        assertThrows(NullPointerException.class, () -> service.assembleThermalForTrajectories(study));
     }
 
     @Test
@@ -1651,7 +1651,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var result = service.assembleForTrajectories(study);
+        var result = service.assembleThermalForTrajectories(study);
 
         // then
         var key = new AreaClusterRefKey("FR", gasRef);
@@ -1686,7 +1686,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var result = service.assembleForTrajectories(study);
+        var result = service.assembleThermalForTrajectories(study);
 
         // then
         assertThat(result).containsKey(new AreaClusterRefKey("FR", gasRef));
@@ -1835,7 +1835,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var result = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
+        var result = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
 
         // then
         var key = new AreaClusterRefKey("FR", gasRef);
@@ -1859,7 +1859,7 @@ class ThermalPropertiesAssemblerServiceTest {
         when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
 
         // when
-        var result = service.assembleForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
+        var result = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
 
         // then
         var key = new AreaClusterRefKey("FR", gasRef);

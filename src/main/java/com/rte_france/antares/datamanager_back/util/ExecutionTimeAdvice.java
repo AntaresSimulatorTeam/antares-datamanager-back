@@ -25,7 +25,6 @@ public class ExecutionTimeAdvice {
         
         extractAndSetStudyIdToMdc(joinPoint);
 
-        try {
             Object proceed = joinPoint.proceed();
 
             long executionTime = System.currentTimeMillis() - start;
@@ -33,11 +32,9 @@ public class ExecutionTimeAdvice {
             long executionTimeInSeconds = executionTime / 1000;
 
             log.info("{} executed in {}ms ({}s)", joinPoint.getSignature().getName(), executionTime, executionTimeInSeconds);
-
+            MDC.put("executionTime", String.valueOf(executionTime));
             return proceed;
-        } finally {
-            MDC.remove(STUDY_ID_KEY);
-        }
+
     }
 
     private void extractAndSetStudyIdToMdc(ProceedingJoinPoint joinPoint) {

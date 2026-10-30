@@ -126,11 +126,11 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         }
 
         // Get thermal cluster generation DTOs for all trajectories in the study
-        var thermalClusterProps = thermalPropertiesAssemblerService.assembleForTrajectories(study);
+        var thermalClusterProps = thermalPropertiesAssemblerService.assembleThermalForTrajectories(study);
 
         // Must run before dispatchTrajectories/area JSON assembly because it produces a result keyed by cluster
         // that both the FR node and y_nuc_modulation node need
-        NuclearAvailabilityAssemblyResult nuclearAvailability = nuclearAvailabilityAssemblerService.assembleAvailability(
+        NuclearAvailabilityAssemblyResult nuclearAvailability = nuclearAvailabilityAssemblerService.assembleNuclearAvailability(
                 study, thermalClusterProps);
 
         TrajectoryDispatchResult dispatchResult = dispatchTrajectories(study, trajectories, thermalClusterProps, nuclearAvailability);

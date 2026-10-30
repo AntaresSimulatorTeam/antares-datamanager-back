@@ -52,7 +52,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
      */
 
     @ExecutionTime
-    public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleForTrajectories(StudyEntity study) {
+    public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleThermalForTrajectories(StudyEntity study) {
         if (study == null) {
             return Collections.emptyMap();
         }

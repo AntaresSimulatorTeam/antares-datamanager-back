@@ -17,7 +17,7 @@ public interface NuclearAvailabilityAssemblerService {
      * @return an empty safe result when none
      * of the three trajectories are linked.
      */
-    NuclearAvailabilityAssemblyResult assembleAvailability(
+    NuclearAvailabilityAssemblyResult assembleNuclearAvailability(
             StudyEntity study,
             Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps);
 }
