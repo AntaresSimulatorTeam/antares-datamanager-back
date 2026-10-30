@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ConstraintMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -39,20 +40,6 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private static final String SHEET_LIST_AREA_DESC = "listArea_desc";
     private static final String SHEET_LIST_CLUSTER_DESC = "listCluster_desc";
     private static final String FILE_EXTENSION = ".xlsx";
-    
-    // Column indices for constraint data
-    private static final int COL_NAME = 0;
-    private static final int COL_ENABLED = 1;
-    private static final int COL_SIGN = 2;
-    private static final int COL_TEMPORALITY = 3;
-    private static final int COL_TYPE = 4;
-    private static final int COL_COMMENTS = 5;
-    private static final int COL_NOEUD1_GAUCHE = 6;
-    private static final int COL_NOEUD2_GAUCHE = 7;
-    private static final int COL_CLUSTER_GAUCHE = 8;
-    private static final int COL_NOEUD1_DROITE = 9;
-    private static final int COL_NOEUD2_DROITE = 10;
-    private static final int COL_CLUSTER_DROITE = 11;
     
     // Validation messages
     private static final String MSG_HORIZON_REQUIRED = "Horizon must not be null";
@@ -289,7 +276,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
             
-            String name = getCellStringValue(row, COL_NAME);
+            String name = getCellStringValue(row, ConstraintMeColumns.NAME.getIndex());
             if (isEmptyString(name)) continue;
             
             ConstraintRowData constraintData = extractConstraintRowData(row);
@@ -301,17 +288,17 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     
     private ConstraintRowData extractConstraintRowData(Row row) {
         return ConstraintRowData.builder()
-                .enabled(ENABLED_VALUE.equalsIgnoreCase(getCellStringValue(row, COL_ENABLED)))
-                .sign(getCellStringValue(row, COL_SIGN))
-                .temporality(getCellStringValue(row, COL_TEMPORALITY))
-                .type(getCellStringValue(row, COL_TYPE))
-                .comments(getCellStringValue(row, COL_COMMENTS))
-                .noeud1Gauche(getCellStringValue(row, COL_NOEUD1_GAUCHE))
-                .noeud2Gauche(getCellStringValue(row, COL_NOEUD2_GAUCHE))
-                .clusterGauche(getCellStringValue(row, COL_CLUSTER_GAUCHE))
-                .noeud1Droite(getCellStringValue(row, COL_NOEUD1_DROITE))
-                .noeud2Droite(getCellStringValue(row, COL_NOEUD2_DROITE))
-                .clusterDroite(getCellStringValue(row, COL_CLUSTER_DROITE))
+                .enabled(ENABLED_VALUE.equalsIgnoreCase(getCellStringValue(row, ConstraintMeColumns.ENABLED.getIndex())))
+                .sign(getCellStringValue(row, ConstraintMeColumns.SIGN.getIndex()))
+                .temporality(getCellStringValue(row, ConstraintMeColumns.TEMPORALITY.getIndex()))
+                .type(getCellStringValue(row, ConstraintMeColumns.TYPE.getIndex()))
+                .comments(getCellStringValue(row, ConstraintMeColumns.COMMENTS.getIndex()))
+                .noeud1Gauche(getCellStringValue(row, ConstraintMeColumns.NOEUD1_GAUCHE.getIndex()))
+                .noeud2Gauche(getCellStringValue(row, ConstraintMeColumns.NOEUD2_GAUCHE.getIndex()))
+                .clusterGauche(getCellStringValue(row, ConstraintMeColumns.CLUSTER_GAUCHE.getIndex()))
+                .noeud1Droite(getCellStringValue(row, ConstraintMeColumns.NOEUD1_DROITE.getIndex()))
+                .noeud2Droite(getCellStringValue(row, ConstraintMeColumns.NOEUD2_DROITE.getIndex()))
+                .clusterDroite(getCellStringValue(row, ConstraintMeColumns.CLUSTER_DROITE.getIndex()))
                 .build();
     }
     

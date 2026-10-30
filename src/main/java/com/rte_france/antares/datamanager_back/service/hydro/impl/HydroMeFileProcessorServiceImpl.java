@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroCapacityMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -45,15 +46,6 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     private final TrajectoryServiceImpl trajectoryService;
     private final HydroReservoirLevelsMeFileProcessorServiceImpl hydroReservoirLevelsMeFileProcessorService;
     private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
-
-
-    private static final String RESERVOIR_CAPACITY_COLUMN = "Reservoir Capacity [MWh]";
-    private static final String GENERATING_PMAX_TIMESTEP_COLUMN = "Generating Pmax - timestep (daily/annual)";
-    private static final String GENERATING_PMAX_COLUMN = "Generating Pmax [MW]";
-    private static final String HOURS_GENERATING_PMAX_COLUMN = "hours at generating Pmax";
-    private static final String PUMPING_PMAX_TIMESTEP_COLUMN = "Pumping Pmax - timestep (daily/annual)";
-    private static final String PUMPING_PMAX_COLUMN = "Pumping Pmax [MW]";
-    private static final String HOURS_PUMPING_PMAX_COLUMN = "hours at pumping Pmax";
 
     private static final String GENERATING_PMAX_DAILY_TS_DIR = "Generating Pmax daily ts";
     private static final String PUMPING_PMAX_DAILY_TS_DIR = "Pumping Pmax daily ts";
@@ -182,10 +174,10 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
             
-            String node = getCellStringValue(row, 0);
-            
-            String generatingTimestep = getCellStringValue(row, 2);
-            String pumpingTimestep = getCellStringValue(row, 5);
+            String node = getCellStringValue(row, HydroCapacityMeColumns.NODE.getIndex());
+
+            String generatingTimestep = getCellStringValue(row, HydroCapacityMeColumns.GENERATING_PMAX_TIMESTEP.getIndex());
+            String pumpingTimestep = getCellStringValue(row, HydroCapacityMeColumns.PUMPING_PMAX_TIMESTEP.getIndex());
 
             // Validation during single pass
             if (node != null && !node.trim().isEmpty()) {
@@ -197,13 +189,13 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                             .build();
                 }
 
-                validateNumericColumn(row, 1, RESERVOIR_CAPACITY_COLUMN, trajectory.getFileName());
-                validateTimestepValue(generatingTimestep, GENERATING_PMAX_TIMESTEP_COLUMN, trajectory.getFileName());
-                validateNumericColumn(row, 3, GENERATING_PMAX_COLUMN, trajectory.getFileName());
-                validateNumericColumn(row, 4, HOURS_GENERATING_PMAX_COLUMN, trajectory.getFileName());
-                validateTimestepValue(pumpingTimestep, PUMPING_PMAX_TIMESTEP_COLUMN, trajectory.getFileName());
-                validateNumericColumn(row, 6, PUMPING_PMAX_COLUMN, trajectory.getFileName());
-                validateNumericColumn(row, 7, HOURS_PUMPING_PMAX_COLUMN, trajectory.getFileName());
+                validateNumericColumn(row, HydroCapacityMeColumns.RESERVOIR_CAPACITY.getIndex(), HydroCapacityMeColumns.RESERVOIR_CAPACITY.getDisplayName(), trajectory.getFileName());
+                validateTimestepValue(generatingTimestep, HydroCapacityMeColumns.GENERATING_PMAX_TIMESTEP.getDisplayName(), trajectory.getFileName());
+                validateNumericColumn(row, HydroCapacityMeColumns.GENERATING_PMAX.getIndex(), HydroCapacityMeColumns.GENERATING_PMAX.getDisplayName(), trajectory.getFileName());
+                validateNumericColumn(row, HydroCapacityMeColumns.HOURS_AT_GENERATING_PMAX.getIndex(), HydroCapacityMeColumns.HOURS_AT_GENERATING_PMAX.getDisplayName(), trajectory.getFileName());
+                validateTimestepValue(pumpingTimestep, HydroCapacityMeColumns.PUMPING_PMAX_TIMESTEP.getDisplayName(), trajectory.getFileName());
+                validateNumericColumn(row, HydroCapacityMeColumns.PUMPING_PMAX.getIndex(), HydroCapacityMeColumns.PUMPING_PMAX.getDisplayName(), trajectory.getFileName());
+                validateNumericColumn(row, HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getIndex(), HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getDisplayName(), trajectory.getFileName());
 
                 // Track daily timesteps
                 if ("daily".equalsIgnoreCase(generatingTimestep)) {
@@ -214,11 +206,11 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 }
                 
                 // Data extraction and persistence in same pass
-                BigDecimal reservoirCapacity = getCellNumericValue(row, 1);
-                BigDecimal generatingPmax = getCellNumericValue(row, 3);
-                BigDecimal hoursAtGeneratingPmax = getCellNumericValue(row, 4);
-                BigDecimal pumpingPmax = getCellNumericValue(row, 6);
-                BigDecimal hoursAtPumpingPmax = getCellNumericValue(row, 7);
+                BigDecimal reservoirCapacity = getCellNumericValue(row, HydroCapacityMeColumns.RESERVOIR_CAPACITY.getIndex());
+                BigDecimal generatingPmax = getCellNumericValue(row, HydroCapacityMeColumns.GENERATING_PMAX.getIndex());
+                BigDecimal hoursAtGeneratingPmax = getCellNumericValue(row, HydroCapacityMeColumns.HOURS_AT_GENERATING_PMAX.getIndex());
+                BigDecimal pumpingPmax = getCellNumericValue(row, HydroCapacityMeColumns.PUMPING_PMAX.getIndex());
+                BigDecimal hoursAtPumpingPmax = getCellNumericValue(row, HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getIndex());
                 
                 HydroCapacityMeEntity hydroCapacityMe = HydroCapacityMeEntity.builder()
                         .node(node.trim())
@@ -236,7 +228,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
                 hydroCapacityMeEntities.add(hydroCapacityMe);
             } else {
                 boolean hasOtherData = false;
-                for (int i = 1; i < 8; i++) {
+                for (int i = HydroCapacityMeColumns.RESERVOIR_CAPACITY.getIndex(); i <= HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getIndex(); i++) {
                     String cellValue = getCellStringValue(row, i);
                     if ((cellValue != null && !cellValue.trim().isEmpty())) {
                         hasOtherData = true;

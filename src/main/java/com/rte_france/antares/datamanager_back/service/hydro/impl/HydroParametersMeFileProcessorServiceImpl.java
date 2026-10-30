@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFi
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroParametersMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -222,7 +223,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                 if (row == null) continue;
 
                 // Validate Node column (A) - must be filled
-                Cell nodeCell = row.getCell(0);
+                Cell nodeCell = row.getCell(HydroParametersMeColumns.NODE.getIndex());
                 String nodeName = getCellStringValue(nodeCell);
                 if (nodeName == null || nodeName.trim().isEmpty()) {
                     throw BusinessException.builder()
@@ -247,44 +248,44 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                 }
 
                 // Validate numeric columns: D (inter.daily.breakdown), E (inter.monthly.breakdown), F (initialize.reservoir.date), I (pumping.efficiency)
-                validateNumericColumn(row, 1, "inter.monthly.correlation", trajectoryName);
-                validateNumericColumn(row, 2, "inter.daily.breakdown", trajectoryName);
-                validateNumericColumn(row, 3, "inter.daily.modulation", trajectoryName);
-                validateNumericColumn(row, 4, "inter.monthly.breakdown", trajectoryName);
-                validateNumericColumn(row, 5, "initialize.reservoir.date", trajectoryName);
-                validateNumericColumn(row, 6, "leeway.low", trajectoryName);
-                validateNumericColumn(row, 7, "leeway.up", trajectoryName);
-                validateNumericColumn(row, 8, "pumping.efficiency", trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getIndex(), HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getIndex(), HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.INTER_DAILY_MODULATION.getIndex(), HydroParametersMeColumns.INTER_DAILY_MODULATION.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getIndex(), HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getIndex(), HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.LEEWAY_LOW.getIndex(), HydroParametersMeColumns.LEEWAY_LOW.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.LEEWAY_UP.getIndex(), HydroParametersMeColumns.LEEWAY_UP.getDisplayName(), trajectoryName);
+                validateNumericColumn(row, HydroParametersMeColumns.PUMPING_EFFICIENCY.getIndex(), HydroParametersMeColumns.PUMPING_EFFICIENCY.getDisplayName(), trajectoryName);
 
                 // Validate boolean columns
                 //reservoir management	follow.load	use.heuristic	use.water	hard.bounds	use.leeway	power.to.level
-                validateBooleanColumn(row, 9, "reservoir management", trajectoryName);
-                validateBooleanColumn(row, 10, "follow.load", trajectoryName);
-                validateBooleanColumn(row, 11, "use.heuristic", trajectoryName);
-                validateBooleanColumn(row, 12, "use.water", trajectoryName);
-                validateBooleanColumn(row, 13, "hard.bounds", trajectoryName);
-                validateBooleanColumn(row, 14, "use.leeway", trajectoryName);
-                validateBooleanColumn(row, 15, "power.to.level", trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.RESERVOIR_MANAGEMENT.getIndex(), HydroParametersMeColumns.RESERVOIR_MANAGEMENT.getDisplayName(), trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.FOLLOW_LOAD.getIndex(), HydroParametersMeColumns.FOLLOW_LOAD.getDisplayName(), trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.USE_HEURISTIC.getIndex(), HydroParametersMeColumns.USE_HEURISTIC.getDisplayName(), trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.USE_WATER.getIndex(), HydroParametersMeColumns.USE_WATER.getDisplayName(), trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.HARD_BOUNDS.getIndex(), HydroParametersMeColumns.HARD_BOUNDS.getDisplayName(), trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.USE_LEEWAY.getIndex(), HydroParametersMeColumns.USE_LEEWAY.getDisplayName(), trajectoryName);
+                validateBooleanColumn(row, HydroParametersMeColumns.POWER_TO_LEVEL.getIndex(), HydroParametersMeColumns.POWER_TO_LEVEL.getDisplayName(), trajectoryName);
 
                 // Build entity and add to list for batch insert
                 HydroParametersMeEntity entity = HydroParametersMeEntity.builder()
                         .trajectoryId(trajectoryId)
                         .node(nodeName)
-                        .interMonthlyCorrelation(getNumericCellValue(row.getCell(1)))
-                        .interDailyBreakdown(getNumericCellValue(row.getCell(2)))
-                        .intraDailyModulation(getNumericCellValue(row.getCell(3)))
-                        .interMonthlyBreakdown(getNumericCellValue(row.getCell(4)))
-                        .initializeReservoirDate(getIntCellValue(row.getCell(5)))
-                        .leewayLow(getNumericCellValue(row.getCell(6)))
-                        .leewayUp(getNumericCellValue(row.getCell(7)))
-                        .pumpingEfficiency(getNumericCellValue(row.getCell(8)))
-                        .reservoirManagement(getBooleanCellValue(row.getCell(9)))
-                        .followLoad(getBooleanCellValue(row.getCell(10)))
-                        .useHeuristic(getBooleanCellValue(row.getCell(11)))
-                        .useWater(getBooleanCellValue(row.getCell(12)))
-                        .hardBounds(getBooleanCellValue(row.getCell(13)))
-                        .useLeeway(getBooleanCellValue(row.getCell(14)))
-                        .powerToLevel(getBooleanCellValue(row.getCell(15)))
+                        .interMonthlyCorrelation(getNumericCellValue(row.getCell(HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getIndex())))
+                        .interDailyBreakdown(getNumericCellValue(row.getCell(HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getIndex())))
+                        .intraDailyModulation(getNumericCellValue(row.getCell(HydroParametersMeColumns.INTER_DAILY_MODULATION.getIndex())))
+                        .interMonthlyBreakdown(getNumericCellValue(row.getCell(HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getIndex())))
+                        .initializeReservoirDate(getIntCellValue(row.getCell(HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getIndex())))
+                        .leewayLow(getNumericCellValue(row.getCell(HydroParametersMeColumns.LEEWAY_LOW.getIndex())))
+                        .leewayUp(getNumericCellValue(row.getCell(HydroParametersMeColumns.LEEWAY_UP.getIndex())))
+                        .pumpingEfficiency(getNumericCellValue(row.getCell(HydroParametersMeColumns.PUMPING_EFFICIENCY.getIndex())))
+                        .reservoirManagement(getBooleanCellValue(row.getCell(HydroParametersMeColumns.RESERVOIR_MANAGEMENT.getIndex())))
+                        .followLoad(getBooleanCellValue(row.getCell(HydroParametersMeColumns.FOLLOW_LOAD.getIndex())))
+                        .useHeuristic(getBooleanCellValue(row.getCell(HydroParametersMeColumns.USE_HEURISTIC.getIndex())))
+                        .useWater(getBooleanCellValue(row.getCell(HydroParametersMeColumns.USE_WATER.getIndex())))
+                        .hardBounds(getBooleanCellValue(row.getCell(HydroParametersMeColumns.HARD_BOUNDS.getIndex())))
+                        .useLeeway(getBooleanCellValue(row.getCell(HydroParametersMeColumns.USE_LEEWAY.getIndex())))
+                        .powerToLevel(getBooleanCellValue(row.getCell(HydroParametersMeColumns.POWER_TO_LEVEL.getIndex())))
                         .build();
 
                 paramNodes.add(normalizedNodeName);
