@@ -249,7 +249,7 @@ class StudyGeneratorServiceImplTest {
         lenient().when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Collections.emptyMap());
         lenient().when(hydroGenerationAssemblerService.assembleHydroProperties(any())).thenReturn(Collections.emptyMap());
         // Default nuclear availability result is empty to avoid NPE in tests not focused on it
-        lenient().when(nuclearAvailabilityAssemblerService.assembleAvailability(any(), anyMap()))
+        lenient().when(nuclearAvailabilityAssemblerService.assembleNuclearAvailability(any(), anyMap()))
                 .thenReturn(new NuclearAvailabilityAssemblyResult(Map.of(), Map.of()));
 
         // Delegate Adequacy Settings assembler to real implementation by default
@@ -896,7 +896,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
         var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(
                 new AreaClusterRefKey("fr", nuclearRef), dto
         ));
         when(nuclearBindingConstraintAssemblerService.assembleModulationBindingConstraints(any(), any(), any()))
@@ -954,7 +954,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
         var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(
                 new AreaClusterRefKey("fr", nuclearRef), dto
         ));
 
@@ -997,7 +997,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
         var ref = ThermalClusterRef.builder().name("Gas1").build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(new AreaClusterRefKey("FR", ref), dto));
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(new AreaClusterRefKey("FR", ref), dto));
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
@@ -1057,7 +1057,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         var ref = ThermalClusterRef.builder().name("Gas1").build();
 
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(new AreaClusterRefKey("FR", ref), dto));
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(new AreaClusterRefKey("FR", ref), dto));
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         // When
@@ -1281,7 +1281,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
         var peakRef = ThermalClusterRef.builder().name("Nuclear_peak1").build();
         var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(
                 new AreaClusterRefKey("fr", nuclearRef), dto,
                 new AreaClusterRefKey("fr", peakRef), dto
         ));
@@ -1340,7 +1340,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
                 .build();
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Collections.emptyMap());
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Collections.emptyMap());
 
         var p2gDto = new P2gGenerationDTO(
                 "MB_MC_modulation_FE60_liv_same_2027.arrow",
@@ -1414,7 +1414,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
 
         var nuclearRef = ThermalClusterRef.builder().name("Nuclear_cp0").build();
         var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(
                 new AreaClusterRefKey("fr", nuclearRef), dto
         ));
         when(nuclearBindingConstraintAssemblerService.assembleTalonBindingConstraint(any(), any(), any()))
@@ -1456,7 +1456,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         var dtoCP0 = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(true).build();
         var nuclearEprRef = ThermalClusterRef.builder().name("Nuclear_epr1").build();
         var dtoEPR = ThermalClusterGenerationDto.builder().efficiency(100.0).enabled(false).build();
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(Map.of(
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(
                 new AreaClusterRefKey("fr", nuclearCP0Ref), dtoCP0,
                 new AreaClusterRefKey("fr", nuclearEprRef), dtoEPR
         ));
@@ -1512,17 +1512,17 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         AreaClusterRefKey clusterKey = new AreaClusterRefKey("FR", nuclearRef);
         Map<AreaClusterRefKey, ThermalClusterGenerationDto> props = new LinkedHashMap<>();
         props.put(clusterKey, dto);
-        when(thermalPropertiesAssemblerService.assembleForTrajectories(study)).thenReturn(props);
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(props);
 
         // Proves the availability result is computed and threaded through before area JSON is built.
-        when(nuclearAvailabilityAssemblerService.assembleAvailability(any(), anyMap()))
+        when(nuclearAvailabilityAssemblerService.assembleNuclearAvailability(any(), anyMap()))
                 .thenReturn(new NuclearAvailabilityAssemblyResult(Map.of(clusterKey, "lt_availability.arrow"), Map.of()));
 
         studyGeneratorService.buildJsonForStudyGeneration(1);
 
         // The study passed to the assembler must be the one whose trajectories include the LT trajectory.
         ArgumentCaptor<StudyEntity> studyCaptor = ArgumentCaptor.forClass(StudyEntity.class);
-        verify(nuclearAvailabilityAssemblerService).assembleAvailability(studyCaptor.capture(), anyMap());
+        verify(nuclearAvailabilityAssemblerService).assembleNuclearAvailability(studyCaptor.capture(), anyMap());
         assertThat(studyCaptor.getValue().getTrajectories()).contains(ltTraj);
 
         var mapper = new ObjectMapper();

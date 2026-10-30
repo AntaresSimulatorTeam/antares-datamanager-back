@@ -69,8 +69,8 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
 
     @ExecutionTime
     @Override
-    public NuclearAvailabilityAssemblyResult assembleAvailability(StudyEntity study,
-            Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
+    public NuclearAvailabilityAssemblyResult assembleNuclearAvailability(StudyEntity study,
+                                                                         Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
 
         Set<TrajectoryEntity> trajectories = study.getTrajectories();
         Optional<TrajectoryEntity> eprTrajectory = findFirstByType(trajectories, TrajectoryType.NUCLEAR_FR_TS_ERP);
