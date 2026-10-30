@@ -9,6 +9,8 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalEconomicCo2Columns;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalEconomicEnerColumns;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
@@ -91,6 +93,8 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         List<ThermalEconomicCo2Entity> list = new ArrayList<>();
         if (sheet == null) return list;
 
+        validateCo2HeaderColumns(sheet, trajectoryFileName);
+
         boolean foundAnyDataRow = false;
         boolean foundAnyMatchingHorizon = false;
         Integer horizonYear = parseInteger(horizon.split("-")[1]);
@@ -98,12 +102,12 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue; // skip header
 
-            String fuel = getCellString(row, 0);
-            String country = getCellString(row, 1);
-            String yearStr = getCellString(row, 2);
-            String co2Str = getCellString(row, 3);
-            String unitCo2 = getCellString(row, 4);
-            String comment = getCellString(row, 5);
+            String fuel = getCellString(row, ThermalEconomicCo2Columns.FUEL.getIndex());
+            String country = getCellString(row, ThermalEconomicCo2Columns.COUNTRY.getIndex());
+            String yearStr = getCellString(row, ThermalEconomicCo2Columns.YEAR.getIndex());
+            String co2Str = getCellString(row, ThermalEconomicCo2Columns.CO2_EMISSION_FUEL.getIndex());
+            String unitCo2 = getCellString(row, ThermalEconomicCo2Columns.UNIT_CO2.getIndex());
+            String comment = getCellString(row, ThermalEconomicCo2Columns.COMMENT.getIndex());
 
             // ignorer les lignes entièrement vides
             if (isCo2RowEmpty(fuel, country, yearStr, co2Str, unitCo2, comment)) {
@@ -178,15 +182,17 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         List<ThermalEconomicEnerContentEntity> list = new ArrayList<>();
         if (sheet == null) return list;
 
+        validateEnerContentHeaderColumns(sheet, trajectoryFileName);
+
         boolean onlyHeader = true;
 
         for (int r = 1; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) continue;
 
-            String valueStr = getCellString(row, 0);
-            String unit = getCellString(row, 1);
-            String comment = getCellString(row, 2);
+            String valueStr = getCellString(row, ThermalEconomicEnerColumns.VALUE.getIndex());
+            String unit = getCellString(row, ThermalEconomicEnerColumns.UNIT.getIndex());
+            String comment = getCellString(row, ThermalEconomicEnerColumns.COMMENT.getIndex());
 
             // ignorer les lignes entièrement vides
             if (valueStr.isEmpty() && unit.isEmpty() && comment.isEmpty()) {
@@ -274,5 +280,41 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         }
 
         return Integer.toHexString(sb.toString().hashCode());
+    }
+
+    private void validateCo2HeaderColumns(Sheet sheet, String trajectoryFileName) {
+        if (sheet == null) return;
+        Row header = sheet.getRow(0);
+        if (header == null) return;
+
+        List<String> allColumnNames = ThermalEconomicCo2Columns.getAllColumnNames();
+        for (int i = 0; i < allColumnNames.size(); i++) {
+            Cell cell = header.getCell(i);
+            String cellValue = cell != null ? getCellString(header, i) : null; // ou cell.getStringCellValue().trim()
+
+            if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
+                throw BusinessException.builder()
+                        .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in THERMAL Economic trajectory " + trajectoryFileName + " in CO2_emissions tab")
+                        .build();
+            }
+        }
+    }
+
+    private void validateEnerContentHeaderColumns(Sheet sheet, String trajectoryFileName) {
+        if (sheet == null) return;
+        Row header = sheet.getRow(0);
+        if (header == null) return;
+
+        List<String> allColumnNames = ThermalEconomicEnerColumns.getAllColumnNames();
+        for (int i = 0; i < allColumnNames.size(); i++) {
+            Cell cell = header.getCell(i);
+            String cellValue = cell != null ? getCellString(header, i) : null;
+
+            if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
+                throw BusinessException.builder()
+                        .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in THERMAL Economic trajectory " + trajectoryFileName + " in ener_content tab")
+                        .build();
+            }
+        }
     }
 }
