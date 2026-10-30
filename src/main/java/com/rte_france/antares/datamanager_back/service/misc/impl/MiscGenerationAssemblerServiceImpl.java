@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.misc.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -47,6 +48,7 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
     private static final String OTHER_AREA = "OTHERS";
 
     @Override
+    @ExecutionTime
     public Map<String, List<MiscGenerationDTO>> assembleMiscProperties(StudyEntity studyEntity) {
         List<Path> generatedFiles = createSplitMiscGenFiles(studyEntity);
         Map<String, List<String>> filesByArea = buildFilesByArea(generatedFiles);

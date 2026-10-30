@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -51,6 +52,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     }
     
     @Override
+    @ExecutionTime
     public Map<String, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
         Map<String, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();
         Map<String, HydroGenerationDTO> pspDtoByArea = new HashMap<>();

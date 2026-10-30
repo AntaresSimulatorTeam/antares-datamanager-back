@@ -9,9 +9,9 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalParamModul
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -51,12 +51,12 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
      * @throws IllegalArgumentException if a trajectory has an invalid {@link TrajectoryType}
      */
 
+    @ExecutionTime
     public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleForTrajectories(StudyEntity study) {
         if (study == null) {
             return Collections.emptyMap();
         }
         Integer studyId = study.getId();
-        MDC.put("studyId", Objects.toString(studyId, "null"));
         log.info("Start assembling thermal properties for studyId={}", studyId);
 
         Set<TrajectoryEntity> trajectories = study.getTrajectories();
@@ -139,7 +139,6 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
             }
         } finally {
             log.info("Finished assembling {} thermal cluster(s) for studyId={}", thermalClusterGenerationOutput.size(), studyId);
-            MDC.remove("studyId");
         }
 
         return thermalClusterGenerationOutput;
