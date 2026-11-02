@@ -168,7 +168,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     }
 
     private StStorageEntity mapRowToEntityMe(Row row, Path trajectoryFilePath, String node, String name, String group,
-                                            String horizonYear, Map<Path, Set<String>> headersCache, Map<String, List<String>> missingFilesMeKeysMap) throws IOException {
+                                            String horizonYear, Map<Path, Set<String>> headersCache, Map<String, List<String>> missingFilesMeKeysMap) {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         Boolean hasSeriesMe = getBooleanCell(row, StsMeColumns.SERIES.getIndex());
@@ -247,19 +247,23 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
             }
             Set<String> headers = new HashSet<>();
             for (Cell cell : headerRow) {
-                if (cell != null) {
-                    String value = cell.getCellType() == CellType.STRING
-                            ? cell.getStringCellValue()
-                            : cell.toString();
-                    if (value != null && !value.isBlank()) {
-                        headers.add(value.trim().toLowerCase(Locale.ROOT));
-                    }
-                }
+                processCell(cell, headers);
             }
             return headers;
         } catch (Exception e) {
             log.warn("Could not read headers from file {}: {}", filePath, e.getMessage());
             return Collections.emptySet();
+        }
+    }
+
+    private void processCell(Cell cell, Set<String> headers){
+        if (cell != null) {
+            String value = cell.getCellType() == CellType.STRING
+                    ? cell.getStringCellValue()
+                    : cell.toString();
+            if (value != null && !value.isBlank()) {
+                headers.add(value.trim().toLowerCase(Locale.ROOT));
+            }
         }
     }
 
@@ -332,12 +336,11 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         List<String> missingFiles = new ArrayList<>();
 
             String[] requiredFiles = {"lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
-            for (String fileName : requiredFiles) {
-                if (!Files.exists(optionalFilesPath.resolve(fileName))) {
-                    missingFiles.add(fileName);
+            Arrays.stream(requiredFiles).forEach(f -> {
+                if (!Files.exists(optionalFilesPath.resolve(f))) {
+                    missingFiles.add(f);
                 }
-        }
-
+            });
         return missingFiles;
     }
 

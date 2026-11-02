@@ -79,15 +79,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             List<TrajectoryEntity> trajectories,
             boolean isMe
     ) {
-        trajectories.forEach(traj -> {
-            if (traj != null && traj.getStStorageEntities() != null) {
-                traj.getStStorageEntities().forEach(sts -> {
-                    if (sts != null && sts.getTrajectory() == null) {
-                        sts.setTrajectory(traj);
-                    }
-                });
-            }
-        });
+        associateStStorageEntities(trajectories);
 
         List<StorageConstraintsContext> contexts = isMe ? List.of() : buildStorageConstraintsContext(studyEntity);
 
@@ -159,6 +151,18 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         },
                         (existing, replacement) -> existing
                 ));
+    }
+
+    private void associateStStorageEntities(List<TrajectoryEntity> trajectories){
+        trajectories.forEach(traj -> {
+            if (traj != null && traj.getStStorageEntities() != null) {
+                traj.getStStorageEntities().forEach(sts -> {
+                    if (sts != null && sts.getTrajectory() == null) {
+                        sts.setTrajectory(traj);
+                    }
+                });
+            }
+        });
     }
 
     private String getMeHorizon(String studyHorizon) {

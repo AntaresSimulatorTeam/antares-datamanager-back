@@ -63,8 +63,6 @@ class StStorageConstraintsMergeTest {
 
         // GIVEN
         Integer studyId = 1;
-        String horizon = "2025";
-
 
         // Storage already has a preferred FR parameter
         StStorageEntity storage = new StStorageEntity();
@@ -100,7 +98,7 @@ class StStorageConstraintsMergeTest {
             // WHEN
         service.handleStsConstraints(Path.of("dummy"), "FR", "EV", "cluster1",
                     "trajectory.xlsx", "OTHERS", List.of("FR", "DE"),
-                    storage, horizon, studyId, cache);
+                    storage, studyId, cache);
 
             // THEN
             // When filtering DE params by zone="FR", no matches found

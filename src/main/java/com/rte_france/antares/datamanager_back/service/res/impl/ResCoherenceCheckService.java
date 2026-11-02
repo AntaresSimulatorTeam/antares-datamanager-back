@@ -181,10 +181,9 @@ public class ResCoherenceCheckService {
       * où area_specific peut être FR, BE, DE, etc. (n'importe quel defaultArea)
       * Utilisée pour IP (RES_CAPACITY) et LF (RES_LOAD).
       *
-      * @param areaParam         filtre sur l'area spécifique requise
       * @return true si les 4 combinaisons sont complètes, false sinon
       */
-     private boolean hasCompletedFourCombinations(List<TrajectoryEntity> trajectories, String areaParam, String importedTechnology) {
+     private boolean hasCompletedFourCombinations(List<TrajectoryEntity> trajectories, String importedTechnology) {
          // Vérifications communes
          boolean hasAreaWithoutTech = trajectories.stream().anyMatch(trajectory -> !trajectory.getArea().equals(OTHERS_AREA) && isBlankOrEmpty(trajectory.getTechnology()));
 
@@ -302,7 +301,7 @@ public class ResCoherenceCheckService {
 
     private Set<String> extractIPKeysForIP(List<TrajectoryEntity> ipTrajectories, String area, Set<String> availableTechnologies, String importedTechnology) {
         return getResClusterCapacityEntityStream(ipTrajectories, area, availableTechnologies, importedTechnology)
-                .map(entity -> String.format("%s/%s/%s/%s", entity.getArea(), entity.getGroupe(), entity.getCluster() != null ? entity.getCluster() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
+                .map(entity -> entity.getArea() + "/" + entity.getGroupe() + "/" + (entity.getCluster() != null ? entity.getCluster() : "") + "/" + (entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
 
@@ -455,7 +454,7 @@ public class ResCoherenceCheckService {
              if (trajectoryBeingImported.getType().equals(expectedType)) {
                  allTrajectories.add(trajectoryBeingImported);
              }
-             boolean result = hasCompletedFourCombinations(allTrajectories, areaParam, technology);
+             boolean result = hasCompletedFourCombinations(allTrajectories, technology);
              log.info("Vérification 4 combinaisons {} (Area: {}): {}", trajectoryLabel, areaParam, result);
              return result;
          } else {
@@ -553,7 +552,21 @@ public class ResCoherenceCheckService {
          Set<String> ipKeys = extractIPKeysForIP(allIpTrajectories, area, availableLFTechnologies, importedTechnology);
 
         // Pour chaque clé IP, vérifier que le fichier existe dans le répertoire NAS pour au moins une LF
-        Set<String> missingFiles = new HashSet<>();
+        Set<String> missingFiles = findMissingIPLFFiles(ipKeys, bdLfTrajectories, horizon);
+
+
+        // Si des fichiers manquent, lever une exception
+        if (!missingFiles.isEmpty()) {
+            String missingFilesStr = String.join(", ", missingFiles);
+            log.error("Fichiers Load Factor manquants pour les clés IP: {}", missingFilesStr);
+            throw BusinessException.builder().message("Cohérence IP/Load Factor échouée. Fichiers Load Factor manquants pour les clés: {0}").errorMessageArguments(List.of(missingFilesStr)).httpStatus(HttpStatus.BAD_REQUEST).build();
+        }
+
+        log.info("Validation des fichiers Load Factor réussie");
+    }
+
+    private Set<String> findMissingIPLFFiles(Set<String> ipKeys, List<TrajectoryEntity> bdLfTrajectories, String horizon) {
+        var missingFiles = new HashSet<String>();
         for (String ipKey : ipKeys) {
             String[] parts = ipKey.split("/", -1);
             if (parts.length >= 4) {
@@ -576,15 +589,7 @@ public class ResCoherenceCheckService {
                 }
             }
         }
-
-        // Si des fichiers manquent, lever une exception
-        if (!missingFiles.isEmpty()) {
-            String missingFilesStr = String.join(", ", missingFiles);
-            log.error("Fichiers Load Factor manquants pour les clés IP: {}", missingFilesStr);
-            throw BusinessException.builder().message("Cohérence IP/Load Factor échouée. Fichiers Load Factor manquants pour les clés: {0}").errorMessageArguments(List.of(missingFilesStr)).httpStatus(HttpStatus.BAD_REQUEST).build();
-        }
-
-        log.info("Validation des fichiers Load Factor réussie");
+        return missingFiles;
     }
 
     /**
@@ -752,7 +757,20 @@ public class ResCoherenceCheckService {
          Set<String> dtKeysWithPecd = extractDTKeysWithPecd(allDtTrajectories, area, availableDTTechnologies, importedTechnology);
 
         // Pour chaque clé DT, vérifier que le fichier existe dans le répertoire NAS pour au moins une LF
-        Set<String> missingFiles = new HashSet<>();
+        Set<String> missingFiles = missingLDFTFiles(dtKeysWithPecd, bdLfTrajectories, horizon);
+
+        // Si des fichiers manquent, lever une exception
+        if (!missingFiles.isEmpty()) {
+            String missingFilesStr = String.join(", ", missingFiles);
+            log.error("Fichiers Load Factor manquants pour les clés Distribution Technology: {}", missingFilesStr);
+            throw BusinessException.builder().message("Cohérence LF/Distribution Technology échouée. Fichiers Load Factor manquants pour les clés: {0}").errorMessageArguments(List.of(missingFilesStr)).httpStatus(HttpStatus.BAD_REQUEST).build();
+        }
+
+        log.info("Validation des fichiers Load Factor pour Distribution Technology réussie");
+    }
+
+    private Set<String> missingLDFTFiles( Set<String> dtKeysWithPecd, List<TrajectoryEntity> bdLfTrajectories, String horizon) {
+        var missingFiles = new HashSet<String>();
         for (String dtKey : dtKeysWithPecd) {
             String[] parts = dtKey.split("/", -1);
             if (parts.length >= 5) {
@@ -775,15 +793,7 @@ public class ResCoherenceCheckService {
                 }
             }
         }
-
-        // Si des fichiers manquent, lever une exception
-        if (!missingFiles.isEmpty()) {
-            String missingFilesStr = String.join(", ", missingFiles);
-            log.error("Fichiers Load Factor manquants pour les clés Distribution Technology: {}", missingFilesStr);
-            throw BusinessException.builder().message("Cohérence LF/Distribution Technology échouée. Fichiers Load Factor manquants pour les clés: {0}").errorMessageArguments(List.of(missingFilesStr)).httpStatus(HttpStatus.BAD_REQUEST).build();
-        }
-
-        log.info("Validation des fichiers Load Factor pour Distribution Technology réussie");
+        return missingFiles;
     }
 
     /**
@@ -805,7 +815,7 @@ public class ResCoherenceCheckService {
 
                     // If importedTechnology is not null, match it and check if it's available
                     return importedTechnology.equals(entity.getGroupe()) && availableTechnologies.contains(entity.getGroupe());
-                })                .map(entity -> String.format("%s/%s/%s/%s/%s", entity.getArea(), entity.getGroupe(), entity.getCluster() != null ? entity.getCluster() : "", entity.getPecdZone() != null ? entity.getPecdZone() : "", entity.getPecdTechnology() != null ? entity.getPecdTechnology() : ""))
+                })                .map(entity -> entity.getArea() + "/" + entity.getGroupe() + "/" + (entity.getCluster() != null ? entity.getCluster() : "") + "/" + (entity.getPecdZone() != null ? entity.getPecdZone() : "") + "/" + (entity.getPecdTechnology() != null ? entity.getPecdTechnology() : ""))
                 .collect(Collectors.toSet());
     }
 
@@ -991,9 +1001,7 @@ public class ResCoherenceCheckService {
         }
 
         // Vérifier qu'il existe une trajectoire DT avec area et une technology
-        boolean hasDTWithSomeTech = dtTrajectories.stream().anyMatch(trajectory -> trajectory.getArea().equals(area) && !isBlankOrEmpty(trajectory.getTechnology()));
-
-        return hasDTWithSomeTech;
+        return dtTrajectories.stream().anyMatch(trajectory -> trajectory.getArea().equals(area) && !isBlankOrEmpty(trajectory.getTechnology()));
     }
 
     /**

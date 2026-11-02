@@ -31,7 +31,6 @@ import java.util.Set;
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -571,7 +570,7 @@ class ThermalControlsServiceImplTest {
         try (Workbook wb = WorkbookFactory.create(file.toFile())) {
             Sheet costsSheet = wb.getSheet(ThermalControlsServiceImpl.SHEET_COSTS);
 
-            BusinessException ex = assertThrows(BusinessException.class, () ->
+            assertThrows(BusinessException.class, () ->
                     thermalControlsService.validateDataCells(
                             costsSheet,
                             "costs_testTrajectory",
