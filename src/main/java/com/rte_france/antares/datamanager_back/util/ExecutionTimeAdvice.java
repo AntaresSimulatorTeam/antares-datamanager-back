@@ -17,23 +17,24 @@ public class ExecutionTimeAdvice {
     private static final String STUDY_ID_KEY = "studyId";
 
     @Pointcut("@annotation(com.rte_france.antares.datamanager_back.util.ExecutionTime)")
-    public void executionTimePointcut() {}
+    public void executionTimePointcut() {
+    }
 
     @Around("executionTimePointcut()")
     public Object executionTime(ProceedingJoinPoint joinPoint) throws Throwable {
         long start = System.currentTimeMillis();
-        
+
         extractAndSetStudyIdToMdc(joinPoint);
 
-            Object proceed = joinPoint.proceed();
+        Object proceed = joinPoint.proceed();
 
-            long executionTime = System.currentTimeMillis() - start;
-            //en seconds
-            long executionTimeInSeconds = executionTime / 1000;
-
-            log.info("{} executed in {}ms ({}s)", joinPoint.getSignature().getName(), executionTime, executionTimeInSeconds);
-            MDC.put("executionTime", String.valueOf(executionTime));
-            return proceed;
+        long executionTime = System.currentTimeMillis() - start;
+        //en seconds
+        long executionTimeInSeconds = executionTime / 1000;
+        MDC.put("executionTime", String.valueOf(executionTimeInSeconds));
+        MDC.put("methodName", joinPoint.getSignature().getName());
+        log.info("{} executed in {}ms ({}s)", joinPoint.getSignature().getName(), executionTime, executionTimeInSeconds);
+        return proceed;
 
     }
 
