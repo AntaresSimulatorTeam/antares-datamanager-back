@@ -145,53 +145,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
             buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache);
 
-            boolean foundStudyArea = false;
-
-            for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) { // skip header
-                Row row = sheet.getRow(r);
-                if (row == null || isRowEmpty(row)) continue;
-
-                String rowArea = getStringCellValue(row, 0);
-                String clusterName = getStringCellValue(row, 1);
-                String groupName = getStringCellValue(row, 2);
-                // Zone must be present
-                if (rowArea == null || rowArea.isEmpty()) {
-                    throw BusinessException.builder()
-                            .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
-                            .message("Area is missing in STS trajectory " + trajectoryFileName + " for row: " + r)
-                            .build();
-                }
-
-                if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
-                    continue;
-                }
-                foundStudyArea = true;
-
-                // Cluster name is mandatory
-                if (clusterName == null || clusterName.isEmpty()) {
-                    throw BusinessException.builder()
-                            .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
-                            .message("No valid cluster name found in the trajectory {0} for area {1} and horizon {2}")
-                            .build();
-                }
-
-                // Group name is mandatory
-                if (groupName == null || groupName.isEmpty()) {
-                    throw BusinessException.builder()
-                            .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
-                            .message("No valid cluster group found in the trajectory {0} for area {1} and horizon {2}")
-                            .build();
-                }
-
-
-                validateNumericRange(row, 3, 8, trajectoryFileName);
-                validateZeroToOneRange(row, trajectoryFileName);
-                validateBooleanRange(row, 9, 12, trajectoryFileName);
-
-                StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
-                        clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
-                results.add(entity);
-            }
+            var foundStudyArea = processSheetRows(sheet, trajectoryFilePath, areaParam, technology, studyAreas, studyId, horizon, constraintsParamsCache, results, trajectoryFileName);
 
             // The selected area must be present in the file's 'node' column, except when area equals OTHERS
             validateSelectedAreaPresence(areaParam, results, trajectoryFileName);
@@ -203,6 +157,64 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             }
         }
         return results;
+    }
+
+    private boolean processSheetRows(Sheet sheet, Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, Integer studyId, String horizon, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache, List<StStorageEntity> results, String trajectoryFileName) throws IOException {
+        boolean foundStudyArea = false;
+
+        for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) { // skip header
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row)) continue;
+
+            String rowArea = getStringCellValue(row, 0);
+            String clusterName = getStringCellValue(row, 1);
+
+            // Zone must be present
+            validateMandatoryArea(rowArea, trajectoryFileName, r);
+
+            if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
+                continue;
+            }
+            foundStudyArea = true;
+
+            validateRowFields(row, clusterName, trajectoryFileName, rowArea, horizon);
+            StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
+                    clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
+            results.add(entity);
+        }
+        return foundStudyArea;
+    }
+
+    private void validateMandatoryArea(String rowArea, String trajectoryFileName, int rowIndex){
+        if (rowArea == null || rowArea.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(rowIndex)))
+                    .message("Area is missing in STS trajectory " + trajectoryFileName + " for row: " + rowIndex)
+                    .build();
+        }
+    }
+
+    private void validateRowFields(Row row, String clusterName, String trajectoryFileName, String rowArea, String horizon){
+        String groupName = getStringCellValue(row, 2);
+        // Cluster name is mandatory
+        if (clusterName == null || clusterName.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
+                    .message("No valid cluster name found in the trajectory {0} for area {1} and horizon {2}")
+                    .build();
+        }
+
+        // Group name is mandatory
+        if (groupName == null || groupName.isEmpty()) {
+            throw BusinessException.builder()
+                    .errorMessageArguments(List.of(trajectoryFileName, rowArea, horizon))
+                    .message("No valid cluster group found in the trajectory {0} for area {1} and horizon {2}")
+                    .build();
+        }
+
+        validateNumericRange(row, 3, 8, trajectoryFileName);
+        validateZeroToOneRange(row, trajectoryFileName);
+        validateBooleanRange(row, 9, 12, trajectoryFileName);
     }
 
     private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
@@ -348,7 +360,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                     areaParam,
                     studyAreas,
                     stStorageEntity,
-                    horizon,
                     studyId,
                     constraintsParamsCache);
         }
@@ -478,13 +489,12 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                      String areaParam,
                                      List<String> studyAreas,
                                      StStorageEntity storage,
-                                     String horizon,
                                      Integer studyId,
                                      Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
 
         // Get cached parameters for this area
         List<StConstraintsParameterEntity> parsedTemplateParams = constraintsParamsCache.getOrDefault(areaParam, List.of());
-        
+
         if (parsedTemplateParams.isEmpty()) {
             log.info("No constraints parameters found for area={}, cluster={}", areaParam, clusterName);
             return;
@@ -500,19 +510,19 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         // Filter parameters by storage's area and cluster
         List<StConstraintsParameterEntity> filteredParams = parsedTemplateParams.stream()
-                .filter(p -> p.getZone().equalsIgnoreCase(rowAreaName) 
+                .filter(p -> p.getZone().equalsIgnoreCase(rowAreaName)
                         && p.getCluster().equalsIgnoreCase(clusterName))
                 .toList();
 
         if (filteredParams.isEmpty()) {
-            log.info("No matching constraints for trajectory={}, area={}, cluster={}", 
+            log.info("No matching constraints for trajectory={}, area={}, cluster={}",
                     trajectoryFileName, rowAreaName, clusterName);
             return;
         }
 
         // Clone filtered parameters (for concurrency)
         List<StConstraintsParameterEntity> filteredNewParams = deepCopyParams(filteredParams);
-        log.info("STS constraints assigned to trajectory={}, area={}, cluster={}: filteredCount={}", 
+        log.info("STS constraints assigned to trajectory={}, area={}, cluster={}: filteredCount={}",
                 trajectoryFileName, rowAreaName, clusterName, filteredNewParams.size());
 
         filteredNewParams.forEach(p -> p.setStorage(storage));

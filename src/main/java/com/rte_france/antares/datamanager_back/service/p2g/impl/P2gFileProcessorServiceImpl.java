@@ -108,7 +108,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
              InputStream costsInputStream = Files.newInputStream(files.get(SHEET_COSTS));
              Workbook costsWorkbook = WorkbookFactory.create(costsInputStream)) {
 
-            processCapacityAndParameters(capacityWorkbook, trajectory, trajectoryToUse, horizon);
+            processCapacityAndParameters(capacityWorkbook, trajectory, trajectoryToUse, horizon, studyId);
             processCosts(costsWorkbook, trajectory, trajectoryToUse, horizon);
 
         } catch (IOException e) {
@@ -122,7 +122,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         return trajectoryRepository.save(trajectory);
     }
 
-    private void processCapacityAndParameters(Workbook workbook, TrajectoryEntity trajectory, String trajectoryToUse, String horizon) {
+    private void processCapacityAndParameters(Workbook workbook, TrajectoryEntity trajectory, String trajectoryToUse, String horizon, Integer studyId) {
         List<String> missingParametersTabs = new ArrayList<>();
         List<P2GParametersEntity> parametersEntities = buildParametersEntities(workbook, trajectory, missingParametersTabs, horizon);
 
@@ -135,7 +135,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         }
         
         List<String> missingHorizonTabs = new ArrayList<>();
-        List<P2GCapacityEntity> capacityEntities = buildCapacityEntities(workbook, trajectory, missingHorizonTabs, horizon);
+        List<P2GCapacityEntity> capacityEntities = buildCapacityEntities(workbook, trajectory, missingHorizonTabs, horizon, studyId);
 
         if (!missingHorizonTabs.isEmpty()) {
             throw BusinessException.builder()
@@ -271,7 +271,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         parametersMap.put(parameterName, parameterCell.getNumericCellValue());
     }
 
-    private List<P2GCapacityEntity> buildCapacityEntities(Workbook workbook, TrajectoryEntity trajectory, List<String> missingTabs, String horizon) {
+    private List<P2GCapacityEntity> buildCapacityEntities(Workbook workbook, TrajectoryEntity trajectory, List<String> missingTabs, String horizon, Integer studyId) {
         Sheet sheet = workbook.getSheet(horizon);
         if (sheet == null) {
             missingTabs.add(horizon);
@@ -283,10 +283,11 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         checkMissingColumns(sheet, allColumns.keySet().toArray(new String[0]), trajectory.getFileName(), TrajectoryType.P2G_CAPACITY_COST);
 
         List<P2GCapacityEntity> capacities = new ArrayList<>();
+        List<String> studyAreas = loadStudyAreas(studyId);
         List<String> areaNames = new ArrayList<>();
         FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
         for (Row row : sheet) {
-            processRowCapacity(row, evaluator, trajectory, horizon, areaNames, capacities);
+            processRowCapacity(row, evaluator, trajectory, studyAreas, areaNames, capacities);
         }
 
         if (areaNames.isEmpty()) {
@@ -300,7 +301,7 @@ public class P2gFileProcessorServiceImpl implements P2gFileProcessorService {
         return capacities;
     }
 
-    private void processRowCapacity(Row row, FormulaEvaluator evaluator, TrajectoryEntity trajectory, String studyAreas, List<String> areaNames, List<P2GCapacityEntity> capacities){
+    private void processRowCapacity(Row row, FormulaEvaluator evaluator, TrajectoryEntity trajectory, List<String> studyAreas, List<String> areaNames, List<P2GCapacityEntity> capacities){
         if (isRowEmpty(row) || row.getRowNum() == 0) {
             return;
         }

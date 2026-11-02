@@ -19,6 +19,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
@@ -976,6 +977,7 @@ public class Utils {
         return null;
     }
 
+    @Nullable
     public Boolean getBooleanCell(Row row, int idx) {
         Cell cell = row.getCell(idx);
         if (cell == null) return null;

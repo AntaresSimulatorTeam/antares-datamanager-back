@@ -230,13 +230,20 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
         }
         DataFormatter dataFormatter = new DataFormatter();
         for (Row row : sheet) {
-            if (row != null && row.getRowNum() >= 1) {
-                for (Cell cell : row) {
-                    if (cell != null) {
-                        String cellValue = dataFormatter.formatCellValue(cell);
-                        if (cellValue != null && !cellValue.trim().isEmpty()) {
-                            return true;
-                        }
+            if(processRow(row, dataFormatter)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean processRow(Row row, DataFormatter dataFormatter){
+        if (row != null && row.getRowNum() >= 1) {
+            for (Cell cell : row) {
+                if (cell != null) {
+                    String cellValue = dataFormatter.formatCellValue(cell);
+                    if (cellValue != null && !cellValue.trim().isEmpty()) {
+                        return true;
                     }
                 }
             }
