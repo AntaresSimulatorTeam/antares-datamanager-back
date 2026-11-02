@@ -82,6 +82,7 @@ public class HydroMeToJsonService {
     private static final List<String> RESERVOIR_LEVELS_HEADERS =
             List.of("date", "minimum", "moyenne", "maximum");
     private static final int DAYS_PER_YEAR = 365;
+    private static final String ARROW_EXTENSION = ".arrow";
 
     private final HydroCapacityMeRepository hydroCapacityMeRepository;
     private final HydroParametersMeRepository hydroParametersMeRepository;
@@ -240,7 +241,7 @@ public class HydroMeToJsonService {
                 String baseName = sourceName.substring(0, sourceName.length() - EXCEL_EXTENSION.length());
                 String nodeName = baseName.substring(
                         0, baseName.length() - "_reservoir_levels".length());
-                String arrowFileName = baseName + "_" + trajectory.getChecksum() + ".arrow";
+                String arrowFileName = baseName + "_" + trajectory.getChecksum() + ARROW_EXTENSION;
                 nasFileService.saveMatrixToNasWithName(
                         withoutDate, arrowFileName, antaresDataManagerProperties.getHydroMeOutputDirectory());
                 reservoirSeries.put(normalize(nodeName), arrowFileName);
@@ -348,7 +349,7 @@ public class HydroMeToJsonService {
 
         TimeSeriesMatrix series = new TimeSeriesMatrix(List.of(
                 new TimeSeriesMatrixColumn(seriesName, source.columns().get(0).values())));
-        String arrowFileName = node + "_" + seriesName + "." + trajectory.getChecksum() + ".arrow";
+        String arrowFileName = node + "_" + seriesName + "." + trajectory.getChecksum() + ARROW_EXTENSION;
         nasFileService.saveMatrixToNasWithName(
                 series, arrowFileName, antaresDataManagerProperties.getHydroMeOutputDirectory());
         log.info("Hydro ME {} series for node {} saved to {}", seriesName, node, arrowFileName);
@@ -425,7 +426,7 @@ public class HydroMeToJsonService {
                             .build();
                 }
 
-                String arrowFileName = nodeEntry.getValue() + "_" + trajectory.getChecksum() + ".arrow";
+                String arrowFileName = nodeEntry.getValue() + "_" + trajectory.getChecksum() + ARROW_EXTENSION;
                 nasFileService.saveMatrixToNasWithName(
                         matrix, arrowFileName, antaresDataManagerProperties.getHydroMeOutputDirectory());
                 valuesByNode.put(nodeEntry.getKey(), arrowFileName);

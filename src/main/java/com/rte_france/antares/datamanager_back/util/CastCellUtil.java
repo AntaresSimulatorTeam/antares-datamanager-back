@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 @Slf4j
 @UtilityClass
 public class CastCellUtil {
-
+    private static final String STRING_AT_ROW = "' at row ";
 
     public static Integer castInt(Object cellValue) {
         if (cellValue == null) return null;
@@ -36,30 +36,30 @@ public class CastCellUtil {
             return bd.doubleValue();
         } catch (NumberFormatException e) {
             throw BusinessException.builder()
-                    .message("The value '" + o + "' in column '" + columnName + "' at row " + (rowNum+1) + " is not numeric")
+                    .message("The value '" + o + "' in column '" + columnName +STRING_AT_ROW + (rowNum+1) + " is not numeric")
                     .build();
         }
     }
     public BigDecimal castBigDecimal(Object value, String columnName, int rowNum) {
-        if (value == null || value instanceof String && ((String) value).isEmpty()) {
+        if (value == null || value instanceof String string && string.isEmpty()) {
             return null;
         }
-        if (value instanceof BigDecimal) {
-            return (BigDecimal) value;
+        if (value instanceof BigDecimal castValue) {
+            return castValue;
         }
-        if (value instanceof Double) {
-            return BigDecimal.valueOf((Double) value);
+        if (value instanceof Double castValue) {
+            return BigDecimal.valueOf(castValue);
         }
-        if (value instanceof Number) {
-            return BigDecimal.valueOf(((Number) value).doubleValue());
+        if (value instanceof Number castValue) {
+            return BigDecimal.valueOf((castValue).doubleValue());
         }
-        if (value instanceof String) {
+        if (value instanceof String castValue) {
             try {
-                return new BigDecimal((String) value);
+                return new BigDecimal(castValue);
             } catch (NumberFormatException e) {
-                throw BusinessException.builder().message("Invalid BigDecimal value for column '" + columnName + "' at row " + rowNum + ": " + value).build();
+                throw BusinessException.builder().message("Invalid BigDecimal value for column '" + columnName +STRING_AT_ROW + rowNum + ": " + value).build();
             }
         }
-        throw BusinessException.builder().message("Invalid BigDecimal value for column '" + columnName + "' at row " + rowNum + ": " + value).build();
+        throw BusinessException.builder().message("Invalid BigDecimal value for column '" + columnName +STRING_AT_ROW + rowNum + ": " + value).build();
     }
 }

@@ -138,6 +138,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String DSR_PREFIX = "cluster_dsr_";
     private static final String DSR_CAPACITY_PREFIX = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
+    private static final String FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT = "File already processed with same content {0}";
     public static final String RES_CAPACITY_PREFIX = "installedres_";
     public static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
     public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
@@ -935,7 +936,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             )
             ) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
+                        .message(FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -983,7 +984,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
             if (isSameTrajectory(trajectoryPath, existingTrajectory)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
+                        .message(FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -2036,7 +2037,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content {0}")
+                        .message(FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT)
                         .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();

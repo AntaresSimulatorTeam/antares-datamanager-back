@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -234,20 +235,18 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         }
 
         Map<String, Object> hydroMeMap = new LinkedHashMap<>();
-        if (hydroCapacityMeTrajectory != null) {
-            if (hydroMeToJsonService != null) {
-                Map<String, Object> nodes = hydroReservoirLevelsMeTrajectory == null
-                        && hydroTimeSeriesMeTrajectory == null
-                        && hydroWaterValuesMeTrajectory == null
-                        ? hydroMeToJsonService.buildHydroMeMap(
-                                hydroCapacityMeTrajectory, hydroParametersMeTrajectory)
-                        : hydroMeToJsonService.buildHydroMeMap(
-                                hydroCapacityMeTrajectory, hydroParametersMeTrajectory,
-                                hydroReservoirLevelsMeTrajectory, hydroTimeSeriesMeTrajectory,
-                                hydroWaterValuesMeTrajectory);
-                if (nodes != null) {
-                    hydroMeMap.putAll(nodes);
-                }
+        if (hydroCapacityMeTrajectory != null && hydroMeToJsonService != null) {
+            Map<String, Object> nodes = hydroReservoirLevelsMeTrajectory == null
+                    && hydroTimeSeriesMeTrajectory == null
+                    && hydroWaterValuesMeTrajectory == null
+                    ? hydroMeToJsonService.buildHydroMeMap(
+                            hydroCapacityMeTrajectory, hydroParametersMeTrajectory)
+                    : hydroMeToJsonService.buildHydroMeMap(
+                            hydroCapacityMeTrajectory, hydroParametersMeTrajectory,
+                            hydroReservoirLevelsMeTrajectory, hydroTimeSeriesMeTrajectory,
+                            hydroWaterValuesMeTrajectory);
+            if (nodes != null) {
+                hydroMeMap.putAll(nodes);
             }
         }
         if (!hydroMeMap.isEmpty()) {
@@ -371,15 +370,13 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
         }
 
         if (loadFilesByArea.containsKey(areaName)) {
-            List<String> files = loadFilesByArea.get(areaName);
-            return files != null ? files : Collections.emptyList();
+            return safeList(loadFilesByArea.get(areaName));
         }
 
         String upperCaseAreaName = areaName.toUpperCase(Locale.ROOT);
 
         if (loadFilesByArea.containsKey(upperCaseAreaName)) {
-            List<String> files = loadFilesByArea.get(upperCaseAreaName);
-            return files != null ? files : Collections.emptyList();
+            return safeList(loadFilesByArea.get(upperCaseAreaName));
         }
 
         for (Map.Entry<String, List<String>> entry :
@@ -387,13 +384,11 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
 
             if (entry.getKey() != null
                     && entry.getKey().equalsIgnoreCase(areaName)) {
-                return entry.getValue() != null ? entry.getValue() : Collections.emptyList();
+                return safeList(entry.getValue());
             }
         }
 
-        String normalizedArea =
-                areaName.toLowerCase(Locale.ROOT)
-                        .replaceFirst("^loads?_", "");
+        String normalizedArea = normalizedName(areaName);
 
         for (Map.Entry<String, List<String>> entry :
                 loadFilesByArea.entrySet()) {
@@ -402,17 +397,23 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                 continue;
             }
 
-            String normalizedKey =
-                    entry.getKey()
-                            .toLowerCase(Locale.ROOT)
-                            .replaceFirst("^loads?_", "");
+            String normalizedKey =  normalizedName(entry.getKey());
 
             if (normalizedKey.equals(normalizedArea)) {
-                return entry.getValue() != null ? entry.getValue() : Collections.emptyList();
+                return safeList(entry.getValue());
             }
         }
 
         return Collections.emptyList();
+    }
+
+    private List<String> safeList(List<String> list){
+        return list != null ? list : Collections.emptyList();
+    }
+
+    private String normalizedName(String name){
+        return name.toLowerCase(Locale.ROOT)
+                .replaceFirst("^loads?_", "");
     }
 
     private Map<String, Object> buildLinksMeMap(

@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.efficiency_me.EfficiencyMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.EfficiencyMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -118,17 +117,14 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         if (sheet == null) return;
 
         for (Row row : sheet) {
-            if (row.getRowNum() == 0) continue;
-            
-            String nodeCluster = getCellStringValue(row, EfficiencyMeColumns.NODE_CLUSTER.getIndex());
-            if (nodeCluster == null || nodeCluster.trim().isEmpty() || !nodeCluster.toLowerCase(Locale.ROOT).startsWith(PREFIX_EFFICIENCY_AREA) || !areasMeList.contains(nodeCluster.toUpperCase(Locale.ROOT))) continue;
-            
-            String type = getCellStringValue(row, EfficiencyMeColumns.TYPE.getIndex());
-            String comments = getCellStringValue(row, EfficiencyMeColumns.COMMENTS.getIndex());
-            BigDecimal efficiency = getCellNumericValue(row, EfficiencyMeColumns.EFFICIENCY.getIndex());
+            if (!isRowValid(row, areasMeList)) continue;
+            String nodeCluster = getCellStringValue(row, 0);
+            String type = getCellStringValue(row, 1);
+            String comments = getCellStringValue(row, 2);
+            BigDecimal efficiency = getCellNumericValue(row, 3);
             
             EfficiencyMeEntity efficiencyMe = EfficiencyMeEntity.builder()
-                    .nodeCluster(nodeCluster.trim())
+                    .nodeCluster(nodeCluster != null ? nodeCluster.trim() : "")
                     .type(type)
                     .comments(comments)
                     .efficiency(efficiency)
@@ -149,6 +145,14 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         trajectory.setEfficiencyMeEntities(efficiencyMeEntities);
     }
 
+    private boolean isRowValid(Row row, Set<String> areasMeList){
+        if (row.getRowNum() == 0){
+            return false;
+        }
+        String nodeCluster = getCellStringValue(row, 0);
+        return nodeCluster != null && !nodeCluster.trim().isEmpty() && nodeCluster.toLowerCase(Locale.ROOT).startsWith(PREFIX_EFFICIENCY_AREA) && areasMeList.contains(nodeCluster.toUpperCase(Locale.ROOT));
+    }
+
     private String getCellStringValue(Row row, int cellIndex) {
         if (row.getCell(cellIndex) == null) return null;
         try {
@@ -167,7 +171,7 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
         }
     }
 
-    private void validateEfficiencyMeExcelFile(Workbook workbook, String trajectoryName, String horizon) throws IOException {
+    private void validateEfficiencyMeExcelFile(Workbook workbook, String trajectoryName, String horizon) {
         if (trajectoryName.length() > 40) {
             throw BusinessException.builder()
                     .message("Trajectory name cannot exceed 40 characters")
@@ -203,43 +207,47 @@ public class EfficiencyMeFileProcessorServiceImpl implements EfficiencyMeFilePro
     private void validateSheetColumns(Sheet sheet, String trajectoryName) {
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
-            
-            String nodeCluster = getCellStringValue(row, EfficiencyMeColumns.NODE_CLUSTER.getIndex());
+
+            String nodeCluster = getCellStringValue(row, 0);
             if (nodeCluster != null && !nodeCluster.trim().isEmpty()) {
-                if (nodeCluster.length() > 60) {
-                    throw BusinessException.builder()
-                            .message("Node/Cluster cannot exceed 60 characters in EFFICIENCY_ME trajectory {0}")
-                            .errorMessageArguments(List.of(trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-                
-                BigDecimal efficiency = getCellNumericValue(row, EfficiencyMeColumns.EFFICIENCY.getIndex());
-                if (efficiency == null) {
-                    throw BusinessException.builder()
-                            .message("Column efficiency must be numeric in EFFICIENCY_ME trajectory {0}")
-                            .errorMessageArguments(List.of(trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-            } else {
-                boolean hasOtherData = false;
-                for (int i = EfficiencyMeColumns.TYPE.getIndex(); i <= EfficiencyMeColumns.EFFICIENCY.getIndex(); i++) {
-                    String cellValue = getCellStringValue(row, i);
-                    if (cellValue != null && !cellValue.trim().isEmpty()) {
-                        hasOtherData = true;
-                        break;
-                    }
-                }
-                if (hasOtherData) {
+                validateClusterData(row, nodeCluster, trajectoryName);
+            } else if (hasOtherData(row)) {
                     throw BusinessException.builder()
                             .message("Node/Cluster column must be filled in EFFICIENCY_ME trajectory {0}")
                             .errorMessageArguments(List.of(trajectoryName))
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
-                }
             }
         }
+    }
+
+    private void validateClusterData(Row row, String nodeCluster, String trajectoryName){
+        if (nodeCluster.length() > 60) {
+            throw BusinessException.builder()
+                    .message("Node/Cluster cannot exceed 60 characters in EFFICIENCY_ME trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        BigDecimal efficiency = getCellNumericValue(row, 3);
+        if (efficiency == null) {
+            throw BusinessException.builder()
+                    .message("Column efficiency must be numeric in EFFICIENCY_ME trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
+
+    private boolean hasOtherData(Row row){
+        for (int i = 1; i < 4; i++) {
+            String cellValue = getCellStringValue(row, i);
+            if (cellValue != null && !cellValue.trim().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isSameFileWithSameContent(Path trajectoryPath, TrajectoryEntity existingTrajectory) throws IOException {
