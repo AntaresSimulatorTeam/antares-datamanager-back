@@ -17,6 +17,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -285,7 +286,12 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     private void validateCo2HeaderColumns(Sheet sheet, String trajectoryFileName) {
         if (sheet == null) return;
         Row header = sheet.getRow(0);
-        if (header == null) return;
+        if (header == null) {
+            throw BusinessException.builder()
+                    .message("Header row is missing in CO2_emissions tab for trajectory " + trajectoryFileName)
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
 
         List<String> allColumnNames = ThermalEconomicCo2Columns.getAllColumnNames();
         for (int i = 0; i < allColumnNames.size(); i++) {
@@ -295,6 +301,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
                 throw BusinessException.builder()
                         .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in THERMAL Economic trajectory " + trajectoryFileName + " in CO2_emissions tab")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
         }
@@ -303,7 +310,12 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
     private void validateEnerContentHeaderColumns(Sheet sheet, String trajectoryFileName) {
         if (sheet == null) return;
         Row header = sheet.getRow(0);
-        if (header == null) return;
+        if (header == null) {
+            throw BusinessException.builder()
+                    .message("Header row is missing in CO2_emissions tab for trajectory " + trajectoryFileName)
+                    .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+                    .build();
+        }
 
         List<String> allColumnNames = ThermalEconomicEnerColumns.getAllColumnNames();
         for (int i = 0; i < allColumnNames.size(); i++) {
@@ -313,6 +325,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
                 throw BusinessException.builder()
                         .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in THERMAL Economic trajectory " + trajectoryFileName + " in ener_content tab")
+                        .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
         }
