@@ -20,7 +20,6 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
             "WHERE t.id IN :ids")
     Set<TrajectoryEntity> findAllByIdWithWarnings(@Param("ids") List<Integer> ids);
 
-    @ExecutionTime
     Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(String fileName, String horizon, String type);
 
     Optional<TrajectoryEntity> findFirstByFileNameAndHorizonAndAreaOrderByVersionDesc(String fileName, String horizon, String area);

@@ -44,7 +44,6 @@ public class DsrPropertiesAssemblerServiceImpl implements DsrGenerationAssembler
     private final TimeSeriesReader timeSeriesReader;
 
 @Override
-@ExecutionTime
 public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
 
     // Compute modulation files only once

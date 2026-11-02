@@ -82,12 +82,8 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private static final String ADEQUACY_PATCH_MODE = "adequacy_patch_mode";
 
 
-    @ExecutionTime
     @Override
     public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
-        String sid = studyId != null ? String.valueOf(studyId) : "null";
-        MDC.put("studyId", sid);
-        MDC.put("mainStep", "json_generation");
         log.info("Début de la génération du JSON pour l'étude id={}", studyId);
         Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGeneration(studyId);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -524,11 +520,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
-    @ExecutionTime
     public void callGenerateStudyService(Integer studyId) {
-        MDC.put("studyId", String.valueOf(studyId));
-        MDC.put("mainStep", "generate_study");
-
         log.info("Calling generation service for study id={}", studyId);
         String url = antaresDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
 

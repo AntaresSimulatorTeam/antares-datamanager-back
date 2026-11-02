@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.service.study.StudyGeneratorServi
 import com.rte_france.antares.datamanager_back.service.study.StudyService;
 import com.rte_france.antares.datamanager_back.service.common.WarningService;
 import com.rte_france.antares.datamanager_back.util.DuplicationTrajectoryUtils;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
@@ -128,6 +129,7 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     public void generateStudy(Integer studyId) throws TechnicalException {
+        log.info("Generating study with ID: {}", studyId);
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
         studyGeneratorService.callGenerateStudyService(studyId);
         updateStudyStatusAsGenerated(studyId);

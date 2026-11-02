@@ -70,7 +70,6 @@ public class LinkMeProcessorServiceImpl {
      * @return the processed TrajectoryEntity
      * @throws IOException if an I/O error occurs
      */
-    @ExecutionTime
     @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity processLinkMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         Path trajectoryFilePath = getTrajectoryFilePath(trajectoryToUse);

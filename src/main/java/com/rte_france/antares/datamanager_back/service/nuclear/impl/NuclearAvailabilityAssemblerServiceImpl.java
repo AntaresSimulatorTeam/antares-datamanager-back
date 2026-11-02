@@ -67,7 +67,6 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private final PathSecurityUtil pathSecurityUtil;
     private final ClusterDesignationRepository clusterDesignationRepository;
 
-    @ExecutionTime
     @Override
     public NuclearAvailabilityAssemblyResult assembleNuclearAvailability(StudyEntity study,
                                                                          Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
