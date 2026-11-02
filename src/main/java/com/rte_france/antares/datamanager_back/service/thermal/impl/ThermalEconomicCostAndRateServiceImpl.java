@@ -278,7 +278,8 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
         var allColumnNames = ThermalEconomicCostColumns.getAllColumnNames();
         for (int i = 0; i < allColumnNames.size(); i++) {
             Cell cell = header.getCell(i);
-            String cellValue = cell != null ? cell.getStringCellValue().trim() : null;
+            String cellValue = cell != null && cell.getCellType() == CellType.STRING
+                    ? cell.getStringCellValue().trim() : null;
             if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
                 throw BusinessException.builder()
                         .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in the Economic Cost file " + path.getFileName())

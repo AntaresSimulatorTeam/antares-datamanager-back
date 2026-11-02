@@ -112,8 +112,8 @@ class ThermalEconomicCostAndRateServiceImplTest {
             when(h4.getStringCellValue()).thenReturn("modulation");
             when(h5.getCellType()).thenReturn(CellType.STRING);
             when(h5.getStringCellValue()).thenReturn("ratio_ncv_hcv");
-            when(h6.getCellType()).thenReturn(CellType.STRING);
-            when(h6.getStringCellValue()).thenReturn("2022");
+            when(h6.getCellType()).thenReturn(CellType.NUMERIC);
+            when(h6.getNumericCellValue()).thenReturn(2022d);
 
             Cell r0 = mock(Cell.class);
             Cell r1 = mock(Cell.class);
