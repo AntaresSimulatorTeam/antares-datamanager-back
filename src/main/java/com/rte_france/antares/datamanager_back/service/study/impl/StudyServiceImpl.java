@@ -128,6 +128,7 @@ public class StudyServiceImpl implements StudyService {
     }
 
     @Override
+    @ExecutionTime
     public void generateStudy(Integer studyId) throws TechnicalException {
         log.info("Generating study with ID: {}", studyId);
         studyGeneratorService.buildJsonForStudyGeneration(studyId);
