@@ -83,6 +83,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
 
     @Override
+    @ExecutionTime
     public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
         log.info("Début de la génération du JSON pour l'étude id={}", studyId);
         Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGeneration(studyId);
@@ -520,6 +521,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
+    @ExecutionTime
     public void callGenerateStudyService(Integer studyId) {
         log.info("Calling generation service for study id={}", studyId);
         String url = antaresDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
