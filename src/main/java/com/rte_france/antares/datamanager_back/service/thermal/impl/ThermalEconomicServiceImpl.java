@@ -312,7 +312,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         Row header = sheet.getRow(0);
         if (header == null) {
             throw BusinessException.builder()
-                    .message("Header row is missing in CO2_emissions tab for trajectory " + trajectoryFileName)
+                    .message("Header row is missing in ener_content tab for trajectory " + trajectoryFileName)
                     .httpStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
                     .build();
         }

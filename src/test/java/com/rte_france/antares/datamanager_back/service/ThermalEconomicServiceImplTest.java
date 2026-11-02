@@ -241,4 +241,75 @@ class ThermalEconomicServiceImplTest {
         return sheet;
     }
 
+    @Test
+    void validateCo2HeaderColumns_shouldThrowBusinessException_whenHeaderIsNull() {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet("CO2_emissions");
+        // L'onglet est créé mais la ligne 0 (header) n'est pas créée
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList("temp", "2023-2024", 1, sheet)
+        );
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Header row is missing in CO2_emissions tab for trajectory temp"));
+    }
+
+    @Test
+    void validateCo2HeaderColumns_shouldThrowBusinessException_whenColumnIsMissingOrMisplaced() {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet("CO2_emissions");
+        Row header = sheet.createRow(0);
+        // En-têtes invalides (mauvais nom de colonne)
+        header.createCell(0).setCellValue("bad_column_name");
+        header.createCell(1).setCellValue("country");
+        header.createCell(2).setCellValue("year");
+        header.createCell(3).setCellValue("CO2_EmissionFuel");
+        header.createCell(4).setCellValue("unitCO2");
+        header.createCell(5).setCellValue("comment");
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> thermalEconomicService.buildThermalEconomicCo2ParameterValuesList("temp", "2023-2024", 1, sheet)
+        );
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("is missing or misplaced in THERMAL Economic trajectory temp in CO2_emissions tab"));
+    }
+
+    @Test
+    void validateEnerContentHeaderColumns_shouldThrowBusinessException_whenHeaderIsNull() {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet("ener_content");
+        // L'onglet est créé mais la ligne 0 (header) n'est pas créée
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList("temp", "2023-2024", 1, sheet)
+        );
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("Header row is missing in ener_content tab for trajectory temp"));
+    }
+
+    @Test
+    void validateEnerContentHeaderColumns_shouldThrowBusinessException_whenColumnIsMissingOrMisplaced() {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet("ener_content");
+        Row header = sheet.createRow(0);
+        // En-têtes invalides
+        header.createCell(0).setCellValue("invalid_value");
+        header.createCell(1).setCellValue("unit");
+        header.createCell(2).setCellValue("comment");
+
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> thermalEconomicService.buildThermalEconomicEnerContentParameterValuesList("temp", "2023-2024", 1, sheet)
+        );
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertTrue(ex.getMessage().contains("is missing or misplaced in THERMAL Economic trajectory temp in ener_content tab"));
+    }
+
 }
