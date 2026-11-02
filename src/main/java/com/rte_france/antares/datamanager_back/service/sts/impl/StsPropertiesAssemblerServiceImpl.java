@@ -44,7 +44,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     private final TimeSeriesReader timeSeriesReader;
 
     @Override
-    @ExecutionTime
     public Map<String, StsGenerationDTO> assembleStsProperties(
             StudyEntity studyEntity) {
         if (studyEntity == null || studyEntity.getTrajectories() == null) {

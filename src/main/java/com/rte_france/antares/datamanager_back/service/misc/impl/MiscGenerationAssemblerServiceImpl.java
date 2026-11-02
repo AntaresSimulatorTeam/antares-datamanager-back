@@ -48,7 +48,6 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
     private static final String OTHER_AREA = "OTHERS";
 
     @Override
-    @ExecutionTime
     public Map<String, List<MiscGenerationDTO>> assembleMiscProperties(StudyEntity studyEntity) {
         List<Path> generatedFiles = createSplitMiscGenFiles(studyEntity);
         Map<String, List<String>> filesByArea = buildFilesByArea(generatedFiles);

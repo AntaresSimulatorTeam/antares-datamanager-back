@@ -52,7 +52,6 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     }
     
     @Override
-    @ExecutionTime
     public Map<String, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
         Map<String, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();
         Map<String, HydroGenerationDTO> pspDtoByArea = new HashMap<>();

@@ -51,7 +51,6 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
      * @throws IllegalArgumentException if a trajectory has an invalid {@link TrajectoryType}
      */
 
-    @ExecutionTime
     public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleThermalForTrajectories(StudyEntity study) {
         if (study == null) {
             return Collections.emptyMap();
