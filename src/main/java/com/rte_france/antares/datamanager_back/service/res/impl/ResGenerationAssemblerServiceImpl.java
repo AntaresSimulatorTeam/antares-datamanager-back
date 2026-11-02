@@ -40,6 +40,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private static final String IN_RES_GROUP_SUFFIX = " in RES group ";
     private static final double MAX_COEFF_SUM = 1d;
+    private static final String STRING_CLUSTER = "', cluster '";
 
     private final NasFileService nasFileService;
     private final AntaresDataManagerProperties antaresDataManagerProperties;
@@ -108,7 +109,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         throw BusinessException.builder()
                 .message("No load-factor series found for area '" + area + "', group '" + group
-                        + "', cluster '" + cluster + "'. Link a load-factor trajectory that contains a series file for this area and group.")
+                        + STRING_CLUSTER + cluster + "'. Link a load-factor trajectory that contains a series file for this area and group.")
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
     }
@@ -319,7 +320,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
 
         throw BusinessException.builder()
-                .message("No load-factor series found for FR zone '" + zone + "', cluster '" + cluster
+                .message("No load-factor series found for FR zone '" + zone + STRING_CLUSTER + cluster
                         + "', technology '" + technology
                         + "'. The load-factor trajectory must include a series file for this zone and technology.")
                 .httpStatus(HttpStatus.BAD_REQUEST)
@@ -648,7 +649,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         if (ep > rp) return existing;
         throw BusinessException.builder()
                 .message("Multiple load-factor series found for area '" + existing.area() + "', group '" + existing.group()
-                        + "', cluster '" + existing.cluster()
+                        + STRING_CLUSTER + existing.cluster()
                         + "'. Two trajectories linked to this area, group and cluster both contain a series for it:"
                         + " trajectory '" + existing.trajectoryFileName() + "' and trajectory '" + replacement.trajectoryFileName() + "'."
                         + " Only one trajectory should provide a load-factor series per area, RES group and cluster."

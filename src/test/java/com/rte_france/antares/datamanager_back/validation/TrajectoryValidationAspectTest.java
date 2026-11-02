@@ -180,21 +180,27 @@ class TrajectoryValidationAspectTest {
     public static class TestController {
         
         public void methodWithValidTrajectoryName(@ValidTrajectoryName String trajectoryName) {
+            // Intentionally left empty: used for reflection and annotation signature testing
         }
 
         public void methodWithCustomMaxLength(@ValidTrajectoryName(maxLength = 50) String trajectoryName) {
+            // Intentionally left empty: used for reflection and annotation signature testing
         }
 
         public void methodWithMultipleParameters(@ValidTrajectoryName String trajectoryName, Integer someNumber) {
+            // Intentionally left empty: used for reflection and annotation signature testing
         }
 
         public void methodWithNonStringParameter(@ValidTrajectoryName Integer nonStringParam) {
+            // Intentionally left empty: used for reflection and annotation signature testing
         }
 
         public void methodWithoutAnnotation(String trajectoryName) {
+            // Intentionally left empty: used for reflection and annotation signature testing
         }
 
         public void methodWithMultipleAnnotatedParameters(@ValidTrajectoryName String trajectory1, @ValidTrajectoryName String trajectory2) {
+            // Intentionally left empty: used for reflection and annotation signature testing
         }
     }
 }

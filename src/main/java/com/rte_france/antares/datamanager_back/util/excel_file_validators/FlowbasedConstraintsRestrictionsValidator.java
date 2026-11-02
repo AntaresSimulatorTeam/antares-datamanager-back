@@ -25,6 +25,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 
 public final class FlowbasedConstraintsRestrictionsValidator {
     private static final String LIST_LINKS_SHEET = "listLinks";
+    private static final String CANNOT_EVALUATE_FORMULA= "Cannot evaluate formula: ";
     private final String fileName;
     private final DataFormatter formatter = new DataFormatter(Locale.ROOT);
     private final FormulaEvaluator evaluator;
@@ -220,7 +221,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
                 result = evaluator.evaluate(cell);
             } catch (NotImplementedException | IllegalArgumentException | IllegalStateException e) {
                 throw invalid(fileName, sheet.getSheetName(), row, column,
-                        "Cannot evaluate formula: " + e.getMessage());
+                        CANNOT_EVALUATE_FORMULA + e.getMessage());
             }
             return result != null && result.getCellType() == CellType.NUMERIC;
         }
@@ -247,7 +248,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
                 result = evaluator.evaluate(cell);
             } catch (NotImplementedException | IllegalArgumentException | IllegalStateException e) {
                 throw invalid(fileName, sheet.getSheetName(), row, column,
-                        "Cannot evaluate formula: " + e.getMessage());
+                        CANNOT_EVALUATE_FORMULA + e.getMessage());
             }
             if (result == null) {
                 throw invalid(fileName, sheet.getSheetName(), row, column, "Formula has no result");
@@ -293,7 +294,7 @@ public final class FlowbasedConstraintsRestrictionsValidator {
             try {
                 result = evaluator.evaluate(cell);
             } catch (NotImplementedException | IllegalArgumentException | IllegalStateException e) {
-                throw invalid(fileName, sheet.getSheetName(), row, column, "Cannot evaluate formula: " + e.getMessage());
+                throw invalid(fileName, sheet.getSheetName(), row, column, CANNOT_EVALUATE_FORMULA + e.getMessage());
             }
             if (result == null) {
                 throw invalid(fileName, sheet.getSheetName(), row, column, "Formula has no result");

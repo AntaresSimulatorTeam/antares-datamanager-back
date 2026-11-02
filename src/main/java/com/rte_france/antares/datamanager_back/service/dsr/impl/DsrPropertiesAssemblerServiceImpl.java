@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.util.ColumnSplitWriter;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
+import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -184,22 +185,9 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
         List<Path> generatedFiles = new ArrayList<>();
         String fileName = file.getFileName().toString().toLowerCase();
 
-        TimeSeriesMatrix matrix;
-        var localReader = (this.timeSeriesReader != null)
-                ? this.timeSeriesReader
-                : new TimeSeriesReader();
-        if (fileName.endsWith(".xlsx")) {
-            try {
-                matrix = localReader.readFromXlsx(file, horizon, true);
-            } catch (Exception ex) {
-                throw new IOException(ex);
-            }
-        } else if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
-            throw BusinessException.builder()
-                    .message("Generation error capacity modulation files should have .xlsx extension .csv or .txt not supported")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        } else {
+        TimeSeriesMatrix matrix = readDsrMatrix(fileName, file, horizon);
+
+        if(matrix == null){
             return generatedFiles;
         }
 
@@ -219,26 +207,49 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
         String baseName = getBaseName(file);
 
         for (var column : matrix.columns()) {
-            String clusterName = column.name() != null ? column.name().trim() : "";
-            if (clusterName.isEmpty()) continue;
-
-            // Use a common helper with flexible suffix matching for DSR
-            Optional<BufferedWriter> bwOpt = ColumnSplitWriter
-                    .openWriterIfAllowed(clusterName, baseName, tmpDir, allowedClusters, generatedFiles, true, true);
-            if (bwOpt.isEmpty()) continue;
-
-            try (BufferedWriter bw = bwOpt.get()) {
-                // Write a header (column name) so that NasFileService (using readFromTxt) correctly identifies it as a header
-                bw.write(clusterName);
-                bw.newLine();
-                for (double value : column.values()) {
-                    bw.write(String.valueOf(value));
-                    bw.newLine();
-                }
-            }
+            processColumn(column, baseName, tmpDir, allowedClusters, generatedFiles);
         }
 
         return generatedFiles;
+    }
+
+    private TimeSeriesMatrix readDsrMatrix(String fileName, Path file, String horizon) throws IOException {
+        var localReader = (this.timeSeriesReader != null)
+                ? this.timeSeriesReader
+                : new TimeSeriesReader();
+        if (fileName.endsWith(".xlsx")) {
+            try {
+                return localReader.readFromXlsx(file, horizon, true);
+            } catch (Exception ex) {
+                throw new IOException(ex);
+            }
+        } else if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
+            throw BusinessException.builder()
+                    .message("Generation error capacity modulation files should have .xlsx extension .csv or .txt not supported")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return null;
+    }
+
+    private void processColumn(TimeSeriesMatrixColumn column, String baseName, Path tmpDir, Set<String> allowedClusters, List<Path> generatedFiles) throws IOException {
+        String clusterName = column.name() != null ? column.name().trim() : "";
+        if (clusterName.isEmpty()) return;
+
+        // Use a common helper with flexible suffix matching for DSR
+        Optional<BufferedWriter> bwOpt = ColumnSplitWriter
+                .openWriterIfAllowed(clusterName, baseName, tmpDir, allowedClusters, generatedFiles, true, true);
+        if (bwOpt.isEmpty()) return;
+
+        try (BufferedWriter bw = bwOpt.get()) {
+            // Write a header (column name) so that NasFileService (using readFromTxt) correctly identifies it as a header
+            bw.write(clusterName);
+            bw.newLine();
+            for (double value : column.values()) {
+                bw.write(String.valueOf(value));
+                bw.newLine();
+            }
+        }
     }
 
 

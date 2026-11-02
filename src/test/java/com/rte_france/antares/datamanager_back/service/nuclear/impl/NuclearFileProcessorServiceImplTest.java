@@ -371,9 +371,9 @@ class NuclearFileProcessorServiceImplTest {
                 nuclearFileProcessorService.processNuclearModulationFile(trajectoryName, horizon, studyId, area)
         );
 
-        assert exception.getMessage() != null &&
+        assertTrue(exception.getMessage() != null &&
                (exception.getMessage().contains("Horizon {0} not found") ||
-                exception.getMessage().contains("not found in parameters file"));
+                exception.getMessage().contains("not found in parameters file")));
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
     }
 

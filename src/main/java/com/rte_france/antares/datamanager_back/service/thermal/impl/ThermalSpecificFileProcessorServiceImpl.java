@@ -31,6 +31,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private static final String VALUES_FOR_NODE_MESSAGE_PREFIX = "Values for node ";
     private static final String CLUSTER_MESSAGE_SEPARATOR = " / cluster ";
+    private static final String MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY = " must be positive in THERMAL Specific Param trajectory ";
 
     private final AreaRepository areaRepository;
     private final TrajectoryRepository trajectoryRepository;
@@ -66,16 +67,16 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             String selectedAreaUpper = normalizeArea(area);
 
             for (Row row : sheet) {
-                if (row.getRowNum() <= 2) continue;
+                if (row.getRowNum() > 2) {
+                    String rowArea = castString(getCellValue(row, 0));
+                    String rowAreaUpper = normalizeArea(rowArea);
+                    if (shouldSkipSpecificRow(rowAreaUpper, isOthers, selectedAreaUpper, studyAreasSet)) continue;
 
-                String rowArea = castString(getCellValue(row, 0));
-                String rowAreaUpper = normalizeArea(rowArea);
-                if (shouldSkipSpecificRow(rowAreaUpper, isOthers, selectedAreaUpper, studyAreasSet)) continue;
+                    String clusterName = castString(getCellValue(row, 1));
 
-                String clusterName = castString(getCellValue(row, 1));
-
-                checkNumericColumns(row, rowArea, clusterName, trajectoryName);
-                processThermalSpecificRow(row, header, specificParams, trajectoryName);
+                    checkNumericColumns(row, rowArea, clusterName, trajectoryName);
+                    processThermalSpecificRow(row, header, specificParams, trajectoryName);
+                }
             }
 
             if (specificParams.isEmpty()) {
@@ -215,14 +216,14 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
 
     private Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
         if (value != null && Double.compare(value, 0.0) < 0) {
-            throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
+            throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY + trajectoryName).build();
         }
         return value;
     }
 
     private BigDecimal specificParamValueMustBePositiveBigDecimal(String areaName, String clusterName, String trajectoryName, BigDecimal value) {
         if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
-            throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + " must be positive in THERMAL Specific Param trajectory " + trajectoryName).build();
+            throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY + trajectoryName).build();
         }
         return value;
     }
@@ -347,7 +348,7 @@ private void checkNumericColumns(
                                     + areaName
                                     + CLUSTER_MESSAGE_SEPARATOR
                                     + clusterName
-                                    + " must be positive in THERMAL Specific Param trajectory "
+                                    + MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY
                                     + trajectoryName)
                     .build();
         }

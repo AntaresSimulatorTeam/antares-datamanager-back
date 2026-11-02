@@ -183,26 +183,34 @@ public class NasFileService {
         Objects.requireNonNull(inputPath, "inputPath must not be null");
         var name = inputPath.getFileName().toString().toLowerCase();
         try {
-            if (name.endsWith(".txt") || name.endsWith(".csv")) {
-                return reader.readFromTxt(inputPath, hasHeader);
-            } else if (name.endsWith(EXCEL_EXTENSION)) {
-                return reader.readFromXlsx(inputPath, sheetName, hasHeader);
-            } else {
-                throw TechnicalException.builder().message("Unsupported input format: " + name).build();
-            }
+            return readByExtension(inputPath, sheetName, hasHeader, name);
         } catch (AntaresException e) {
             throw e;
         } catch (Exception e) {
-            String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
-                    ? ", horizon: " + sheetName : "";
-            String trajectoryTypeInfo = trajectoryType != null && !trajectoryType.isBlank() ? trajectoryType : "";
-            String technologyInfo = technology != null && !technology.isBlank() ? technology : "";
-            String extraInfo = trajectoryType != null && !trajectoryType.isBlank() && technology != null && !technology.isBlank() ? trajectoryTypeInfo + " " + technologyInfo + " ": "";
             throw TechnicalException.builder()
-                    .message("Failed to read time series matrix from "+ extraInfo +"file: " + inputPath.getFileName() + horizonInfo)
+                    .message(buildErrorMessage(inputPath, sheetName, trajectoryType, technology, name))
                     .cause(e)
                     .build();
         }
+    }
+
+    private TimeSeriesMatrix readByExtension(Path inputPath, String sheetName,boolean hasHeader, String name) throws IOException {
+        if (name.endsWith(".txt") || name.endsWith(".csv")) {
+            return reader.readFromTxt(inputPath, hasHeader);
+        } else if (name.endsWith(EXCEL_EXTENSION)) {
+            return reader.readFromXlsx(inputPath, sheetName, hasHeader);
+        } else {
+            throw TechnicalException.builder().message("Unsupported input format: " + name).build();
+        }
+    }
+
+    private String buildErrorMessage(Path inputPath, String sheetName, String trajectoryType, String technology, String name){
+        String horizonInfo = name.endsWith(EXCEL_EXTENSION) && sheetName != null && !sheetName.isBlank()
+                ? ", horizon: " + sheetName : "";
+        String trajectoryTypeInfo = trajectoryType != null && !trajectoryType.isBlank() ? trajectoryType : "";
+        String technologyInfo = technology != null && !technology.isBlank() ? technology : "";
+        String extraInfo = trajectoryType != null && !trajectoryType.isBlank() && technology != null && !technology.isBlank() ? trajectoryTypeInfo + " " + technologyInfo + " ": "";
+        return "Failed to read time series matrix from "+ extraInfo +"file: " + inputPath.getFileName() + horizonInfo;
     }
 
     public int countXlsxColumns(Path xlsxPath, String sheetName) throws IOException {

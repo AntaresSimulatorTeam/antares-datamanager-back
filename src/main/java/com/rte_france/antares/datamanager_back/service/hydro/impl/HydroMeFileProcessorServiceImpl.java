@@ -11,7 +11,6 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroMeFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroCapacityMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Row;
@@ -46,6 +45,16 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
     private final TrajectoryServiceImpl trajectoryService;
     private final HydroReservoirLevelsMeFileProcessorServiceImpl hydroReservoirLevelsMeFileProcessorService;
     private final MultiEnergyCoherenceCheckService multiEnergyCoherenceCheckService;
+
+
+    private static final String RESERVOIR_CAPACITY_COLUMN = "Reservoir Capacity [MWh]";
+    private static final String GENERATING_PMAX_TIMESTEP_COLUMN = "Generating Pmax - timestep (daily/annual)";
+    private static final String GENERATING_PMAX_COLUMN = "Generating Pmax [MW]";
+    private static final String HOURS_GENERATING_PMAX_COLUMN = "hours at generating Pmax";
+    private static final String PUMPING_PMAX_TIMESTEP_COLUMN = "Pumping Pmax - timestep (daily/annual)";
+    private static final String PUMPING_PMAX_COLUMN = "Pumping Pmax [MW]";
+    private static final String HOURS_PUMPING_PMAX_COLUMN = "hours at pumping Pmax";
+    private static final String DAILY = "daily";
 
     private static final String GENERATING_PMAX_DAILY_TS_DIR = "Generating Pmax daily ts";
     private static final String PUMPING_PMAX_DAILY_TS_DIR = "Pumping Pmax daily ts";
@@ -154,94 +163,25 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         );
     }
 
-    private void insertHydroCapacityMeData(Workbook workbook, String horizon, Path trajectoryPath, TrajectoryEntity trajectory, Integer studyId) throws IOException {
+    private void insertHydroCapacityMeData(Workbook workbook, String horizon, Path trajectoryPath, TrajectoryEntity trajectory, Integer studyId) {
         String horizonYear = horizon.matches("^\\d{4}-\\d{4}$") ? String.valueOf(Integer.parseInt(horizon.split("-")[0]) + 1) : horizon;
         processHorizonSheet(workbook, horizonYear, trajectory, trajectoryPath, studyId);
     }
 
 
-    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Path trajectoryPath, Integer studyId) throws IOException {
+    private void processHorizonSheet(Workbook workbook, String horizonYear, TrajectoryEntity trajectory, Path trajectoryPath, Integer studyId) {
         Sheet sheet = workbook.getSheet(horizonYear);
         List<HydroCapacityMeEntity> hydroCapacityMeEntities = new ArrayList<>();
         if (sheet == null) return;
 
         // Get all nodes from AREA_ME trajectory for the study
         Set<String> areasMeNodes = multiEnergyCoherenceCheckService.getAreasMe(studyId);
-        
-        boolean hasGeneratingDaily = false;
-        boolean hasPumpingDaily = false;
+
+        var  dailyFlags = new boolean[2];
 
         for (Row row : sheet) {
             if (row.getRowNum() == 0) continue;
-            
-            String node = getCellStringValue(row, HydroCapacityMeColumns.NODE.getIndex());
-
-            String generatingTimestep = getCellStringValue(row, HydroCapacityMeColumns.GENERATING_PMAX_TIMESTEP.getIndex());
-            String pumpingTimestep = getCellStringValue(row, HydroCapacityMeColumns.PUMPING_PMAX_TIMESTEP.getIndex());
-
-            // Validation during single pass
-            if (node != null && !node.trim().isEmpty()) {
-                if (!areasMeNodes.contains(node.toUpperCase(Locale.ROOT))) continue;
-                if (node.length() > 60) {
-                    throw BusinessException.builder()
-                            .message("Node column cannot exceed 60 characters in HYDRO_ME Capacity trajectory " + trajectory.getFileName())
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-
-                validateNumericColumn(row, HydroCapacityMeColumns.RESERVOIR_CAPACITY.getIndex(), HydroCapacityMeColumns.RESERVOIR_CAPACITY.getDisplayName(), trajectory.getFileName());
-                validateTimestepValue(generatingTimestep, HydroCapacityMeColumns.GENERATING_PMAX_TIMESTEP.getDisplayName(), trajectory.getFileName());
-                validateNumericColumn(row, HydroCapacityMeColumns.GENERATING_PMAX.getIndex(), HydroCapacityMeColumns.GENERATING_PMAX.getDisplayName(), trajectory.getFileName());
-                validateNumericColumn(row, HydroCapacityMeColumns.HOURS_AT_GENERATING_PMAX.getIndex(), HydroCapacityMeColumns.HOURS_AT_GENERATING_PMAX.getDisplayName(), trajectory.getFileName());
-                validateTimestepValue(pumpingTimestep, HydroCapacityMeColumns.PUMPING_PMAX_TIMESTEP.getDisplayName(), trajectory.getFileName());
-                validateNumericColumn(row, HydroCapacityMeColumns.PUMPING_PMAX.getIndex(), HydroCapacityMeColumns.PUMPING_PMAX.getDisplayName(), trajectory.getFileName());
-                validateNumericColumn(row, HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getIndex(), HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getDisplayName(), trajectory.getFileName());
-
-                // Track daily timesteps
-                if ("daily".equalsIgnoreCase(generatingTimestep)) {
-                    hasGeneratingDaily = true;
-                }
-                if ("daily".equalsIgnoreCase(pumpingTimestep)) {
-                    hasPumpingDaily = true;
-                }
-                
-                // Data extraction and persistence in same pass
-                BigDecimal reservoirCapacity = getCellNumericValue(row, HydroCapacityMeColumns.RESERVOIR_CAPACITY.getIndex());
-                BigDecimal generatingPmax = getCellNumericValue(row, HydroCapacityMeColumns.GENERATING_PMAX.getIndex());
-                BigDecimal hoursAtGeneratingPmax = getCellNumericValue(row, HydroCapacityMeColumns.HOURS_AT_GENERATING_PMAX.getIndex());
-                BigDecimal pumpingPmax = getCellNumericValue(row, HydroCapacityMeColumns.PUMPING_PMAX.getIndex());
-                BigDecimal hoursAtPumpingPmax = getCellNumericValue(row, HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getIndex());
-                
-                HydroCapacityMeEntity hydroCapacityMe = HydroCapacityMeEntity.builder()
-                        .node(node.trim())
-                        .reservoirCapacity(reservoirCapacity)
-                        .generatingPmaxTimestep(generatingTimestep)
-                        .generatingPmax(generatingPmax)
-                        .hoursAtGeneratingPmax(hoursAtGeneratingPmax)
-                        .pumpingPmaxTimestep(pumpingTimestep)
-                        .pumpingPmax(pumpingPmax)
-                        .hoursAtPumpingPmax(hoursAtPumpingPmax)
-                        .trajectory(trajectory)
-                        .build();
-                
-                hydroCapacityMeRepository.save(hydroCapacityMe);
-                hydroCapacityMeEntities.add(hydroCapacityMe);
-            } else {
-                boolean hasOtherData = false;
-                for (int i = HydroCapacityMeColumns.RESERVOIR_CAPACITY.getIndex(); i <= HydroCapacityMeColumns.HOURS_AT_PUMPING_PMAX.getIndex(); i++) {
-                    String cellValue = getCellStringValue(row, i);
-                    if ((cellValue != null && !cellValue.trim().isEmpty())) {
-                        hasOtherData = true;
-                        break;
-                    }
-                }
-                if (hasOtherData) {
-                    throw BusinessException.builder()
-                            .message("Node column must be filled in HYDRO_ME Capacity trajectory " + trajectory.getFileName())
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-            }
+            processRow(row, trajectory, areasMeNodes, hydroCapacityMeEntities, dailyFlags);
         }
 
         // Validate that all nodes in HYDRO_ME_CAPACITY exist in AREAS_ME
@@ -253,15 +193,92 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         }
 
         // Validate time series directories
-        if (hasGeneratingDaily) {
+        if (dailyFlags[0]) {
             validateTimeSeriesDirectory(trajectoryPath, GENERATING_PMAX_DAILY_TS_DIR, trajectory.getFileName());
         }
-        if (hasPumpingDaily) {
+        if (dailyFlags[1]) {
             validateTimeSeriesDirectory(trajectoryPath, PUMPING_PMAX_DAILY_TS_DIR, trajectory.getFileName());
         }
     }
 
-    private void validateTimeSeriesDirectory(Path trajectoryPath, String tsDirectoryName, String trajectoryName) throws IOException {
+    private void processRow(Row row, TrajectoryEntity trajectory, Set<String> areasMeNodes, List<HydroCapacityMeEntity> hydroCapacityMeEntities, boolean[] dailyFlags){
+        String node = getCellStringValue(row, 0);
+
+        String generatingTimestep = getCellStringValue(row, 2);
+        String pumpingTimestep = getCellStringValue(row, 5);
+
+        // Validation during single pass
+        if (node != null && !node.trim().isEmpty()) {
+            if (!areasMeNodes.contains(node.toUpperCase(Locale.ROOT))){
+                return;
+            }
+            var hydroCapacityMe = validateAndBuildEntity(node, trajectory, row, generatingTimestep, pumpingTimestep, dailyFlags);
+
+            hydroCapacityMeRepository.save(hydroCapacityMe);
+            hydroCapacityMeEntities.add(hydroCapacityMe);
+        } else {
+            boolean hasOtherData = false;
+            for (int i = 1; i < 8; i++) {
+                String cellValue = getCellStringValue(row, i);
+                if ((cellValue != null && !cellValue.trim().isEmpty())) {
+                    hasOtherData = true;
+                    break;
+                }
+            }
+            if (hasOtherData) {
+                throw BusinessException.builder()
+                        .message("Node column must be filled in HYDRO_ME Capacity trajectory " + trajectory.getFileName())
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+        }
+    }
+
+    private HydroCapacityMeEntity validateAndBuildEntity(String node, TrajectoryEntity trajectory, Row row, String generatingTimestep, String pumpingTimestep, boolean[] dailyFlags){
+        if (node.length() > 60) {
+            throw BusinessException.builder()
+                    .message("Node column cannot exceed 60 characters in HYDRO_ME Capacity trajectory " + trajectory.getFileName())
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        validateNumericColumn(row, 1, RESERVOIR_CAPACITY_COLUMN, trajectory.getFileName());
+        validateTimestepValue(generatingTimestep, GENERATING_PMAX_TIMESTEP_COLUMN, trajectory.getFileName());
+        validateNumericColumn(row, 3, GENERATING_PMAX_COLUMN, trajectory.getFileName());
+        validateNumericColumn(row, 4, HOURS_GENERATING_PMAX_COLUMN, trajectory.getFileName());
+        validateTimestepValue(pumpingTimestep, PUMPING_PMAX_TIMESTEP_COLUMN, trajectory.getFileName());
+        validateNumericColumn(row, 6, PUMPING_PMAX_COLUMN, trajectory.getFileName());
+        validateNumericColumn(row, 7, HOURS_PUMPING_PMAX_COLUMN, trajectory.getFileName());
+
+        // Track daily timesteps
+        if (DAILY.equalsIgnoreCase(generatingTimestep)) {
+            dailyFlags[0] = true;
+        }
+        if (DAILY.equalsIgnoreCase(pumpingTimestep)) {
+            dailyFlags[1] = true;
+        }
+
+        // Data extraction and persistence in same pass
+        BigDecimal reservoirCapacity = getCellNumericValue(row, 1);
+        BigDecimal generatingPmax = getCellNumericValue(row, 3);
+        BigDecimal hoursAtGeneratingPmax = getCellNumericValue(row, 4);
+        BigDecimal pumpingPmax = getCellNumericValue(row, 6);
+        BigDecimal hoursAtPumpingPmax = getCellNumericValue(row, 7);
+
+        return HydroCapacityMeEntity.builder()
+                .node(node.trim())
+                .reservoirCapacity(reservoirCapacity)
+                .generatingPmaxTimestep(generatingTimestep)
+                .generatingPmax(generatingPmax)
+                .hoursAtGeneratingPmax(hoursAtGeneratingPmax)
+                .pumpingPmaxTimestep(pumpingTimestep)
+                .pumpingPmax(pumpingPmax)
+                .hoursAtPumpingPmax(hoursAtPumpingPmax)
+                .trajectory(trajectory)
+                .build();
+    }
+
+    private void validateTimeSeriesDirectory(Path trajectoryPath, String tsDirectoryName, String trajectoryName) {
         Path tsDirectory = trajectoryPath.getParent().resolve(tsDirectoryName);
         if (!Files.exists(tsDirectory)) {
             throw BusinessException.builder()
@@ -300,7 +317,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
         }
     }
 
-    private void validateHydroCapacityMeExcelFile(Workbook workbook, String trajectoryName, String horizon) throws IOException {
+    private void validateHydroCapacityMeExcelFile(Workbook workbook, String trajectoryName, String horizon) {
         String horizonYear = String.valueOf(Integer.parseInt(horizon.split("-")[1]));
         if (workbook.getSheet(horizonYear) == null) {
             throw BusinessException.builder()
@@ -330,7 +347,7 @@ public class HydroMeFileProcessorServiceImpl implements HydroMeFileProcessorServ
 
     private void validateTimestepValue(String value, String columnName, String trajectoryName) {
         if (value == null || value.trim().isEmpty()) return;
-        if (!("daily".equalsIgnoreCase(value)
+        if (!(DAILY.equalsIgnoreCase(value)
                 || "hourly".equalsIgnoreCase(value)
                 || "annual".equalsIgnoreCase(value))) {
             throw BusinessException.builder()

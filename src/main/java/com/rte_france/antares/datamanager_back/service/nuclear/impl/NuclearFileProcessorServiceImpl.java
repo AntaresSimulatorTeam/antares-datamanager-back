@@ -53,6 +53,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     private static final Set<String> REQUIRED_MODULATION_TYPES = Set.of(
             "nucFR_modul_hourly", "nucFR_modul_daily", "nucFR_modul_min_weekly","nucFR_modul_max_weekly"
     );
+    private static final String FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT = "File already processed with same content: {0}";
 
     private final TrajectoryRepository trajectoryRepository;
     private final NuclearModulationParameterRepository nuclearModulationParameterRepository;
@@ -96,7 +97,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         String horizonYear = horizon.split("-")[1];
 
         // Validate time series files in TS_modulation directory first
-        validateTimeSeriesFiles(trajectoryFolder, trajectoryToUse, horizon);
+        validateTimeSeriesFiles(trajectoryFolder, trajectoryToUse);
 
         // Read parameters and extract modulation values
         List<NuclearModulationParameterEntity> modulationParameters = readNuclearModulationParameters(parametersFilePath, trajectoryToUse, horizonYear);
@@ -117,7 +118,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content: {0}")
+                        .message(FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
@@ -146,7 +147,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     /**
      * Validate time series files in TS_modulation directory
      */
-    private void validateTimeSeriesFiles(Path trajectoryFolder, String trajectoryToUse, String horizon) {
+    private void validateTimeSeriesFiles(Path trajectoryFolder, String trajectoryToUse) {
         Path tsModulationDir = pathSecurityUtil.resolveSafePath(trajectoryFolder, "TS_modulation");
 
         // Check if TS_modulation directory exists
@@ -157,9 +158,6 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-
-        // Extract horizon year (e.g., "2030-2031" -> "2031")
-        String horizonYear = horizon.split("-")[1];
 
         // Array of modulation types to check
         String[] modulationTypes = {"daily", "hourly", "min_weekly", "max_weekly"};
@@ -211,24 +209,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                         .build();
             }
 
-            int horizonColumnIndex = -1;
-            for (int cellIndex = 0; cellIndex < headerRow.getLastCellNum(); cellIndex++) {
-                Object headerValue = getCellValue(headerRow, cellIndex);
-                if (headerValue != null) {
-                    String headerValueStr;
-                    if (headerValue instanceof Number) {
-                        // Handle numeric values like 2025.0 by converting to integer
-                        headerValueStr = String.valueOf(((Number) headerValue).longValue());
-                    } else {
-                        headerValueStr = headerValue.toString();
-                    }
-
-                    if (headerValueStr.equals(horizonYear)) {
-                        horizonColumnIndex = cellIndex;
-                        break;
-                    }
-                }
-            }
+            int horizonColumnIndex = findHorizonColumnIndex(headerRow, horizonYear);
 
             if (horizonColumnIndex == -1) {
                 throw BusinessException.builder()
@@ -241,43 +222,8 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
             // Read the three modulation values
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
-                if (row == null) continue;
-
-                Object typeObj = getCellValue(row, 0);
-                if (typeObj == null) continue;
-
-                String type = typeObj.toString();
-                Object valueObj = getCellValue(row, horizonColumnIndex);
-
-                if (valueObj == null) continue;
-
-                double value;
-                if (valueObj instanceof Number) {
-                    value = ((Number) valueObj).doubleValue();
-                } else {
-                    try {
-                        value = Double.parseDouble(valueObj.toString().replace(",", "."));
-                    } catch (NumberFormatException e) {
-                        log.warn("Skipping invalid value for type {}: {}", type, valueObj);
-                        continue;
-                    }
-                }
-
-                // Validate coefficient value is between 0 and 1
-                if (value < 0 || value > 1) {
-                    throw BusinessException.builder()
-                            .message("Coefficient value must be between 0 and 1 for type {0}, got {1}")
-                            .errorMessageArguments(List.of(type, String.valueOf(value)))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-
-                // Only keep the three modulation types
-                if (isValidModulationType(type)) {
-                    parameters.add(NuclearModulationParameterEntity.builder()
-                            .type(type)
-                            .value(BigDecimal.valueOf(value))
-                            .build());
+                if (row != null){
+                    parseModulationRow(row, horizonColumnIndex, parameters);
                 }
             }
 
@@ -307,6 +253,67 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         }
 
         return parameters;
+    }
+
+    private void parseModulationRow(Row row, int horizonColumnIndex, List<NuclearModulationParameterEntity> parameters){
+        Object typeObj = getCellValue(row, 0);
+        if (typeObj == null) return;
+
+        String type = typeObj.toString();
+        Object valueObj = getCellValue(row, horizonColumnIndex);
+
+        if (valueObj == null) return;
+
+        double value;
+        if (valueObj instanceof Number valueObjCast) {
+            value = (valueObjCast).doubleValue();
+        } else {
+            try {
+                value = Double.parseDouble(valueObj.toString().replace(",", "."));
+            } catch (NumberFormatException e) {
+                log.warn("Skipping invalid value for type {}: {}", type, valueObj);
+                return;
+            }
+        }
+
+        // Validate coefficient value is between 0 and 1
+        if (value < 0 || value > 1) {
+            throw BusinessException.builder()
+                    .message("Coefficient value must be between 0 and 1 for type {0}, got {1}")
+                    .errorMessageArguments(List.of(type, String.valueOf(value)))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        // Only keep the three modulation types
+        if (isValidModulationType(type)) {
+            parameters.add(NuclearModulationParameterEntity.builder()
+                    .type(type)
+                    .value(BigDecimal.valueOf(value))
+                    .build());
+        }
+    }
+
+    private int findHorizonColumnIndex(Row headerRow, String horizonYear){
+        var horizonColumnIndex = -1;
+        for (int cellIndex = 0; cellIndex < headerRow.getLastCellNum(); cellIndex++) {
+            Object headerValue = getCellValue(headerRow, cellIndex);
+            if (headerValue != null) {
+                String headerValueStr;
+                if (headerValue instanceof Number headerValueCast) {
+                    // Handle numeric values like 2025.0 by converting to integer
+                    headerValueStr = String.valueOf((headerValueCast).longValue());
+                } else {
+                    headerValueStr = headerValue.toString();
+                }
+
+                if (headerValueStr.equals(horizonYear)) {
+                    horizonColumnIndex = cellIndex;
+                    break;
+                }
+            }
+        }
+        return horizonColumnIndex;
     }
 
     /**
@@ -408,7 +415,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content: {0}")
+                        .message(FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
@@ -456,28 +463,28 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsErpFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area,
+        return processNuclearTsFile(trajectoryToUse, horizon, area,
                 antaresDataManagerProperties.getNuclearEprDirectory(), TrajectoryType.NUCLEAR_FR_TS_ERP);
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTsSmrFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area,
+        return processNuclearTsFile(trajectoryToUse, horizon, area,
                 antaresDataManagerProperties.getNuclearSmrDirectory(), TrajectoryType.NUCLEAR_FR_TS_SMR);
     }
 
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processNuclearTalonFile(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
-        return processNuclearTsFile(trajectoryToUse, horizon, studyId, area,
+        return processNuclearTsFile(trajectoryToUse, horizon, area,
                 antaresDataManagerProperties.getNuclearTalonDirectory(), TrajectoryType.NUCLEAR_FR_TALON);
     }
 
     /**
      * Generic method to process nuclear time series (EPR/SMR) files
      */
-    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon, Integer studyId,
+    private TrajectoryEntity processNuclearTsFile(String trajectoryToUse, String horizon,
             String area, String directoryPath, TrajectoryType trajectoryType) throws IOException {
 
         // If trajectoryToUse doesn't have an extension, add .xlsx
@@ -514,7 +521,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
         if (existingTrajectory.isPresent()) {
             if (existingTrajectory.get().getChecksum().equals(checksum)) {
                 throw BusinessException.builder()
-                        .message("File already processed with same content: {0}")
+                        .message(FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT)
                         .errorMessageArguments(List.of(trajectoryToUse))
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();

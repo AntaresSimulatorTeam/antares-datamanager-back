@@ -12,10 +12,12 @@ import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFi
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import jakarta.validation.constraints.Null;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroParametersMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -220,42 +222,41 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
-                if (row == null) continue;
+                if (row != null) {
+                    // Validate Node column (A) - must be filled
+                    Cell nodeCell = row.getCell(0);
+                    String nodeName = getCellStringValue(nodeCell);
+                    if (nodeName == null || nodeName.trim().isEmpty()) {
+                        throw BusinessException.builder()
+                                .message("Node column must be filled in HYDRO_ME Param Hydro trajectory {0}")
+                                .errorMessageArguments(List.of(trajectoryName))
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
 
-                // Validate Node column (A) - must be filled
-                Cell nodeCell = row.getCell(HydroParametersMeColumns.NODE.getIndex());
-                String nodeName = getCellStringValue(nodeCell);
-                if (nodeName == null || nodeName.trim().isEmpty()) {
-                    throw BusinessException.builder()
-                            .message("Node column must be filled in HYDRO_ME Param Hydro trajectory {0}")
-                            .errorMessageArguments(List.of(trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
+                    // Validate Node length <= 60 characters
+                    if (nodeName.length() > 60) {
+                        throw BusinessException.builder()
+                                .message("Node cannot exceed 60 characters in HYDRO_ME Param Hydro trajectory {0}")
+                                .errorMessageArguments(List.of(trajectoryName))
+                                .httpStatus(HttpStatus.BAD_REQUEST)
+                                .build();
+                    }
 
-                // Validate Node length <= 60 characters
-                if (nodeName.length() > 60) {
-                    throw BusinessException.builder()
-                            .message("Node cannot exceed 60 characters in HYDRO_ME Param Hydro trajectory {0}")
-                            .errorMessageArguments(List.of(trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
+                    String normalizedNodeName = nodeName.trim();
+                    if (!areaMeNames.contains(normalizeName(normalizedNodeName))) {
+                        continue;
+                    }
 
-                String normalizedNodeName = nodeName.trim();
-                if (!areaMeNames.contains(normalizeName(normalizedNodeName))) {
-                    continue;
-                }
-
-                // Validate numeric columns: D (inter.daily.breakdown), E (inter.monthly.breakdown), F (initialize.reservoir.date), I (pumping.efficiency)
-                validateNumericColumn(row, HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getIndex(), HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getIndex(), HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.INTER_DAILY_MODULATION.getIndex(), HydroParametersMeColumns.INTER_DAILY_MODULATION.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getIndex(), HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getIndex(), HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.LEEWAY_LOW.getIndex(), HydroParametersMeColumns.LEEWAY_LOW.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.LEEWAY_UP.getIndex(), HydroParametersMeColumns.LEEWAY_UP.getDisplayName(), trajectoryName);
-                validateNumericColumn(row, HydroParametersMeColumns.PUMPING_EFFICIENCY.getIndex(), HydroParametersMeColumns.PUMPING_EFFICIENCY.getDisplayName(), trajectoryName);
+                    // Validate numeric columns: D (inter.daily.breakdown), E (inter.monthly.breakdown), F (initialize.reservoir.date), I (pumping.efficiency)
+                    validateNumericColumn(row, HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getIndex(), HydroParametersMeColumns.INTER_MONTHLY_CORRELATION.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getIndex(), HydroParametersMeColumns.INTER_DAILY_BREAKDOWN.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.INTER_DAILY_MODULATION.getIndex(), HydroParametersMeColumns.INTER_DAILY_MODULATION.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getIndex(), HydroParametersMeColumns.INTER_MONTHLY_BREAKDOWN.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getIndex(), HydroParametersMeColumns.INITIALIZE_RESERVOIR_DATE.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.LEEWAY_LOW.getIndex(), HydroParametersMeColumns.LEEWAY_LOW.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.LEEWAY_UP.getIndex(), HydroParametersMeColumns.LEEWAY_UP.getDisplayName(), trajectoryName);
+                    validateNumericColumn(row, HydroParametersMeColumns.PUMPING_EFFICIENCY.getIndex(), HydroParametersMeColumns.PUMPING_EFFICIENCY.getDisplayName(), trajectoryName);
 
                 // Validate boolean columns
                 //reservoir management	follow.load	use.heuristic	use.water	hard.bounds	use.leeway	power.to.level
@@ -288,8 +289,9 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .powerToLevel(getBooleanCellValue(row.getCell(HydroParametersMeColumns.POWER_TO_LEVEL.getIndex())))
                         .build();
 
-                paramNodes.add(normalizedNodeName);
-                entitiesToInsert.add(entity);
+                    paramNodes.add(normalizedNodeName);
+                    entitiesToInsert.add(entity);
+                }
             }
         }
 
@@ -349,56 +351,8 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
-                if (row == null || isRowEmpty(row)) continue;
-
-                // Validate load column (A) - must be filled
-                Cell loadCell = row.getCell(0);
-                String areaName = getCellStringValue(loadCell);
-                if (areaName == null || areaName.trim().isEmpty()) {
-                    throw BusinessException.builder()
-                            .message("load column must be filled in HYDRO_ME Param Allocation trajectory {0}")
-                            .errorMessageArguments(List.of(trajectoryName))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
-                }
-
-                String normalizedAreaName = areaName.trim();
-                boolean isValidLoadArea = validAreaNames.contains(normalizeName(normalizedAreaName));
-                if (!isValidLoadArea) {
-                    continue;
-                }
-                loadAreas.add(normalizedAreaName);
-
-                // Validate node columns (from B onwards) are numeric and build entities
-                for (int cellIndex = 1; cellIndex < row.getLastCellNum(); cellIndex++) {
-                    Cell cell = row.getCell(cellIndex);
-                    if (cell != null && cell.getCellType() != CellType.BLANK) {
-                        String nodeName = validNodesByColumn.get(cellIndex);
-                        if (nodeName == null) {
-                            continue;
-                        }
-                        if (!isNumeric(cell)) {
-                            String columnLetter = getCellColumnLetter(cellIndex);
-                            throw BusinessException.builder()
-                                    .message("Column {0} must be numeric in HYDRO_ME Param Allocation trajectory {1}")
-                                    .errorMessageArguments(List.of(columnLetter, trajectoryName))
-                                    .httpStatus(HttpStatus.BAD_REQUEST)
-                                    .build();
-                        }
-                        if(getNumericCellValue(cell) != null && getNumericCellValue(cell).compareTo(BigDecimal.ZERO) <= 0) {
-                            continue;
-                        }
-
-                        // Build entity
-                        HydroAllocationMeEntity entity = HydroAllocationMeEntity.builder()
-                                .trajectoryId(trajectoryId)
-                                .area(normalizedAreaName)
-                                .node(nodeName)
-                                .allocationCoefficient(getNumericCellValue(cell))
-                                .build();
-
-                        entitiesToInsert.add(entity);
-                    }
+                if (row != null && !isRowEmpty(row)){
+                    processRow(row, trajectoryName, trajectoryId, validAreaNames, validNodesByColumn, loadAreas, entitiesToInsert);
                 }
             }
         }
@@ -407,6 +361,35 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         if (!entitiesToInsert.isEmpty()) {
             hydroAllocationMeRepository.saveAll(entitiesToInsert);
             log.info("Inserted {} hydro allocations for trajectory {}", entitiesToInsert.size(), trajectoryName);
+        }
+    }
+
+    private void processRow(Row row, String trajectoryName, Integer trajectoryId, Set<String> validAreaNames, Map<Integer, String> validNodesByColumn, Set<String> loadAreas, List<HydroAllocationMeEntity> entitiesToInsert){
+
+        // Validate load column (A) - must be filled
+        Cell loadCell = row.getCell(0);
+        String areaName = getCellStringValue(loadCell);
+        if (areaName == null || areaName.trim().isEmpty()) {
+            throw BusinessException.builder()
+                    .message("load column must be filled in HYDRO_ME Param Allocation trajectory {0}")
+                    .errorMessageArguments(List.of(trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        String normalizedAreaName = areaName.trim();
+        boolean isValidLoadArea = validAreaNames.contains(normalizeName(normalizedAreaName));
+        if (!isValidLoadArea) {
+            return;
+        }
+        loadAreas.add(normalizedAreaName);
+
+        // Validate node columns (from B onwards) are numeric and build entities
+        for (int cellIndex = 1; cellIndex < row.getLastCellNum(); cellIndex++) {
+            Cell cell = row.getCell(cellIndex);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                processCellAllocation(cell, cellIndex, normalizedAreaName, trajectoryName, trajectoryId, validNodesByColumn, entitiesToInsert);
+            }
         }
     }
 
@@ -420,15 +403,42 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        if (cell.getCellType() != CellType.BLANK) {
-            if (!isNumeric(cell)) {
-                throw BusinessException.builder()
-                        .message("Column {0} must be numeric in HYDRO_ME Param Hydro trajectory {1}")
-                        .errorMessageArguments(List.of(columnName, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+        if (cell.getCellType() != CellType.BLANK && !isNumeric(cell)) {
+            throw BusinessException.builder()
+                    .message("Column {0} must be numeric in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
+    }
+
+    private void processCellAllocation(Cell cell, int cellIndex, String normalizedAreaName, String trajectoryName, Integer trajectoryId, Map<Integer, String> validNodesByColumn, List<HydroAllocationMeEntity> entitiesToInsert){
+        String nodeName = validNodesByColumn.get(cellIndex);
+        if (nodeName == null) {
+            return;
+        }
+        if (!isNumeric(cell)) {
+            String columnLetter = getCellColumnLetter(cellIndex);
+            throw BusinessException.builder()
+                    .message("Column {0} must be numeric in HYDRO_ME Param Allocation trajectory {1}")
+                    .errorMessageArguments(List.of(columnLetter, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        var numericCellValue = getNumericCellValue(cell);
+        if(numericCellValue != null && numericCellValue.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        // Build entity
+        HydroAllocationMeEntity entity = HydroAllocationMeEntity.builder()
+                .trajectoryId(trajectoryId)
+                .area(normalizedAreaName)
+                .node(nodeName)
+                .allocationCoefficient(getNumericCellValue(cell))
+                .build();
+
+        entitiesToInsert.add(entity);
     }
 
     private void validateBooleanColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
@@ -527,6 +537,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         return decimal != null ? decimal.intValue() : null;
     }
 
+    @Nullable
     private Boolean getBooleanCellValue(Cell cell) {
         if (cell == null || cell.getCellType() == CellType.BLANK) {
             return null;
