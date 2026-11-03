@@ -17,5 +17,4 @@ public enum AntaresErrorCode {
     public String value() {
         return value;
     }
-
 }
