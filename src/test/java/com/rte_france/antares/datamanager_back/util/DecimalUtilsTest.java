@@ -46,7 +46,7 @@ class DecimalUtilsTest {
     @ValueSource(strings = {"Infinity", "-Infinity", "NaN"})
     void nonFiniteValues_areAcceptedAsDoubleOnly(String input) {
         assertThat(DecimalUtils.isDouble(input)).isTrue();
-        assertThat(DecimalUtils.parseDouble(input)).isEqualTo(Double.parseDouble(input));
+        assertThat(DecimalUtils.parseDouble(input)).isEqualTo(Double.valueOf(input));
         assertThat(DecimalUtils.isDecimal(input)).isFalse();
     }
 
