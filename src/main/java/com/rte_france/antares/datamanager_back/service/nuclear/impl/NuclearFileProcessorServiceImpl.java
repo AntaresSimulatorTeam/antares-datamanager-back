@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.calculateDirectoryChecksum;
 import static com.rte_france.antares.datamanager_back.util.Utils.getFileChecksum;
 import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
@@ -256,7 +257,7 @@ public class NuclearFileProcessorServiceImpl implements NuclearFileProcessorServ
                     value = ((Number) valueObj).doubleValue();
                 } else {
                     try {
-                        value = Double.parseDouble(valueObj.toString().replace(",", "."));
+                        value = parseDouble(valueObj.toString());
                     } catch (NumberFormatException e) {
                         log.warn("Skipping invalid value for type {}: {}", type, valueObj);
                         continue;

@@ -29,6 +29,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.isDouble;
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 /**
@@ -410,7 +412,7 @@ public class LinkMeProcessorServiceImpl {
 
         if (!isNumericCell(cell)) {
             String value = getCellStringValue(cell);
-            if (value != null && !value.isEmpty() && !isNumeric(value)) {
+            if (value != null && !value.isEmpty() && !isDouble(value)) {
                 throw BusinessException.builder()
                         .message("Column Hurdle Costs Direct must be numeric in LINKS_ME trajectory {0}")
                         .errorMessageArguments(List.of(trajectoryName))
@@ -431,7 +433,7 @@ public class LinkMeProcessorServiceImpl {
 
         if (!isNumericCell(cell)) {
             String value = getCellStringValue(cell);
-            if (value != null && !value.isEmpty() && !isNumeric(value)) {
+            if (value != null && !value.isEmpty() && !isDouble(value)) {
                 throw BusinessException.builder()
                         .message("Column Hurdle Costs Indirect must be numeric in LINKS_ME trajectory {0}")
                         .errorMessageArguments(List.of(trajectoryName))
@@ -448,25 +450,7 @@ public class LinkMeProcessorServiceImpl {
         if (value == null || value.isEmpty()) {
             return true;
         }
-        if ("infinite".equalsIgnoreCase(value.trim())) {
-            return true;
-        }
-        return isNumeric(value);
-    }
-
-    /**
-     * Helper: Check if value is numeric
-     */
-    private boolean isNumeric(String value) {
-        if (value == null || value.isEmpty()) {
-            return true;
-        }
-        try {
-            Double.parseDouble(value.replace(",", "."));
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        return "infinite".equalsIgnoreCase(value.trim()) || isDouble(value);
     }
 
     /**
@@ -549,7 +533,7 @@ public class LinkMeProcessorServiceImpl {
                     yield null;
                 }
                 try {
-                    yield Double.parseDouble(value.replace(",", "."));
+                    yield parseDouble(value);
                 } catch (NumberFormatException e) {
                     yield null;
                 }
