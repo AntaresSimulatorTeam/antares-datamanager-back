@@ -184,13 +184,12 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
 
         List<Path> generatedFiles = new ArrayList<>();
         String fileName = file.getFileName().toString().toLowerCase();
-
-        TimeSeriesMatrix matrix = readDsrMatrix(fileName, file, horizon);
-
-        if(matrix == null){
+        var optionalMatrix = readDsrMatrix(fileName, file, horizon);
+        if(optionalMatrix.isEmpty()){
             return generatedFiles;
         }
 
+        TimeSeriesMatrix matrix =   optionalMatrix.get();
         if (matrix.columns().isEmpty()) {
             throw TechnicalException.builder()
                     .message("The matrix of the capacity modulation file is empty: " + file.getFileName())
@@ -213,13 +212,13 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
         return generatedFiles;
     }
 
-    private TimeSeriesMatrix readDsrMatrix(String fileName, Path file, String horizon) throws IOException {
+    private Optional<TimeSeriesMatrix> readDsrMatrix(String fileName, Path file, String horizon) throws IOException {
         var localReader = (this.timeSeriesReader != null)
                 ? this.timeSeriesReader
                 : new TimeSeriesReader();
         if (fileName.endsWith(".xlsx")) {
             try {
-                return localReader.readFromXlsx(file, horizon, true);
+                return Optional.of(localReader.readFromXlsx(file, horizon, true));
             } catch (Exception ex) {
                 throw new IOException(ex);
             }
@@ -229,7 +228,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return null;
+        return Optional.empty();
     }
 
     private void processColumn(TimeSeriesMatrixColumn column, String baseName, Path tmpDir, Set<String> allowedClusters, List<Path> generatedFiles) throws IOException {
