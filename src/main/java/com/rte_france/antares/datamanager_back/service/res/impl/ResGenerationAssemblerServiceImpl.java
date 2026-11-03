@@ -68,9 +68,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
             SeriesLookup nonFrLookup
     ) {}
 
-    private record ResSeriesRef(String trajectoryFileName, String sourceKey, Path filePath, String area, String group, String cluster, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea) { }
+    private record ResSeriesRef(String trajectoryFileName, String sourceKey, Path filePath, String area, String group, String cluster, String zone, String technology, boolean fromTechnoTrajectory, boolean fromOthersArea, String horizon) { }
 
-    private record SeriesScanContext(String trajectoryFileName, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech) { }
+    private record SeriesScanContext(String trajectoryFileName, boolean fromTechnoTrajectory, boolean fromOthersArea, String linkedArea, String linkedTech, String horizon) { }
 
     private record ParsedSeriesKey(String area, String group, String cluster, String zone, String technology) { }
 
@@ -405,6 +405,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         List<TrajectoryEntity> resLoadTrajectories = studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.RES_LOAD.name().equals(t.getType()))
+                .filter(t -> Objects.equals(studyEntity.getHorizon(), t.getHorizon()))
                 .toList();
 
         if (resLoadTrajectories.isEmpty()) {
@@ -428,7 +429,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
         String normalizedArea = toKey(trajectory.getArea());
         String normalizedTech = toKey(trajectory.getTechnology());
-        String linkKey = fileName + "|" + normalizedArea + "|" + normalizedTech;
+        String linkKey = fileName + "|" + normalizedArea + "|" + normalizedTech + "|" + trajectory.getHorizon();
 
         boolean fromOthersArea = ResDomainRules.OTHERS_AREA.equalsIgnoreCase(normalizedArea);
         boolean isNewLink = processedLinks.add(linkKey);
@@ -436,7 +437,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 fileName, trajectory.getArea(), trajectory.getTechnology(), linkKey, isNewLink);
         if (isNewLink) {
             var scanContext = new SeriesScanContext(fileName, !normalizedTech.isBlank(), fromOthersArea,
-                    normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT));
+                    normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT), trajectory.getHorizon());
             resolveSeriesInTrajectory(scanContext, base, result);
         }
     }
@@ -486,6 +487,16 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private void createSeriesFromFile(Path file, Path trajectoryRoot, SeriesScanContext scanContext, List<ResSeriesRef> result) {
+        String horizon = scanContext.horizon();
+        if (horizon != null && !horizon.isBlank()) {
+            String fileName = file.getFileName().toString();
+            int ext = fileName.lastIndexOf('.');
+            String baseName = ext > 0 ? fileName.substring(0, ext) : fileName;
+            if (!toKey(baseName).endsWith("_" + toKey(horizon))) {
+                log.debug("Skipping RES load file {}: expected horizon {}", file, horizon);
+                return;
+            }
+        }
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
             if (!scanContext.fromOthersArea() && scanContext.linkedArea() != null && !scanContext.linkedArea().isBlank() && !scanContext.linkedArea().equalsIgnoreCase(parsedKey.area())) {
@@ -504,7 +515,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     parsedKey.zone(),
                     parsedKey.technology(),
                     scanContext.fromTechnoTrajectory(),
-                    scanContext.fromOthersArea()
+                    scanContext.fromOthersArea(),
+                    scanContext.horizon()
             ));
         });
     }
