@@ -92,36 +92,24 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
             Map<String, StConstraintsParameterEntity> parameterIndex,
             String technology
     ) {
-        Result result = getResult(row, zoneFilter, technology, HOURS_SHEET_NAME
-        );
+        Result result = getResult(row, zoneFilter, technology, HOURS_SHEET_NAME);
         if (result == null) {
             return;
         }
 
-        StConstraintsParameterEntity param = resolveIndexedParameter(parameterIndex, result);
+        // Build parameter key: name|zone|cluster to match parameters
+        String parameterKey = buildParameterKey(result.name(), result.zone(), result.cluster());
+        StConstraintsParameterEntity param = parameterIndex.get(parameterKey);
+        
+        if (param == null) {
+            throw BusinessException.builder()
+                    .message("Parameter: name={0}, zone={1}, cluster{2}, not found in hours sheet")
+                    .errorMessageArguments(List.of(result.name(), result.zone(), result.cluster()))
+                    .build();
+        }
+
         StConstraintsHoursEntity hour = getStConstraintsHoursEntity(row, param);
         param.getHours().add(hour);
-    }
-
-    /**
-     * Resolves an indexed parameter from the provided parameter index map
-     * using the specified result details.
-     * Throws a {@link BusinessException} if the parameter cannot be resolved.
-     *
-     * @param parameterIndex     a map containing parameter keys mapped to {@code StConstraintsParameterEntity} instances
-     * @param result             the result object containing the attributes necessary for parameter resolution
-     * @return the resolved {@code StConstraintsParameterEntity} associated with the given index
-     * @throws BusinessException if no corresponding parameter is found for the resolved key
-     */
-    private StConstraintsParameterEntity resolveIndexedParameter(
-            Map<String, StConstraintsParameterEntity> parameterIndex,
-            Result result
-    ) {
-        return Optional.ofNullable(parameterIndex.get(buildParameterKey(result.name(), result.zone(), result.cluster())))
-                .orElseThrow(() -> BusinessException.builder()
-                        .message("Parameter: name={0}, zone={1}, cluster{2}, not found in hours sheet")
-                        .errorMessageArguments(List.of(result.name(), result.zone(), result.cluster()))
-                        .build());
     }
 
     private @Nullable Result getResult(Row row, Predicate<String> zoneFilter, String technology, String sheetDisplayName) {
