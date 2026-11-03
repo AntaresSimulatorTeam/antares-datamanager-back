@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHou
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -103,7 +104,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
         
         if (param == null) {
             throw BusinessException.builder()
-                    .message("Parameter: name={0}, zone={1}, cluster{2}, not found in hours sheet")
+                    .message("Parameter: name={0}, zone={1}, cluster={2}, not found in parameters sheet")
                     .errorMessageArguments(List.of(result.name(), result.zone(), result.cluster()))
                     .build();
         }

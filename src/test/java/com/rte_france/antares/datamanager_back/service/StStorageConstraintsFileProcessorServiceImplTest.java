@@ -278,7 +278,7 @@ class StStorageConstraintsFileProcessorServiceImplTest {
         List<String> zones = List.of("zone1");
         assertThatThrownBy(() -> service.processConstraintsParametersAnHoursFile(filePath, "OTHERS", zones, "EV", "c1", "t.xlsx", 1))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Parameter: name={0}, zone={1}, cluster{2}, not found in hours sheet");
+                .hasMessageContaining("Parameter: name={0}, zone={1}, cluster={2}, not found in parameters sheet");
     }
 
     @Test

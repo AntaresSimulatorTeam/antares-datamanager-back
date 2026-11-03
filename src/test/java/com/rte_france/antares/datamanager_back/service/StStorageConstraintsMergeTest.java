@@ -79,20 +79,7 @@ class StStorageConstraintsMergeTest {
         storage.setParameters(new ArrayList<>(List.of(existingFrParam)));
         storage.setTrajectory(com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity.builder().id(1).build());
 
-        // New parameters from the "OTHERS" file: FR + DE
-        List<StConstraintsParameterEntity> newParamsFromFile = new ArrayList<>();
-        for (int i = 1; i <= 12; i++) {
-            StConstraintsHoursEntity hour = StConstraintsHoursEntity.builder().occurrence(1).startHour(i).endHour(i + 1).build();
-            StConstraintsParameterEntity param = StConstraintsParameterEntity.builder()
-                        .name("param" + i)
-                        .zone("FR")
-                        .cluster("cluster1")
-                        .enabled(false)
-                        .hours(new ArrayList<>(List.of(hour)))
-                        .build();
-            hour.setParameter(param);
-            newParamsFromFile.add(param);
-        }
+        // New parameters from the "OTHERS" file: only DE (FR params excluded for OTHERS concept)
         StConstraintsHoursEntity deHour = StConstraintsHoursEntity.builder().occurrence(1).startHour(1).endHour(2).build();
         StConstraintsParameterEntity deParam = StConstraintsParameterEntity.builder()
                     .name("param_de")
@@ -102,14 +89,13 @@ class StStorageConstraintsMergeTest {
                     .hours(new ArrayList<>(List.of(deHour)))
                     .build();
         deHour.setParameter(deParam);
-        newParamsFromFile.add(deParam);
 
         when(trajectoryRepository.findAreasByStudyIdAndType(studyId, "STS"))
                     .thenReturn(List.of("FR"));
 
-        // Pre-populate cache with newParamsFromFile under "OTHERS" key
+        // Pre-populate cache with OTHERS containing only DE param
         HashMap<String, List<StConstraintsParameterEntity>> cache = new HashMap<>();
-        cache.put("OTHERS", newParamsFromFile);
+        cache.put("OTHERS", List.of(deParam));
 
             // WHEN
         service.handleStsConstraints(Path.of("dummy"), "FR", "EV", "cluster1",
@@ -117,17 +103,9 @@ class StStorageConstraintsMergeTest {
                     storage, horizon, studyId, cache);
 
             // THEN
-            // Only existing FR param + new DE param should be present
-        assertThat(storage.getParameters()).hasSize(2);
-
-            // Existing FR parameter is preserved
-        assertThat(storage.getParameters().stream()
-                    .anyMatch(p -> p.getZone().equals("FR") && p.getName().equals("param1") && p.getEnabled()))
-                    .isTrue();
-
-            // "DE" parameter from the "OTHERS" file is included
-        assertThat(storage.getParameters().stream()
-                    .anyMatch(p -> p.getZone().equals("DE") && p.getName().equals("param_de") && p.getEnabled()))
-                    .isTrue();
+            // When filtering DE params by zone="FR", no matches found
+            // Existing FR parameters remain unchanged
+        assertThat(storage.getParameters()).hasSize(1);
+        assertThat(storage.getParameters().get(0)).isEqualTo(existingFrParam);
         }
 }

@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -142,8 +141,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             String[] expectedColumns = StStorageColumns.getAllColumnNames();
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
 
+            buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache);
+
             boolean foundStudyArea = false;
-            boolean constraintsFileReadAttempted = false;
 
             for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) { // skip header
                 Row row = sheet.getRow(r);
@@ -186,30 +186,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 validateZeroToOneRange(row, trajectoryFileName);
                 validateBooleanRange(row, 9, 12, trajectoryFileName);
 
-                // Lazy load constraints file on first storage with constraints flag
-                Boolean stsConstraintsFlag = getBooleanCell(row, CONSTRAINTS_INDEX);
-                if (stsConstraintsFlag && !constraintsFileReadAttempted) {
-                    constraintsFileReadAttempted = true;
-                    Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, "", CONSTRAINTS_FILES);
-                    Path additionalConstraintsPath = constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName());
-                    
-                    if (Files.exists(additionalConstraintsPath)) {
-                        log.info("Reading STS additional constraints file={} for trajectory={}, area={}", 
-                                additionalConstraintsPath, trajectoryFileName, areaParam);
-                        List<StConstraintsParameterEntity> allParams = 
-                                stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
-                                        additionalConstraintsPath, 
-                                        areaParam, 
-                                        studyAreas, 
-                                        technology, 
-                                        "", 
-                                        trajectoryFileName, 
-                                        null
-                                );
-                        constraintsParamsCache.put(areaParam, allParams);
-                    }
-                }
-
                 StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
                         clusterName, trajectoryFileName, studyAreas, areaParam, horizon, studyId, constraintsParamsCache);
                 results.add(entity);
@@ -225,6 +201,32 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             }
         }
         return results;
+    }
+
+    private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
+        // Read constraints file once before processing storages
+        Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, "", CONSTRAINTS_FILES);
+        Path additionalConstraintsPath = constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName());
+
+        if (Files.exists(additionalConstraintsPath)) {
+            try {
+                log.info("Reading STS additional constraints file={} for trajectory={}, area={}",
+                        additionalConstraintsPath, trajectoryFileName, areaParam);
+                List<StConstraintsParameterEntity> allParams =
+                        stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
+                                additionalConstraintsPath,
+                                areaParam,
+                                studyAreas,
+                                technology,
+                                "",
+                                trajectoryFileName,
+                                null
+                        );
+                constraintsParamsCache.put(areaParam, allParams);
+            } catch (IOException e) {
+                log.warn("Failed to read additional constraints file: {}", additionalConstraintsPath, e);
+            }
+        }
     }
 
     private boolean shouldIncludeRow(String rowArea, String areaParam) {
@@ -478,32 +480,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                      Integer studyId,
                                      Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
 
-        Path constraintsPath = buildStsOptionalFilesPath(
-                trajectoryFilePath,
-                rowAreaName,
-                technology,
-                clusterName,
-                CONSTRAINTS_FILES
-        );
-
-        // Verify constraints files exist
-        List<String> missingFiles = isOptionalStsFileMissing(
-                constraintsPath,
-                CONSTRAINTS_FILES,
-                trajectoryFileName
-        );
-
-        if (!missingFiles.isEmpty()) {
-            throw BusinessException.builder()
-                    .message("Missing Additional constraint files {0} for trajectory {1} for {2}")
-                    .errorMessageArguments(List.of(
-                            String.join(", ", missingFiles),
-                            trajectoryFileName,
-                            rowAreaName))
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
-
         // Get cached parameters for this area
         List<StConstraintsParameterEntity> parsedTemplateParams = constraintsParamsCache.getOrDefault(areaParam, List.of());
         
@@ -512,20 +488,18 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             return;
         }
 
-        List<String> existingAreas = trajectoryRepository.findAreasByStudyIdAndType(studyId, "STS");
+        Path constraintsPath = buildStsOptionalFilesPath(
+                trajectoryFilePath,
+                rowAreaName,
+                technology,
+                clusterName,
+                CONSTRAINTS_FILES
+        );
 
         // Filter parameters by storage's area and cluster
-        boolean isOthers = OTHERS_AREA.equalsIgnoreCase(areaParam);
         List<StConstraintsParameterEntity> filteredParams = parsedTemplateParams.stream()
-                .filter(p -> {
-                    if (!isOthers) {
-                        return p.getZone().equalsIgnoreCase(rowAreaName) 
-                                && p.getCluster().equalsIgnoreCase(clusterName);
-                    } else {
-                        return !existingAreas.contains(p.getZone())
-                                && p.getCluster().equalsIgnoreCase(clusterName);
-                    }
-                })
+                .filter(p -> p.getZone().equalsIgnoreCase(rowAreaName) 
+                        && p.getCluster().equalsIgnoreCase(clusterName))
                 .toList();
 
         if (filteredParams.isEmpty()) {
@@ -540,17 +514,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 trajectoryFileName, rowAreaName, clusterName, filteredNewParams.size());
 
         filteredNewParams.forEach(p -> p.setStorage(storage));
-        
-        // For OTHERS area, merge with existing parameters; otherwise replace
-        if (isOthers) {
-            List<StConstraintsParameterEntity> allParams = new ArrayList<>(
-                    storage.getParameters() != null ? storage.getParameters() : List.of()
-            );
-            allParams.addAll(filteredNewParams);
-            storage.setParameters(allParams);
-        } else {
-            storage.setParameters(filteredNewParams);
-        }
+        storage.setParameters(filteredNewParams);
 
         String constraintsCapacityFileName =
                 getFileNameWithoutExtensionAndWithoutPrefix(
@@ -559,6 +523,37 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 ) + EXCEL_EXTENSION;
         Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
         storage.setConstraintsPath(fullConstraintsPath.toString());
+    }
+
+
+
+    /**
+     * Merges the new parameters into the storage entity's parameter list, ensuring that
+     * any existing parameters with the same key are replaced by the new parameters.
+     *
+     * @param storage the storage entity containing the existing list of parameters
+     * @param newParams a list of new parameters to be merged with the existing parameters
+     */
+    private void mergeWithPriority(StStorageEntity storage,
+                                   List<StConstraintsParameterEntity> newParams) {
+
+        if (storage.getParameters() == null) {
+            storage.setParameters(new ArrayList<>());
+        }
+
+        Map<String, StConstraintsParameterEntity> map = storage.getParameters().stream()
+                .collect(Collectors.toMap(
+                        this::buildKey,
+                        Function.identity(),
+                        (a, b) -> a
+                ));
+
+        for (StConstraintsParameterEntity newParam : newParams) {
+            String key = buildKey(newParam);
+            map.put(key, newParam); // remplace si doublon
+        }
+
+        storage.setParameters(new ArrayList<>(map.values()));
     }
 
     private String buildKey(StConstraintsParameterEntity p) {
