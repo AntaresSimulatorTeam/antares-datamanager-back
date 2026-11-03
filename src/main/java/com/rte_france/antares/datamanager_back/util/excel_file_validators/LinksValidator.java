@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDouble;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.*;
 
 @Slf4j
@@ -151,7 +152,7 @@ private static void processColumn(Sheet sheet, int nameColumnIndex, int columnIn
         if (valueCell.getCellType() == CellType.STRING) {
             String stringValue = valueCell.getStringCellValue().trim();
             try {
-                double value = Double.parseDouble(stringValue.replace(",", "."));
+                double value = parseDouble(stringValue);
                 checkNumericValue(value, linkName, negativeLinks);
             } catch (NumberFormatException e) {
                 notNumericLinks.add(linkName);

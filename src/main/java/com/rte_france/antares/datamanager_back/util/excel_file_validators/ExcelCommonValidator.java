@@ -21,6 +21,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.isDouble;
+
 @Slf4j
 @UtilityClass
 public class ExcelCommonValidator {
@@ -488,10 +490,7 @@ public class ExcelCommonValidator {
                     String valueStr = values[colIndex].trim();
                     if (valueStr.isEmpty()) continue; // blanks allowed
 
-                    try {
-                        // replace comma with dot for decimal parsing to support both formats regardless of delimiter
-                        Double.parseDouble(valueStr.replace(',', '.'));
-                    } catch (NumberFormatException e) {
+                    if (!isDouble(valueStr)) {
                         String clusterName = headers[colIndex].trim();
                         throw BusinessException.builder()
                                 .message("Values for cluster " + clusterName

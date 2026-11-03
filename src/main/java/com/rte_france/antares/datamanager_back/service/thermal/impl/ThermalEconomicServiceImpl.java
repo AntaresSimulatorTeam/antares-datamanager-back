@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.tryParseDecimal;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -127,7 +128,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             // si on arrive ici, la ligne est considérée comme correspondant à l'horizon (year == null ou égal)
             foundAnyMatchingHorizon = true;
 
-            BigDecimal co2 = parseBigDecimal(co2Str);
+            BigDecimal co2 = tryParseDecimal(co2Str).orElse(null);
             if (co2 == null) {
                 throw BusinessException.builder()
                         .message("The value of CO2_EmissionFuel of horizon {0} in THERMAL Economic trajectory {1} in CO2_emissions  tab must be numeric")
@@ -201,7 +202,7 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
             }
 
             // une ligne contient des données -> tenter de parser la valeur
-            BigDecimal value = parseBigDecimal(valueStr);
+            BigDecimal value = tryParseDecimal(valueStr).orElse(null);
             if (value == null) {
                 throw BusinessException.builder()
                         .message("The value of value of horizon {0} in THERMAL Economic trajectory {1} in ener_content  tab must be numeric")
@@ -245,17 +246,6 @@ public class ThermalEconomicServiceImpl implements ThermalEconomicService {
         try {
             if (s == null || s.isBlank()) return null;
             return Integer.parseInt(s.replaceAll("[^0-9-]", ""));
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private BigDecimal parseBigDecimal(String s) {
-        try {
-            if (s == null || s.isBlank()) return null;
-            String normalized = s.replace(",", ".");
-            if (normalized.isBlank()) return null;
-            return new BigDecimal(normalized);
         } catch (Exception ex) {
             return null;
         }

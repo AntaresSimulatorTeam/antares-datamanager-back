@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.*;
 import com.rte_france.antares.datamanager_back.service.res.*;
+import com.rte_france.antares.datamanager_back.util.DecimalUtils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroAllocationColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroParameterColumns;
@@ -27,6 +28,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDecimal;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -717,7 +719,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             boolean isPsp,
             Object... values
     ) {
-        Predicate<String> validator = isNumeric ? HydroFileProcessorServiceImpl::isDecimal : this::isBooleanStringValue;
+        Predicate<String> validator = isNumeric ? DecimalUtils::isDecimal : this::isBooleanStringValue;
         String columnsLabel = getColumnsLabel(context.getTrajectoryType(), isNumeric);
         String valuesLabel = isNumeric ? "filled and of numeric type" : "boolean values";
         validateColumns(context, requiredColumns, columnsLabel, validator, valuesLabel, isPsp, values);
@@ -760,20 +762,6 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             case String s -> !validator.test(s);
             default -> false;
         };
-    }
-
-    public static boolean isDecimal(String s) {
-        if (s == null) return false;
-        try {
-            new BigDecimal(s.replace(",", "."));
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
-    private static BigDecimal parseDecimal(String s) {
-        return new BigDecimal(s.replace(",", "."));
     }
 
     private String getColumnsLabel(TrajectoryType trajectoryType, boolean isNumeric) {
