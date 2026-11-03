@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDouble;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.getBooleanCellValue;
 
@@ -246,7 +247,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             case NUMERIC -> cell.getNumericCellValue();
             case STRING -> {
                 String value = cell.getStringCellValue().trim();
-                yield value.isEmpty() ? null : Double.parseDouble(value.replace(",", "."));
+                yield value.isEmpty() ? null : parseDouble(value);
             }
             default -> null;
         };

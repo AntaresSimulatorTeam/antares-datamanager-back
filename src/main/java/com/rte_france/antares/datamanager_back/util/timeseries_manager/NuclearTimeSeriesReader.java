@@ -26,6 +26,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDouble;
+
 /**
  * Specific reader for Nuclear time series that ensures decimal precision.
  * Uses POI Workbook API to get exact numeric values.
@@ -94,8 +96,7 @@ public class NuclearTimeSeriesReader {
         s = s.trim();
         if (s.isEmpty()) return 0.0;
         try {
-            double val = Double.parseDouble(s.replace(',', '.'));
-            return Math.round(val * 100.0) / 100.0;
+            return Math.round(parseDouble(s) * 100.0) / 100.0;
         } catch (NumberFormatException e) {
             return 0.0;
         }
