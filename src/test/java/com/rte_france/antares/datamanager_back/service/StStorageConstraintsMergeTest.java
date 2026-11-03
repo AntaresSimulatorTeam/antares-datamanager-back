@@ -104,17 +104,17 @@ class StStorageConstraintsMergeTest {
         deHour.setParameter(deParam);
         newParamsFromFile.add(deParam);
 
-        when(stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(any(), eq("FR"), any(), any(), any(), any(), anyInt()))
-                    .thenReturn(newParamsFromFile);
-
-
         when(trajectoryRepository.findAreasByStudyIdAndType(studyId, "STS"))
                     .thenReturn(List.of("FR"));
+
+        // Pre-populate cache with newParamsFromFile under "OTHERS" key
+        HashMap<String, List<StConstraintsParameterEntity>> cache = new HashMap<>();
+        cache.put("OTHERS", newParamsFromFile);
 
             // WHEN
         service.handleStsConstraints(Path.of("dummy"), "FR", "EV", "cluster1",
                     "trajectory.xlsx", "OTHERS", List.of("FR", "DE"),
-                    storage, horizon, studyId, new HashMap<>());
+                    storage, horizon, studyId, cache);
 
             // THEN
             // Only existing FR param + new DE param should be present
