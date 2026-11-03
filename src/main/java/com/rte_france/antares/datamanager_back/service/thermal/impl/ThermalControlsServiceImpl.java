@@ -271,7 +271,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                     .filter(Objects::nonNull)
                     .flatMap(List::stream)
                     .filter(e -> effectiveArea.equalsIgnoreCase(OTHERS_AREA) || effectiveArea.equalsIgnoreCase(e.getArea()))
-                    .map(e -> (e.getCluster() != null ? e.getCluster() : "") + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .filter(e -> e.getCluster() != null)
+                    .map(e -> e.getCluster() + "/" + (e.getArea() != null ? e.getArea() : ""))
                     .collect(Collectors.toSet());
 
             // Ensure mutable before modification
