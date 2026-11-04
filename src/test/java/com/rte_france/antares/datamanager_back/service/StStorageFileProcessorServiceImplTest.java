@@ -4,15 +4,16 @@ import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerP
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
-import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
+import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.sts.impl.StStorageFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,7 @@ class StStorageFileProcessorServiceImplTest {
     private AreaRepository areaRepository;
     private StStorageConstraintsFileProcessorService stStorageConstraintsFileProcessorService;
 
-
+    private PathSecurityUtil pathSecurityUtil;
     private StStorageFileProcessorServiceImpl service;
 
     @TempDir
@@ -58,14 +59,15 @@ class StStorageFileProcessorServiceImplTest {
         trajectoryRepository = mock(TrajectoryRepository.class);
         userService = mock(UserService.class);
         areaRepository = mock(AreaRepository.class);
-
+        pathSecurityUtil = new PathSecurityUtil(properties);
         service = new StStorageFileProcessorServiceImpl(
                 properties,
                 trajectoryRepository,
                 userService,
                 areaRepository,
-                stStorageConstraintsFileProcessorService = mock(StStorageConstraintsFileProcessorService.class)
-        );
+                stStorageConstraintsFileProcessorService = mock(StStorageConstraintsFileProcessorService.class),
+                pathSecurityUtil
+                );
 
         when(properties.getNasDirectory()).thenReturn(tempDir.toString());
         when(properties.getTrajectoryFilePath()).thenReturn("trajectories");

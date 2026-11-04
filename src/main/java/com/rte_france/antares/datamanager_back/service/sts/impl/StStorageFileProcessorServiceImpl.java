@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsF
 import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.StStorageColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +56,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private static final String EXCEL_EXTENSION = ".xlsx";
     private static final String STS_TRAJECTORY_PREFIX = "cluster_";
     public static final String OTHERS_AREA = "OTHERS";
+    private final PathSecurityUtil pathSecurityUtil;
 
 
     @Transactional(rollbackFor = {IOException.class})
@@ -206,7 +208,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
         // Read constraints file once before processing storages
         Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, "", CONSTRAINTS_FILES);
-        Path additionalConstraintsPath = constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName());
+        Path additionalConstraintsPath = pathSecurityUtil.resolveSafePath(constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()));
 
         if (Files.exists(additionalConstraintsPath)) {
             try {
