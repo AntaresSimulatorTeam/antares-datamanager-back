@@ -35,6 +35,7 @@ public class LoadToJsonService {
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
+    @ExecutionTime
     public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         log.info("Retrieve LOAD files for study = {}", studyEntity.getId());
         Map<Integer, String> arrowFileCache = new HashMap<>();

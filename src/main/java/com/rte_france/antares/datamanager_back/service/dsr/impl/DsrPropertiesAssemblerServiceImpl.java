@@ -1,11 +1,10 @@
 package com.rte_france.antares.datamanager_back.service.dsr.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
-import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.DsrGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
-import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
+import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.DsrMapper;
 import com.rte_france.antares.datamanager_back.repository.model.DsrCapacityModulationEntity;
 import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity;
@@ -14,6 +13,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.util.ColumnSplitWriter;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -43,38 +43,39 @@ public class DsrPropertiesAssemblerServiceImpl implements DsrGenerationAssembler
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
 
-@Override
-public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
+    @ExecutionTime
+    @Override
+    public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
 
-    // Compute modulation files only once
-    List<String> modulationFiles = createMatrixDsrTsFiles(studyEntity);
+        // Compute modulation files only once
+        List<String> modulationFiles = createMatrixDsrTsFiles(studyEntity);
 
-    return studyEntity.getTrajectories().stream()
-            .filter(Objects::nonNull)
-            .filter(t -> TrajectoryType.DSR.name().equals(t.getType()))
-            .map(TrajectoryEntity::getDsrClusterEntities)
-            .filter(Objects::nonNull)
-            .flatMap(Collection::stream)
-            .filter(Objects::nonNull)
-            .filter(dsr ->
-                    Boolean.TRUE.equals(dsr.getToUse()) &&
-                            dsr.getCapacity() != null &&
-                            dsr.getCapacity().compareTo(BigDecimal.ZERO) != 0
-            )
-            .collect(Collectors.toMap(
-                    this::buildDsrKey,
-                    dsr -> {
-                        DsrGenerationDTO dto = DsrMapper.mapToDsrGenerationDTO(dsr);
-                        if (Boolean.TRUE.equals(dsr.getModulation())) {
-                            String clusterKey = this.buildDsrKey(dsr);
-                            List<String> clusterModulationFiles = getClusterModulationFiles(modulationFiles, clusterKey);
-                            dto.setDsrTsList(clusterModulationFiles);
-                        }
-                        return dto;
-                    },
-                    (existing, replacement) -> existing
-            ));
-}
+        return studyEntity.getTrajectories().stream()
+                .filter(Objects::nonNull)
+                .filter(t -> TrajectoryType.DSR.name().equals(t.getType()))
+                .map(TrajectoryEntity::getDsrClusterEntities)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .filter(Objects::nonNull)
+                .filter(dsr ->
+                        Boolean.TRUE.equals(dsr.getToUse()) &&
+                                dsr.getCapacity() != null &&
+                                dsr.getCapacity().compareTo(BigDecimal.ZERO) != 0
+                )
+                .collect(Collectors.toMap(
+                        this::buildDsrKey,
+                        dsr -> {
+                            DsrGenerationDTO dto = DsrMapper.mapToDsrGenerationDTO(dsr);
+                            if (Boolean.TRUE.equals(dsr.getModulation())) {
+                                String clusterKey = this.buildDsrKey(dsr);
+                                List<String> clusterModulationFiles = getClusterModulationFiles(modulationFiles, clusterKey);
+                                dto.setDsrTsList(clusterModulationFiles);
+                            }
+                            return dto;
+                        },
+                        (existing, replacement) -> existing
+                ));
+    }
 
     private static @NonNull List<String> getClusterModulationFiles(List<String> modulationFiles, String clusterKey) {
         String clusterSuffix = "_" + clusterKey + ".";
@@ -93,6 +94,7 @@ public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEnti
         String name = dsr.getName() != null ? dsr.getName() : "";
         return area + "_" + name;
     }
+
     @Override
     public List<String> createMatrixDsrTsFiles(StudyEntity studyEntity) {
         List<Path> splitFiles = createSplitCmDsrFiles(studyEntity);

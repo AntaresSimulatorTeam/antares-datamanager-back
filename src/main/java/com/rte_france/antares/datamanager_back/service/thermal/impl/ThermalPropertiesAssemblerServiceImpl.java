@@ -50,7 +50,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
      * @throws NullPointerException     if {@code trajectories} is null
      * @throws IllegalArgumentException if a trajectory has an invalid {@link TrajectoryType}
      */
-
+    @ExecutionTime
     public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleThermalForTrajectories(StudyEntity study) {
         if (study == null) {
             return Collections.emptyMap();
