@@ -393,6 +393,26 @@ public final class TimeSeriesReader {
   }
 
   /**
+   * Returns the 0-based column index of an A1-style cell reference (e.g. "AB12" -> 27).
+   * Avoids the regex-based {@link CellReference} parsing on the per-cell hot path.
+   */
+  private static int columnIndex(String cellReference) {
+    int col = 0;
+    int i = 0;
+    int len = cellReference.length();
+    while (i < len) {
+      char c = cellReference.charAt(i);
+      if (c < 'A' || c > 'Z') break;
+      col = col * 26 + (c - 'A' + 1);
+      i++;
+    }
+    if (i == 0) {
+      return new CellReference(cellReference).getCol();
+    }
+    return col - 1;
+  }
+
+  /**
    * Parses string to double, handling null/empty/format errors
    */
   private static double parseStringNumber(String s) {
@@ -428,7 +448,7 @@ public final class TimeSeriesReader {
     @Override
     public void cell(String cellReference, String formattedValue, XSSFComment comment) {
       if (cellReference == null || firstRowDone) return;
-      int col = new CellReference(cellReference).getCol();
+      int col = columnIndex(cellReference);
       if (col > currentMaxColIndex) currentMaxColIndex = col;
       rowHasCells = true;
     }
@@ -505,7 +525,7 @@ public final class TimeSeriesReader {
     @Override
     public void cell(String cellReference, String formattedValue, XSSFComment comment) {
       if (cellReference == null) return;
-      int colIndex = new CellReference(cellReference).getCol();
+      int colIndex = columnIndex(cellReference);
       currentRowValues.put(colIndex, formattedValue);
       currentRowHasCells = true;
     }
@@ -569,7 +589,7 @@ public final class TimeSeriesReader {
         return;
       }
 
-      int colIndex = new CellReference(cellReference).getCol();
+      int colIndex = columnIndex(cellReference);
       currentRowValues.put(colIndex, formattedValue);
       currentRowHasCells = true;
     }

@@ -3,8 +3,8 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import org.hibernate.annotations.BatchSize;
 import java.util.List;
-
 @Entity(name = "StConstraintsParameter")
 @Table(name = "st_constraints_parameters")
 @Getter
@@ -38,6 +38,7 @@ public class StConstraintsParameterEntity {
     private Boolean enabled;
 
     @OneToMany(mappedBy = "parameter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 500)
     private List<StConstraintsHoursEntity> hours;
 
     @ManyToOne(optional = false)
