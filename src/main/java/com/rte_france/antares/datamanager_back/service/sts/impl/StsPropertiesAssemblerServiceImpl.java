@@ -38,6 +38,7 @@ import java.util.stream.IntStream;
 public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssemblerService {
 
     private static final int MAX_CONCURRENT_SERIES_FILES = 4;
+    private static final int MAX_CONCURRENT_CONSTRAINTS_FILES = 4;
 
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final NasFileService nasFileService;
@@ -189,54 +190,100 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Set<String> allAreas,
             String horizon
     ) {
-        Map<String, Map<String, LinkedHashSet<String>>> uniqueByAreaAndCluster = new ConcurrentHashMap<>();
-        allAreas.forEach(area -> uniqueByAreaAndCluster.put(area, new ConcurrentHashMap<>()));
-        Map<ConstraintSeriesKey, String> savedSeriesByKey = new ConcurrentHashMap<>();
+        // Group contexts by file path to read each xlsx only once.
+        // Snapshots are taken on the caller thread so workers never touch Hibernate entities.
+        Map<Path, List<ConstraintContextSnapshot>> snapshotsByFile = contexts.stream()
+                .collect(Collectors.groupingBy(StorageConstraintsContext::file,
+                        Collectors.mapping(ctx -> new ConstraintContextSnapshot(
+                                ctx.area(), ctx.parameterNames(), ctx.storage().getName()), Collectors.toList())));
 
-        // Group contexts by file path to read each xlsx only once
-        Map<Path, List<StorageConstraintsContext>> contextsByFile = contexts.stream()
-                .collect(Collectors.groupingBy(StorageConstraintsContext::file));
+        if (snapshotsByFile.isEmpty()) {
+            return Map.of();
+        }
 
         String outputDir = antaresDataManagerProperties.getStsTsOutputDirectory();
+        List<Map.Entry<Path, List<ConstraintContextSnapshot>>> entries = List.copyOf(snapshotsByFile.entrySet());
+        Map<String, LinkedHashSet<String>> savedFilesByCluster = new LinkedHashMap<>();
 
-        // Each file entry is independent and can be processed separately.
-        contextsByFile.forEach((file, value) -> {
-            Set<String> requiredColumnsLower = value.stream()
-                    .flatMap(ctx -> ctx.parameterNames().stream())
-                    .filter(Objects::nonNull)
-                    .map(name -> name.toLowerCase(Locale.ROOT))
-                    .collect(Collectors.toSet());
-
-            if (requiredColumnsLower.isEmpty()) {
-                return;
-            }
-
-            TimeSeriesMatrix matrix;
+        // Each xlsx file is independent: parse them concurrently, then merge in file order.
+        try (var executor = Executors.newFixedThreadPool(Math.min(MAX_CONCURRENT_CONSTRAINTS_FILES, entries.size()))) {
+            List<Future<Map<String, LinkedHashSet<String>>>> futures = entries.stream()
+                    .map(entry -> executor.submit(() ->
+                            writeConstraintsForFile(entry.getKey(), entry.getValue(), allAreas, horizon, outputDir)))
+                    .toList();
             try {
-                matrix = timeSeriesReader.readSelectedColumnsFromXlsx(file, horizon, requiredColumnsLower);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
+                for (Future<Map<String, LinkedHashSet<String>>> future : futures) {
+                    future.get().forEach((clusterKey, files) ->
+                            savedFilesByCluster.computeIfAbsent(clusterKey, ignored -> new LinkedHashSet<>()).addAll(files));
+                }
+            } catch (InterruptedException e) {
+                futures.forEach(future -> future.cancel(true));
+                Thread.currentThread().interrupt();
+                throw TechnicalException.builder()
+                        .message("Interrupted while generating STS constraints series files")
+                        .cause(e)
+                        .build();
+            } catch (ExecutionException e) {
+                futures.forEach(future -> future.cancel(true));
+                if (e.getCause() instanceof RuntimeException cause) {
+                    throw cause;
+                }
+                if (e.getCause() instanceof Error cause) {
+                    throw cause;
+                }
+                throw TechnicalException.builder()
+                        .message("Failed to generate STS constraints series files")
+                        .cause(e.getCause())
+                        .build();
             }
+        }
 
-            Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        savedFilesByCluster.forEach((clusterKey, files) -> result.put(clusterKey, new ArrayList<>(files)));
+        return result;
+    }
 
-            for (StorageConstraintsContext ctx : value) {
-                writeConstraintsForContext(ctx, file, allAreas, columnsIndexByArea, outputDir, uniqueByAreaAndCluster, savedSeriesByKey);
-            }
-        });
+    private Map<String, LinkedHashSet<String>> writeConstraintsForFile(
+            Path file,
+            List<ConstraintContextSnapshot> snapshots,
+            Set<String> allAreas,
+            String horizon,
+            String outputDir
+    ) {
+        Set<String> requiredColumnsLower = snapshots.stream()
+                .flatMap(ctx -> ctx.parameterNames().stream())
+                .filter(Objects::nonNull)
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
 
-        return uniqueByAreaAndCluster.values().stream()
-                .flatMap(m -> m.entrySet().stream())
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> new ArrayList<>(entry.getValue())));
+        if (requiredColumnsLower.isEmpty()) {
+            return Map.of();
+        }
+
+        TimeSeriesMatrix matrix;
+        try {
+            matrix = timeSeriesReader.readSelectedColumnsFromXlsx(file, horizon, requiredColumnsLower);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea = indexMatrixColumnsByArea(matrix, allAreas);
+        Map<String, LinkedHashSet<String>> savedFilesByCluster = new LinkedHashMap<>();
+        Map<ConstraintSeriesKey, String> savedSeriesByKey = new HashMap<>();
+
+        for (ConstraintContextSnapshot ctx : snapshots) {
+            writeConstraintsForContext(ctx, file, allAreas, columnsIndexByArea, outputDir, savedFilesByCluster, savedSeriesByKey);
+        }
+        return savedFilesByCluster;
     }
 
     private void writeConstraintsForContext(
-            StorageConstraintsContext ctx,
+            ConstraintContextSnapshot ctx,
             Path constraintsFile,
             Set<String> allAreas,
             Map<String, Map<String, TimeSeriesMatrix>> columnsIndexByArea,
             String outputDir,
-            Map<String, Map<String, LinkedHashSet<String>>> result,
+            Map<String, LinkedHashSet<String>> savedFilesByCluster,
             Map<ConstraintSeriesKey, String> savedSeriesByKey
     ) {
         Set<String> targetAreas = resolveTargetAreas(ctx.area(), allAreas);
@@ -263,13 +310,15 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         }
                     });
 
-                    String clusterKey = area + "_" + ctx.storage().getName();
-                    result.computeIfAbsent(area, ignored -> new ConcurrentHashMap<>())
-                            .computeIfAbsent(clusterKey, ignored -> new LinkedHashSet<>())
+                    String clusterKey = area + "_" + ctx.storageName();
+                    savedFilesByCluster.computeIfAbsent(clusterKey, ignored -> new LinkedHashSet<>())
                             .add(savedFile);
                 }
             }
         }
+    }
+
+    private record ConstraintContextSnapshot(String area, Set<String> parameterNames, String storageName) {
     }
 
     private record ConstraintSeriesKey(Path constraintsFile, String area, String columnName) {
@@ -418,7 +467,10 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     }
 
     private Map<String, String> generateSeriesFile(SeriesFileJob job, String horizon, String outputDir) {
-        TimeSeriesMatrix matrix = getRequiredSeriesMatrix(job.path(), horizon, job.group(), job.type());
+        Set<String> selectedColumns = job.type() == TrajectoryType.STS_ME
+                ? job.targets().stream().map(SeriesTarget::meKey).collect(Collectors.toSet())
+                : null;
+        TimeSeriesMatrix matrix = getRequiredSeriesMatrix(job.path(), horizon, job.group(), job.type(), selectedColumns);
         if (job.type() != TrajectoryType.STS_ME) {
             return Map.of("", saveSeriesMatrix(job.path(), matrix, outputDir));
         }
@@ -480,9 +532,13 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             Path inputPath,
             String horizon,
             String groupe,
-            TrajectoryType trajectoryType
+            TrajectoryType trajectoryType,
+            Set<String> selectedColumns
     ) {
         try {
+            if (selectedColumns != null && inputPath.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
+                return timeSeriesReader.readSelectedColumnsFromXlsx(inputPath, horizon, selectedColumns);
+            }
             return nasFileService.readMatrix(inputPath, horizon, trajectoryType.name(), groupe);
         } catch (BusinessException e) {
             String seriesPath = extractSeriesDisplayPath(inputPath);

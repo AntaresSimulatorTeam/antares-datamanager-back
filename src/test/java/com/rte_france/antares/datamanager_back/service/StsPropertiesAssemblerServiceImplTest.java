@@ -1208,7 +1208,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("v_me_h2_short_fr.st_storage", new double[]{1.0, 2.0, 3.0})
         ));
 
-        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), eq("2030"), any()))
                 .thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
@@ -1269,7 +1269,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("other_area.other_name", new double[]{9.0})
         ));
 
-        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), eq("2030"), any()))
                 .thenReturn(matrixWithoutMatchingColumn);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
 
@@ -1318,9 +1318,9 @@ class StsPropertiesAssemblerServiceImplTest {
         ));
 
         // Return matrix without match only for upper_curve.xlsx
-        when(nasFileService.readMatrix(eq(tsDir.resolve("upper_curve.xlsx")), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(eq(tsDir.resolve("upper_curve.xlsx")), eq("2030"), any()))
                 .thenReturn(matrixWithoutMatch);
-        when(nasFileService.readMatrix(argThat(p -> p != null && !p.endsWith("upper_curve.xlsx")), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(argThat(p -> p != null && !p.endsWith("upper_curve.xlsx")), eq("2030"), any()))
                 .thenReturn(matrixWithMatch);
 
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
@@ -1382,7 +1382,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 new TimeSeriesMatrixColumn("V_ME_POWER_FR.st_storage2", new double[]{2.0})
         ));
 
-        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq(TrajectoryType.STS_ME.name()), any()))
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), eq("2030"), any()))
                 .thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("/output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
@@ -1399,7 +1399,7 @@ class StsPropertiesAssemblerServiceImplTest {
         assertThat(result).containsKeys("V_ME_H2_SHORT_FR_st_storage1", "V_ME_POWER_FR_st_storage2");
         assertThat(result.get("V_ME_H2_SHORT_FR_st_storage1").getStsTsList()).hasSize(4);
         assertThat(result.get("V_ME_POWER_FR_st_storage2").getStsTsList()).hasSize(4);
-        verify(nasFileService, times(4)).readMatrix(any(Path.class), eq("2030"), eq("STS_ME"), any());
+        verify(timeSeriesReader, times(4)).readSelectedColumnsFromXlsx(any(Path.class), eq("2030"), any());
         ArgumentCaptor<TimeSeriesMatrix> matrices = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
         verify(timeSeriesWriter, times(8)).writeToByteArray(matrices.capture());
         assertThat(matrices.getAllValues().stream().map(m -> m.columns().getFirst().values()[0]).toList())
@@ -1421,7 +1421,7 @@ class StsPropertiesAssemblerServiceImplTest {
         TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(
                 new TimeSeriesMatrixColumn(" fr.Storage ", new double[]{1.0}),
                 new TimeSeriesMatrixColumn("FR.STORAGE", new double[]{2.0})));
-        when(nasFileService.readMatrix(any(Path.class), eq("2030"), eq("STS_ME"), any())).thenReturn(matrix);
+        when(timeSeriesReader.readSelectedColumnsFromXlsx(any(Path.class), eq("2030"), any())).thenReturn(matrix);
         when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("output");
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenAnswer(invocation -> {

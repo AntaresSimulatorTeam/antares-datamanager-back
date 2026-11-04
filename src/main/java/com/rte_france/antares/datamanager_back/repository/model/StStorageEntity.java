@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.repository.model;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.List;
+import org.hibernate.annotations.BatchSize;
 
 import lombok.*;
 
@@ -66,6 +67,7 @@ public class StStorageEntity {
     String constraintsPath;
 
     @OneToMany(mappedBy = "storage", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 500)
     private List<StConstraintsParameterEntity> parameters;
 
     @ManyToOne(optional = false)
