@@ -50,7 +50,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         this.antaresDataManagerProperties = antaresDataManagerProperties;
         this.timeSeriesReader = timeSeriesReader;
     }
-    
+
+    @ExecutionTime
     @Override
     public Map<String, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
         Map<String, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();

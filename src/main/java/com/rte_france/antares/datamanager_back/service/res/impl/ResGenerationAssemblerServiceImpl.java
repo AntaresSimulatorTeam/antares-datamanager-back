@@ -77,6 +77,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private record ClusterGroupKey(String group, String cluster) {}
 
+    @ExecutionTime
     @Override
     public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
         var trajectories = studyEntity.getTrajectories();
