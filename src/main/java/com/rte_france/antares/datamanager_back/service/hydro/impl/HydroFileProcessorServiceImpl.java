@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.hydro.*;
 import com.rte_france.antares.datamanager_back.service.res.*;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroAllocationColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroParameterColumns;
@@ -56,7 +57,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             new SeriesConfig(HydroSeriesType.RESERVOIR_LEVELS, List.of(HYDRO_SERIES_RESERVOIR_LEVELS))
     );
 
-    public static final TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
+    public static final  TrajectoryType[] HYDRO_TYPES = {TrajectoryType.HYDRO_ALLOCATION, TrajectoryType.HYDRO_PARAMETERS};
     protected static final String HYDRO_TECHNICAL_PREFIX_ALLOCATION = "hydroAllocation_";
 
     protected static final String HYDRO_TECHNICAL_PREFIX_PARAMETERS = "hydroParameters_";
@@ -637,10 +638,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String interMonthlyBreakdown = getStringNumberCell(row, 3);
         String initializeReservoirDate = getStringNumberCell(row, 4);
         String pumpingEfficiency = getStringNumberCell(row, 5);
-        Boolean reservoir = ExcelCommonValidator.getBooleanCellValue(row.getCell(6)).orElse(null);
+        Boolean reservoir = Utils.getBooleanCellOrDefault(row,6, null);
         String reservoirCapacity = getStringNumberCell(row, 7);
-        Boolean followLoad = ExcelCommonValidator.getBooleanCellValue(row.getCell(8)).orElse(null);
-        Boolean useWater = ExcelCommonValidator.getBooleanCellValue(row.getCell(9)).orElse(null);
+        Boolean followLoad = Utils.getBooleanCellOrDefault(row,8, null);
+        Boolean useWater = Utils.getBooleanCellOrDefault(row,9, null);
 
         if (!shouldProcessArea(context, area)) return;
 
@@ -789,16 +790,15 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
     private @NonNull HydroTechnicalParametersRowProcessingResult getHydroRowProcessingResult(TrajectoryType trajectoryType) {
         HydroTechnicalParametersRowProcessingResult result;
-        switch (trajectoryType) {
-            case TrajectoryType.HYDRO_ALLOCATION ->
-                    result = new HydroAllocationRowProcessingResult(new ArrayList<>(),
-                            new StringBuilder(),
-                            new ArrayList<>());
-            default ->
-                    result = new HydroParametersRowProcessingResult(
-                            new ArrayList<>(),
-                            new StringBuilder(),
-                            new ArrayList<>());
+        if (TrajectoryType.HYDRO_ALLOCATION.equals(trajectoryType)) {
+            result = new HydroAllocationRowProcessingResult(new ArrayList<>(),
+                    new StringBuilder(),
+                    new ArrayList<>());
+        } else{
+            result = new HydroParametersRowProcessingResult(
+                    new ArrayList<>(),
+                    new StringBuilder(),
+                    new ArrayList<>());
         }
         return result;
     }
