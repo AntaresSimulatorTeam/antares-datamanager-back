@@ -15,10 +15,19 @@ import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProce
 import com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.TechnicalParametersProcessingContext;
 import com.rte_france.antares.datamanager_back.service.res.ResRowProcessingContext;
 import com.rte_france.antares.datamanager_back.util.CreateExcelTestUtil;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -30,10 +39,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,6 +63,15 @@ class HydroFileProcessorServiceImplTest {
     private static final String FILE_NAME_RESERVOIR_LEVELS = "reservoir_levels_FR_2029-2030.csv";
     private static final String FILE_NAME_ALLOCATION = "hydroAllocation_BP_23.xlsx";
     private static final String FILE_NAME_PARAMETERS = "hydroParameters_BP_23.xlsx";
+    private static final int COL_RESERVOIR = 6;
+    private static final int COL_FOLLOW_LOAD = 8;
+    private static final int COL_USE_WATER = 9;
+
+    private static final String[] HYDRO_PARAMETERS_HEADERS = {
+            "node", "inter.daily.breakdown", "intra.daily.modulation", "inter.monthly.breakdown",
+            "initialize.reservoir.date", "pumping.efficiency",
+            "reservoir", "reservoir.capacity", "follow.load", "use.water"
+    };
 
     @InjectMocks
     private HydroFileProcessorServiceImpl service;
@@ -1304,6 +1325,74 @@ class HydroFileProcessorServiceImplTest {
                 .checkHydroTPTrajectoriesConsistency(eq(1), any(), eq(AREA_FR), eq(TRAJ), any(), any());
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {COL_RESERVOIR, COL_FOLLOW_LOAD, COL_USE_WATER})
+    void processTechnicalParametersFile_parameters_throwsWhenBooleanCellIsBlank(int booleanColumn) throws Exception {
+        Path filePath = writeHydroParametersFile(booleanColumn, Cell::setBlank);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processTechnicalParametersFile(parametersContext(filePath)));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("{0} in the {1} trajectory {2} must be {3}", exception.getMessage());
+        assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {COL_RESERVOIR, COL_FOLLOW_LOAD, COL_USE_WATER})
+    void processTechnicalParametersFile_parameters_throwsWhenBooleanCellIsMissing(int booleanColumn) throws Exception {
+        Path filePath = writeHydroParametersFile(booleanColumn, null);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processTechnicalParametersFile(parametersContext(filePath)));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanColumnsWithKeywords")
+    void processTechnicalParametersFile_parameters_shouldParseAndSetCorrectBoolean(
+            int booleanColumn, String keyword, boolean expectedBoolean) throws Exception {
+        // GIVEN
+        Path filePath = writeHydroParametersFile(booleanColumn, cell -> cell.setCellValue(keyword));
+
+        // WHEN
+        HydroTechnicalParametersRowProcessingResult result =
+                service.processTechnicalParametersFile(parametersContext(filePath));
+
+        // THEN
+        var entities = ((HydroParametersRowProcessingResult) result).entities();
+        assertEquals(1, entities.size());
+        var entity = entities.getFirst();
+        Boolean actual = switch (booleanColumn) {
+            case COL_RESERVOIR -> entity.getReservoir();
+            case COL_FOLLOW_LOAD -> entity.getFollowLoad();
+            case COL_USE_WATER -> entity.getUseWater();
+            default -> throw new IllegalArgumentException("Unexpected column " + booleanColumn);
+        };
+        assertEquals(expectedBoolean, actual);
+    }
+
+    static Stream<Arguments> provideBooleanColumnsWithKeywords() {
+        return Stream.of(COL_RESERVOIR, COL_FOLLOW_LOAD, COL_USE_WATER)
+                .flatMap(col -> TestConstants.booleanKeywords()
+                        .map(args -> Arguments.of(col, args.get()[0], args.get()[1])));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {COL_RESERVOIR, COL_FOLLOW_LOAD, COL_USE_WATER})
+    void processTechnicalParametersFile_parameters_throwsWhenBooleanKeywordIsInvalid(int booleanColumn) throws Exception {
+        Path filePath = writeHydroParametersFile(booleanColumn, cell -> cell.setCellValue("invalide"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.processTechnicalParametersFile(parametersContext(filePath)));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("{0} in the {1} trajectory {2} must be {3}", exception.getMessage());
+        assertEquals("Column(s) 7, 9 and 10", exception.getErrorMessageArguments().getFirst());
+    }
+
     // -------------------------------------------------------------------------
     // helpers
     // -------------------------------------------------------------------------
@@ -1315,5 +1404,49 @@ class HydroFileProcessorServiceImplTest {
                 .studyAreas(List.of(AREA_FR))
                 .areaParam(AREA_FR)
                 .build();
+    }
+
+    private TechnicalParametersProcessingContext parametersContext(Path filePath) {
+        return new TechnicalParametersProcessingContext(
+                filePath, TRAJ, HORIZON, AREA_FR, List.of("FR"), TrajectoryType.HYDRO_PARAMETERS, null, null);
+    }
+
+    /**
+     * Écrit un hydroParameters valide (1 ligne FR), puis laisse le test configurer la cellule booléenne ciblée.
+     * Si booleanSetter == null, la cellule n'est pas créée.
+     */
+    private Path writeHydroParametersFile(int booleanColumn, Consumer<Cell> booleanSetter) throws IOException {
+        Path dir = tempDir.resolve("params_bool_" + booleanColumn + "_" + System.nanoTime());
+        Files.createDirectories(dir);
+        Path file = dir.resolve("hydroParameters_test.xlsx");
+
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet(HORIZON);
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < HYDRO_PARAMETERS_HEADERS.length; i++) {
+                header.createCell(i).setCellValue(HYDRO_PARAMETERS_HEADERS[i]);
+            }
+
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue("FR");
+            for (int i = 1; i <= 5; i++) {
+                row.createCell(i).setCellValue(1);
+            }
+            row.createCell(7).setCellValue(1000);
+            row.createCell(COL_RESERVOIR).setCellValue(true);
+            row.createCell(COL_FOLLOW_LOAD).setCellValue(false);
+            row.createCell(COL_USE_WATER).setCellValue(true);
+
+            // On remplace la cellule ciblée
+            row.removeCell(row.getCell(booleanColumn));
+            if (booleanSetter != null) {
+                booleanSetter.accept(row.createCell(booleanColumn));
+            }
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        return file;
     }
 }
