@@ -2017,7 +2017,7 @@ public class Utils {
 
     public Boolean getBooleanCellOrDefault(Row row, int index, Boolean defaultValue){
         var cell = row.getCell(index);
-        if(cell != null && cell.getCellType() == CellType.BLANK){
+        if(cell == null || cell.getCellType() == CellType.BLANK){
             return defaultValue;
         }
         return getBooleanCell(row, index);
