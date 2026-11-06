@@ -16,16 +16,20 @@ import com.rte_france.antares.datamanager_back.repository.model.flowbased.Flowba
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
+import com.rte_france.antares.datamanager_back.service.TestConstants;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import com.rte_france.antares.datamanager_back.util.Utils;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -40,6 +44,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -1109,6 +1114,87 @@ class FlowbasedFileProcessorServiceImplTest {
                 flowbasedFileProcessorService.determineOverallType(
                     values[0], values[1], values[2], values[3],
                     values[4], values[5], values[6], values[7]));
+        }
+    }
+
+    @Test
+    void buildFlowbasedLinkCapacityList_shouldApplyDefaultFalseValueWhenHurdlesCostIsBlank(@TempDir Path tempDir) throws Exception {
+        Path excelPath = tempDir.resolve("Flowbased_nodes_links.xlsx");
+        writeLinksWorkbookWithHurdlesCost(excelPath, Cell::setBlank);
+
+        List<FlowbasedLinkCapacityEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkCapacityList(tempDir);
+
+        assertEquals(1, result.size());
+        assertFalse(result.get(0).getHurdlesCost());
+    }
+
+    @Test
+    void buildFlowbasedLinkCapacityList_shouldApplyDefaultFalseValueWhenHurdlesCostCellIsMissing(@TempDir Path tempDir) throws Exception {
+        Path excelPath = tempDir.resolve("Flowbased_nodes_links.xlsx");
+        try (var wb = new XSSFWorkbook()) {
+            var sheet = wb.createSheet("links");
+            createLinksHeader(sheet);
+            var row = sheet.createRow(1);
+            row.createCell(0).setCellValue("Link1");
+            for (int i = 1; i <= 8; i++) {
+                row.createCell(i).setCellValue(100 * i);
+            }
+            // pas de cellule hurdles_cost (index 9)
+            try (var fos = new FileOutputStream(excelPath.toFile())) {
+                wb.write(fos);
+            }
+        }
+
+        List<FlowbasedLinkCapacityEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkCapacityList(tempDir);
+
+        assertEquals(1, result.size());
+        assertFalse(result.get(0).getHurdlesCost());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void buildFlowbasedLinkCapacityList_shouldParseAndSetCorrectBooleanForHurdlesCost(String keyword, boolean expectedBoolean,
+                                                                                      @TempDir Path tempDir) throws Exception {
+        // GIVEN
+        Path excelPath = tempDir.resolve("Flowbased_nodes_links.xlsx");
+        writeLinksWorkbookWithHurdlesCost(excelPath, cell -> cell.setCellValue(keyword));
+
+        // WHEN
+        List<FlowbasedLinkCapacityEntity> result = flowbasedFileProcessorService.buildFlowbasedLinkCapacityList(tempDir);
+
+        // THEN
+        assertEquals(1, result.size());
+        assertEquals(expectedBoolean, result.get(0).getHurdlesCost());
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
+    }
+
+    @Test
+    void buildFlowbasedLinkCapacityList_shouldThrowExceptionWhenHurdlesCostKeywordIsInvalid(@TempDir Path tempDir) throws Exception {
+        Path excelPath = tempDir.resolve("Flowbased_nodes_links.xlsx");
+        writeLinksWorkbookWithHurdlesCost(excelPath, cell -> cell.setCellValue("invalid"));
+
+        // WHEN / THEN
+        assertThrows(BusinessException.class,
+                () -> flowbasedFileProcessorService.buildFlowbasedLinkCapacityList(tempDir));
+    }
+
+    private void writeLinksWorkbookWithHurdlesCost(Path excelPath,
+                                                   java.util.function.Consumer<org.apache.poi.ss.usermodel.Cell> hurdlesCostSetter) throws IOException {
+        try (var wb = new XSSFWorkbook()) {
+            var sheet = wb.createSheet("links");
+            createLinksHeader(sheet);
+            var row = sheet.createRow(1);
+            row.createCell(0).setCellValue("Link1");
+            for (int i = 1; i <= 8; i++) {
+                row.createCell(i).setCellValue(100 * i);
+            }
+            hurdlesCostSetter.accept(row.createCell(9));
+            try (var fos = new FileOutputStream(excelPath.toFile())) {
+                wb.write(fos);
+            }
         }
     }
 }
