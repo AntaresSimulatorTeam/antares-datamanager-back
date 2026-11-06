@@ -280,14 +280,14 @@ public class SettingsImportService {
         Map<String, Object> dataMap = readParametersSheet(sheet);
 
         SettingsGeneralParametersEntity entity = SettingsGeneralParametersEntity.builder()
-                .mode(ParameterValueConverter.getStringValue(dataMap, KEY_MODE))
+                .mode(mapValue(dataMap, KEY_MODE, SettingsValueMapper.MODE))
                 .horizon(ParameterValueConverter.getStringValue(dataMap, KEY_HORIZON))
                 .nbYears(ParameterValueConverter.getIntValue(dataMap, KEY_NUMBER_OF_MC_YEAR))
                 .simulationStart(ParameterValueConverter.getIntValue(dataMap, KEY_FIRST_DAY))
                 .simulationEnd(ParameterValueConverter.getIntValue(dataMap, KEY_LAST_DAY))
                 .januaryFirst(ParameterValueConverter.getStringValue(dataMap, KEY_1ST_JANUARY))
-                .firstMonthInYear(ParameterValueConverter.getStringValue(dataMap, KEY_YEAR))
-                .firstWeekDay(ParameterValueConverter.getStringValue(dataMap, KEY_WEEK))
+                .firstMonthInYear(mapValue(dataMap, KEY_YEAR, SettingsValueMapper.FIRST_MONTH_IN_YEAR))
+                .firstWeekDay(mapValue(dataMap, KEY_WEEK, SettingsValueMapper.FIRST_WEEK_DAY))
                 .leapYear(ParameterValueConverter.getBooleanValue(dataMap, KEY_LEAP_YEAR))
                 .yearByYear(ParameterValueConverter.getBooleanValue(dataMap, KEY_YEAR_BY_YEAR))
                 .simulationSynthesis(ParameterValueConverter.getBooleanValue(dataMap, KEY_SYNTHESIS))
@@ -317,7 +317,7 @@ public class SettingsImportService {
 
         SettingsOptimizationParametersEntity entity = SettingsOptimizationParametersEntity.builder()
                 .simplexRange(ParameterValueConverter.getStringValue(dataMap, KEY_SIMPLEX_OPTIMIZATION_RANGE))
-                .transmissionCapacities(ParameterValueConverter.getStringValue(dataMap, KEY_TRANSMISSION_CAPACITIES))
+                .transmissionCapacities(mapValue(dataMap, KEY_TRANSMISSION_CAPACITIES, SettingsValueMapper.TRANSMISSION_CAPACITIES))
                 .includeConstraints(ParameterValueConverter.getBooleanValue(dataMap, KEY_BINDING_CONSTRAINTS))
                 .includeHurdlecosts(ParameterValueConverter.getBooleanValue(dataMap, KEY_HURDLE_COSTS))
                 .includeTcMinstablepower(ParameterValueConverter.getBooleanValue(dataMap, KEY_THERMAL_CLUSTERS_MIN_STABLE_POWER))
@@ -326,8 +326,8 @@ public class SettingsImportService {
                 .includeStrategicreserve(ParameterValueConverter.getBooleanValue(dataMap, KEY_STRATEGIC_RESERVE))
                 .includeSpinningreserve(ParameterValueConverter.getBooleanValue(dataMap, KEY_SPINNING_RESERVE))
                 .includePrimaryreserve(ParameterValueConverter.getBooleanValue(dataMap, KEY_PRIMARY_RESERVE))
-                .includeExportmps(ParameterValueConverter.getStringValue(dataMap, KEY_EXPORT_MPS))
-                .includeUnfeasibleProblemBehavior(ParameterValueConverter.getStringValue(dataMap, KEY_UNFEASIBLE_PROBLEM_BEHAVIOR))
+                .includeExportmps(mapValue(dataMap, KEY_EXPORT_MPS, SettingsValueMapper.EXPORT_MPS))
+                .includeUnfeasibleProblemBehavior(mapValue(dataMap, KEY_UNFEASIBLE_PROBLEM_BEHAVIOR, SettingsValueMapper.UNFEASIBLE_PROBLEM_BEHAVIOR))
                 .trajectory(trajectory)
                 .build();
 
@@ -345,10 +345,10 @@ public class SettingsImportService {
         Map<String, Object> dataMap = readParametersSheet(sheet);
 
         SettingsAdvancedParametersEntity entity = SettingsAdvancedParametersEntity.builder()
-                .hydroHeuristicPolicy(ParameterValueConverter.getStringValue(dataMap, KEY_HYDRO_HEURISTIC_POLICY))
+                .hydroHeuristicPolicy(mapValue(dataMap, KEY_HYDRO_HEURISTIC_POLICY, SettingsValueMapper.HYDRO_HEURISTIC_POLICY))
                 .hydroPricingMode(ParameterValueConverter.getStringValue(dataMap, KEY_HYDRO_PRICING_MODE))
-                .powerFluctuations(ParameterValueConverter.getStringValue(dataMap, KEY_POWER_FLUCTUATIONS))
-                .sheddingPolicy(ParameterValueConverter.getStringValue(dataMap, KEY_SHEDDING_POLICY))
+                .powerFluctuations(mapValue(dataMap, KEY_POWER_FLUCTUATIONS, SettingsValueMapper.POWER_FLUCTUATIONS))
+                .sheddingPolicy(mapValue(dataMap, KEY_SHEDDING_POLICY, SettingsValueMapper.SHEDDING_POLICY))
                 .unitCommitmentMode(ParameterValueConverter.getStringValue(dataMap, KEY_UNIT_COMMITMENT_MODE))
                 .numberOfCoresMode(ParameterValueConverter.getStringValue(dataMap, KEY_NUMBER_OF_CORES_MODE))
                 .renewableGenerationModelling(ParameterValueConverter.getStringValue(dataMap, KEY_RENEWABLE_GENERATION_MODELLING))
@@ -358,6 +358,10 @@ public class SettingsImportService {
 
         advancedParametersRepository.save(entity);
         log.debug("Advanced parameters imported successfully (checksum: {})", sheetChecksums.get(ADVANCED_PARAMETERS));
+    }
+
+    private static String mapValue(Map<String, Object> dataMap, String key, SettingsValueMapper mapper) {
+        return mapper.map(key, ParameterValueConverter.getStringValue(dataMap, key));
     }
 
     public void importSeedsParameters(Workbook workbook, TrajectoryEntity trajectory, Map<String, String> sheetChecksums) {
