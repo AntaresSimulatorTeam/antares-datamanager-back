@@ -51,7 +51,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         this.timeSeriesReader = timeSeriesReader;
     }
 
-    @ExecutionTime
+    @ExecutionTime("HYDRO")
     @Override
     public Map<String, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
         Map<String, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();

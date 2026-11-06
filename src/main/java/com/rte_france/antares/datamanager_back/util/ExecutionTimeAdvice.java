@@ -20,21 +20,27 @@ public class ExecutionTimeAdvice {
     public void executionTimePointcut() {
     }
 
-    @Around("executionTimePointcut()")
-    public Object executionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+    @Around("executionTimePointcut() && @annotation(executionTime)")
+    public Object executionTime(ProceedingJoinPoint joinPoint, ExecutionTime executionTime) throws Throwable {
         long start = System.currentTimeMillis();
 
         extractAndSetStudyIdToMdc(joinPoint);
+        
+        // Ajouter le contexte d'exécution au MDC
+        String executionContext = executionTime.value();
+        if (executionContext != null && !executionContext.isEmpty()) {
+            MDC.put("executionContext", executionContext);
+        }
 
-        Object proceed = joinPoint.proceed();
+            Object proceed = joinPoint.proceed();
 
-        long executionTime = System.currentTimeMillis() - start;
-        //en seconds
-        long executionTimeInSeconds = executionTime / 1000;
-        MDC.put("executionTime", String.valueOf(executionTimeInSeconds));
-        MDC.put("methodName", joinPoint.getSignature().getName());
-        log.info("{} executed in {}ms ({}s)", joinPoint.getSignature().getName(), executionTime, executionTimeInSeconds);
-        return proceed;
+            long executionTimeMs = System.currentTimeMillis() - start;
+            //en seconds
+            long executionTimeInSeconds = executionTimeMs / 1000;
+            MDC.put("executionTime", String.valueOf(executionTimeInSeconds));
+            MDC.put("methodName", joinPoint.getSignature().getName());
+            log.info("{} executed in {}ms ({}s)", joinPoint.getSignature().getName(), executionTimeMs, executionTimeInSeconds);
+            return proceed;
 
     }
 

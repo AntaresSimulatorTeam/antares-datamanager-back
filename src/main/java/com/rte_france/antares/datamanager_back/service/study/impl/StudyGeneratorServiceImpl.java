@@ -83,17 +83,16 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
 
     @Override
-    @ExecutionTime
+    @ExecutionTime("PEGASE_BACK_GENERATION")
     public void buildJsonForStudyGeneration(Integer studyId) throws TechnicalException {
-        log.info("Début de la génération du JSON pour l'étude id={}", studyId);
         Map<String, Object> jsonStudyDataForGeneration = buildJsonStudyDataForGeneration(studyId);
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             String generatorJson = objectMapper.writeValueAsString(jsonStudyDataForGeneration);
             String studyJsonDir = antaresDataManagerProperties.getStudyJsonOutputDirectory();
-            log.info("Sauvegarde du JSON de génération pour l'étude {} dans {}", studyId, studyJsonDir);
             nasFileService.saveFile(studyId + ".json", generatorJson.getBytes(), studyJsonDir);
             log.info("JSON pour l'étude {} sauvegardé avec succès", studyId);
+            log.info("JSON {}", generatorJson);
         } catch (IOException e) {
             log.error("Error when generating study {} : {}", studyId, e.getMessage());
             throw TechnicalException.builder()
@@ -104,7 +103,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private Map<String, Object> buildJsonStudyDataForGeneration(Integer studyId) throws BusinessException, TechnicalException {
-        log.info("Construction des données JSON pour génération - étude id={}", studyId);
 
         Optional<StudyEntity> studyEntity = studyRepository.findById(studyId);
         if (studyEntity.isEmpty()) {
@@ -141,9 +139,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
         Map<String, Object> jsonForGenerator = new TreeMap<>();
         jsonForGenerator.put(study.getName(), innerGeneratorMap);
-        log.info("Generation JSON assembled for study {} : {} areas, {} links", study.getName(),
-                dispatchResult.areasMap().size(), dispatchResult.linksMap().size());
-
         return jsonForGenerator;
     }
 
@@ -339,7 +334,6 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Number of zones LOAD found: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
 
-        log.info("Thermal cluster props found: {}", thermalClusterProps != null ? thermalClusterProps.size() : 0);
 
         var areaStsClusterGenerationDtoMap = stPropertiesAssemblerService.assembleStsProperties(studyEntity);
         log.info("STS cluster props {} entries", areaStsClusterGenerationDtoMap != null ? areaStsClusterGenerationDtoMap.size() : 0);
@@ -521,7 +515,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
 
-    @ExecutionTime
+    @ExecutionTime("PEGASE_GENERATOR_GENERATION")
     public void callGenerateStudyService(Integer studyId) {
         log.info("Calling generation service for study id={}", studyId);
         String url = antaresDataManagerProperties.getGeneratorHostUrl() + "/generate_study/?study_id=" + studyId;
