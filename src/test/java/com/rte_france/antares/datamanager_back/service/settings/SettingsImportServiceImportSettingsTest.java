@@ -72,25 +72,50 @@ class SettingsImportServiceImportSettingsTest {
     }
 
     private File createTestExcelFile(Path directory, String fileName) throws IOException {
+        return createTestExcelFile(directory, fileName, "Economy (linear relaxation)");
+    }
+
+    private File createTestExcelFile(Path directory, String fileName, String mode) throws IOException {
         Workbook workbook = new XSSFWorkbook();
         
         // Create General parameters sheet
         var sheet1 = workbook.createSheet("General");
         var row1 = sheet1.createRow(0);
         row1.createCell(0).setCellValue("Mode");
-        row1.createCell(1).setCellValue("Adequacy");
+        row1.createCell(1).setCellValue(mode);
+        var row1b = sheet1.createRow(1);
+        row1b.createCell(0).setCellValue("Year");
+        row1b.createCell(1).setCellValue("JAN - DEC");
+        var row1c = sheet1.createRow(2);
+        row1c.createCell(0).setCellValue("Week");
+        row1c.createCell(1).setCellValue("MON - SUN");
 
         // Create Optimization preferences sheet
         var sheet2 = workbook.createSheet("Optimization");
         var row2 = sheet2.createRow(0);
         row2.createCell(0).setCellValue("simplex optimization range");
         row2.createCell(1).setCellValue("week");
+        var row2b = sheet2.createRow(1);
+        row2b.createCell(0).setCellValue("transmission capacities");
+        row2b.createCell(1).setCellValue("local-values");
+        var row2c = sheet2.createRow(2);
+        row2c.createCell(0).setCellValue("export mps");
+        row2c.createCell(1).setCellValue("none");
+        var row2d = sheet2.createRow(3);
+        row2d.createCell(0).setCellValue("Unfeasible problem behavior");
+        row2d.createCell(1).setCellValue("error-verbose");
 
         // Create Advanced parameters sheet
         var sheet3 = workbook.createSheet("Advanced parameters");
         var row3 = sheet3.createRow(0);
         row3.createCell(0).setCellValue("hydro heuristic policy");
-        row3.createCell(1).setCellValue("middleages");
+        row3.createCell(1).setCellValue("accommodate rule curves");
+        var row3b = sheet3.createRow(1);
+        row3b.createCell(0).setCellValue("power fluctuations");
+        row3b.createCell(1).setCellValue("free modulations");
+        var row3c = sheet3.createRow(2);
+        row3c.createCell(0).setCellValue("shedding policy");
+        row3c.createCell(1).setCellValue("shave peaks");
 
         File file = directory.resolve(fileName).toFile();
         try (FileOutputStream fos = new FileOutputStream(file)) {
@@ -140,6 +165,49 @@ class SettingsImportServiceImportSettingsTest {
         assertEquals(trajectoryToUse, result.getFileName());
         verify(trajectoryRepository).save(any(TrajectoryEntity.class));
         verify(generalParametersRepository).save(any());
+
+        ArgumentCaptor<SettingsGeneralParametersEntity> generalCaptor = ArgumentCaptor.forClass(SettingsGeneralParametersEntity.class);
+        verify(generalParametersRepository).save(generalCaptor.capture());
+        assertEquals("expansion", generalCaptor.getValue().getMode());
+        assertEquals("january", generalCaptor.getValue().getFirstMonthInYear());
+        assertEquals("monday", generalCaptor.getValue().getFirstWeekDay());
+
+        ArgumentCaptor<SettingsOptimizationParametersEntity> optimizationCaptor = ArgumentCaptor.forClass(SettingsOptimizationParametersEntity.class);
+        verify(optimizationParametersRepository).save(optimizationCaptor.capture());
+        assertEquals("local_values", optimizationCaptor.getValue().getTransmissionCapacities());
+        assertEquals("false", optimizationCaptor.getValue().getIncludeExportmps());
+        assertEquals("error_verbose", optimizationCaptor.getValue().getIncludeUnfeasibleProblemBehavior());
+
+        ArgumentCaptor<SettingsAdvancedParametersEntity> advancedCaptor = ArgumentCaptor.forClass(SettingsAdvancedParametersEntity.class);
+        verify(advancedParametersRepository).save(advancedCaptor.capture());
+        assertEquals("accommodate_rule_curves", advancedCaptor.getValue().getHydroHeuristicPolicy());
+        assertEquals("FREE_MODULATIONS", advancedCaptor.getValue().getPowerFluctuations());
+        assertEquals("SHAVE_PEAKS", advancedCaptor.getValue().getSheddingPolicy());
+    }
+
+    @Test
+    void testImportSettingsWithInvalidValueThrowsException() throws IOException {
+        String trajectoryToUse = "BP23_test";
+        String horizon = "2028-2029";
+        String area = "FR";
+
+        Path settingsDir = tempDir.resolve("trajectories/parameters/general_data");
+        Files.createDirectories(settingsDir);
+        createTestExcelFile(settingsDir, "BP23_test.xlsx", "draft");
+
+        when(antaresDataManagerProperties.getNasDirectory()).thenReturn(tempDir.toString());
+        when(antaresDataManagerProperties.getTrajectoryFilePath()).thenReturn("trajectories");
+        when(antaresDataManagerProperties.getTrajectorySettingsDirectory()).thenReturn("parameters/general_data");
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaIgnoreCaseOrderByVersionDesc(
+                trajectoryToUse, "SETTINGS", horizon, area
+        )).thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenReturn(TrajectoryEntity.builder().id(1).build());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.importSettings(trajectoryToUse, horizon, 1, area));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        verify(generalParametersRepository, never()).save(any());
     }
 
     @Test
