@@ -44,7 +44,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
 
-    @ExecutionTime
+    @ExecutionTime("STS")
     @Override
     public Map<String, StsGenerationDTO> assembleStsProperties(
             StudyEntity studyEntity) {

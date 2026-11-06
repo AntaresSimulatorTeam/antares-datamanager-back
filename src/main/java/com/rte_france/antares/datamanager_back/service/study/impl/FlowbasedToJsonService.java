@@ -10,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.flowbased.Flowba
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedLinkListEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedTypeDayEntity;
 import com.rte_france.antares.datamanager_back.repository.model.flowbased.FlowbasedVirtualNodesEntity;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class FlowbasedToJsonService {
      * Each restriction contains name, enabled, type, operator (stored as sign), links
      * resolved by list_links within the same trajectory, and a series path from second_member.
      */
+    @ExecutionTime("FLOWBASE")
     public Map<String, Object> buildFlowbasedMap(TrajectoryEntity trajectory, boolean recalculate) {
         Integer trajectoryId = trajectory.getId();
         Map<String, Object> flowbased = new LinkedHashMap<>();

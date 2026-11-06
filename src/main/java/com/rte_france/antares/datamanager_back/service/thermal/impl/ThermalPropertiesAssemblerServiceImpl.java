@@ -50,20 +50,16 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
      * @throws NullPointerException     if {@code trajectories} is null
      * @throws IllegalArgumentException if a trajectory has an invalid {@link TrajectoryType}
      */
-    @ExecutionTime
+    @ExecutionTime("THERMAL")
     public Map<AreaClusterRefKey, ThermalClusterGenerationDto> assembleThermalForTrajectories(StudyEntity study) {
         if (study == null) {
             return Collections.emptyMap();
         }
-        Integer studyId = study.getId();
-        log.info("Start assembling thermal properties for studyId={}", studyId);
-
         Set<TrajectoryEntity> trajectories = study.getTrajectories();
         Objects.requireNonNull(trajectories);
 
         Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterGenerationOutput = new LinkedHashMap<>();
 
-        try {
             var capacityTrajectories = trajectories.stream()
                     .filter(Objects::nonNull)
                     .filter(t -> THERMAL_CAPACITY.equals(TrajectoryType.valueOf(t.getType())))
@@ -133,12 +129,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
                 thermalClusterGenerationDto.setParamModulationTsList(modulationParamTsFiles);
 
                 thermalClusterGenerationOutput.put(areaClusterRefKey, thermalClusterGenerationDto);
-
-                log.info("Assembled cluster '{}' for area '{}' (studyId={})", capacityClusterName, areaClusterRefKey.area(), studyId);
             }
-        } finally {
-            log.info("Finished assembling {} thermal cluster(s) for studyId={}", thermalClusterGenerationOutput.size(), studyId);
-        }
 
         return thermalClusterGenerationOutput;
     }
