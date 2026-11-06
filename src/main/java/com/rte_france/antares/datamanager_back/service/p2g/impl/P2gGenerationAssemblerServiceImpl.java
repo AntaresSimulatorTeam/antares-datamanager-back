@@ -6,8 +6,10 @@ import com.rte_france.antares.datamanager_back.dto.P2gGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.P2gPropertiesGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.P2GCapacityRepository;
 import com.rte_france.antares.datamanager_back.repository.P2GCostRepository;
 import com.rte_france.antares.datamanager_back.repository.P2GParametersRepository;
@@ -75,6 +77,7 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
     private final P2GCapacityRepository p2gCapacityRepository;
     private final P2GCostRepository p2gCostRepository;
     private final P2GParametersRepository p2gParametersRepository;
+    private final AreaRepository areaRepository;
     private final ResGenerationAssemblerService resGenerationAssemblerService;
     private final AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     private final NasFileService nasFileService;
@@ -94,25 +97,32 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         }
 
         P2gRawData data = loadP2gData(capacityCostTrajectory);
+        Set<String> studyAreas = areaRepository.findAllByStudyId(study.getId(), TrajectoryType.AREA.name()).stream()
+                .map(area -> area.getName().toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        List<P2GCapacityEntity> capacities = data.capacities().stream()
+                .filter(capacity -> capacity.getArea() != null
+                        && studyAreas.contains(capacity.getArea().toUpperCase(Locale.ROOT)))
+                .toList();
         String trajectoryName = capacityCostTrajectory.getFileName();
 
-        validateAsserviResCoverage(study, data.capacities());
+        validateAsserviResCoverage(study, capacities);
 
         P2gClusterGenerationDTO.AsserviParameters asserviParameters = buildAsserviParameters(data.parameters(), trajectoryName);
 
         TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
         Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
-        P2gClusterGenerationDTO base = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_BASE, trajectoryName),
+        P2gClusterGenerationDTO base = buildCluster(capacities, requireCost(data.costsByType(), TYPE_BASE, trajectoryName),
                 BASE_COLUMNS, null,
                 adequacySettingsAssemblerService.resolveMode(ZONE_BASE, adequacyTrajectory, adequacyModeByArea).orElse(null));
-        P2gClusterGenerationDTO marg = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_MARGINAL, trajectoryName),
+        P2gClusterGenerationDTO marg = buildCluster(capacities, requireCost(data.costsByType(), TYPE_MARGINAL, trajectoryName),
                 MARG_COLUMNS, null,
                 adequacySettingsAssemblerService.resolveMode(ZONE_MARG, adequacyTrajectory, adequacyModeByArea).orElse(null));
-        P2gClusterGenerationDTO methanation = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_METHANATION, trajectoryName),
+        P2gClusterGenerationDTO methanation = buildCluster(capacities, requireCost(data.costsByType(), TYPE_METHANATION, trajectoryName),
                 METHANATION_COLUMNS, null,
                 adequacySettingsAssemblerService.resolveMode(ZONE_METHANATION, adequacyTrajectory, adequacyModeByArea).orElse(null));
-        P2gClusterGenerationDTO asservi = buildCluster(data.capacities(), requireCost(data.costsByType(), TYPE_ASSERVI, trajectoryName),
+        P2gClusterGenerationDTO asservi = buildCluster(capacities, requireCost(data.costsByType(), TYPE_ASSERVI, trajectoryName),
                 ASSERVI_COLUMNS, asserviParameters,
                 adequacySettingsAssemblerService.resolveMode(ZONE_ASSERVI, adequacyTrajectory, adequacyModeByArea).orElse(null));
         

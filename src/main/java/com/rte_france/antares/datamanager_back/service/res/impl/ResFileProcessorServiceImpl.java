@@ -33,6 +33,7 @@ import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDecimal;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -1059,13 +1060,11 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     public static BigDecimal parsePercentage(String raw) {
         if (raw == null) return null;
 
-        String cleaned = raw.trim()
-                .replace("%", "")
-                .replace(",", ".");
+        String cleaned = raw.replace("%", "").trim();
 
         if (cleaned.isEmpty()) return null;
 
-        BigDecimal value = new BigDecimal(cleaned);
+        BigDecimal value = parseDecimal(cleaned);
 
         if (raw.contains("%")) {
             value = value.divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);

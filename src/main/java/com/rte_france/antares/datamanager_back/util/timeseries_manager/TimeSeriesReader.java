@@ -44,6 +44,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.xml.parsers.ParserConfigurationException;
 
+import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDouble;
+
 /**
  * Utility class for reading time series data from text or Excel and producing a matrix
  */
@@ -418,7 +420,7 @@ public final class TimeSeriesReader {
     s = unquote(s.trim());
     if (s.isEmpty()) return 0.0;
     try {
-      return Double.parseDouble(s.replace(',', '.'));
+      return parseDouble(s);
     } catch (NumberFormatException e) {
       return 0.0;
     }

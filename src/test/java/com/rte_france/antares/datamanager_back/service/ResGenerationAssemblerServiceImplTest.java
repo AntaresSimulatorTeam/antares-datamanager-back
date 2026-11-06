@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -71,6 +72,54 @@ class ResGenerationAssemblerServiceImplTest {
     }
 
     @Nested
+    class SeriesHorizonFiltering {
+        @ParameterizedTest
+        @CsvSource({
+                "FR01_utility, csv, 2030-2031",
+                "DE, txt, 2030-2031",
+                "FR01_utility, xlsx, 2031-2032",
+                "DE, csv, 2031-2032"
+        })
+        void shouldOnlyCollectFilesWithTrajectoryHorizon(String areaAndTechnology, String extension, String horizon) throws IOException {
+            String prefix = "wind_onshore/wind_onshore/wind_onshore_" + areaAndTechnology;
+            String expectedPath = prefix + "_" + horizon.replace('-', '_') + "." + extension;
+            preparePhysicalFile(DEFAULT_TRAJECTORY, expectedPath);
+            preparePhysicalFile(DEFAULT_TRAJECTORY, prefix + "_2029_2030." + extension);
+            preparePhysicalFile(DEFAULT_TRAJECTORY, prefix + "_2030." + extension);
+            preparePhysicalFile(DEFAULT_TRAJECTORY, prefix + "." + extension);
+            preparePhysicalFile(DEFAULT_TRAJECTORY, prefix + "_" + horizon.replace('-', '_') + "_backup." + extension);
+            TrajectoryEntity trajectory = createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY);
+            trajectory.setHorizon(horizon);
+
+            StudyEntity study = createStudy(trajectory);
+            study.setHorizon(horizon);
+            List<?> refs = ReflectionTestUtils.invokeMethod(service, "collectResLoadSeriesRefs", study);
+
+            assertNotNull(refs);
+            assertEquals(1, refs.size());
+            assertEquals(tempDir.resolve("INPUT/RES/load").resolve(DEFAULT_TRAJECTORY).resolve(expectedPath),
+                    ReflectionTestUtils.getField(refs.getFirst(), "filePath"));
+        }
+
+        @ParameterizedTest
+        @CsvSource(value = {"NULL", "''"}, nullValues = "NULL")
+        void shouldPreserveFileCollectionWhenTrajectoryHasNoHorizon(String horizon) throws IOException {
+            String prefix = "wind_onshore/wind_onshore/wind_onshore_DE";
+            preparePhysicalFile(DEFAULT_TRAJECTORY, prefix + "_2030_2031.csv");
+            preparePhysicalFile(DEFAULT_TRAJECTORY, prefix + "_2031_2032.csv");
+            TrajectoryEntity trajectory = createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY);
+            trajectory.setHorizon(horizon);
+
+            StudyEntity study = createStudy(trajectory);
+            study.setHorizon(horizon);
+            List<?> refs = ReflectionTestUtils.invokeMethod(service, "collectResLoadSeriesRefs", study);
+
+            assertNotNull(refs);
+            assertEquals(2, refs.size());
+        }
+    }
+
+    @Nested
     class NonFrResolution {
         @ParameterizedTest
         @CsvSource({
@@ -119,6 +168,61 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+                "2030-2031, 2031-2032",
+                "2031-2032, 2030-2031"
+        })
+        void shouldOnlyResolveLoadTrajectoriesForStudyHorizon(String studyHorizon, String otherHorizon) throws IOException {
+            String seriesPath = "wind_onshore/wind_onshore/wind_onshore_DE_" + studyHorizon.replace('-', '_') + ".csv";
+            preparePhysicalFile("CURRENT_HORIZON", seriesPath);
+            preparePhysicalFile("OTHER_HORIZON", seriesPath);
+            Path expectedFile = tempDir.resolve("INPUT/RES/load/CURRENT_HORIZON").resolve(seriesPath);
+            when(nasFileService.readAndSaveMatrixToNas(eq(expectedFile), eq(OUTPUT_DIR), any(), anyBoolean()))
+                    .thenReturn("current_horizon.arrow");
+
+            TrajectoryEntity current = createTrajectory(TrajectoryType.RES_LOAD, "CURRENT_HORIZON");
+            current.setHorizon(studyHorizon);
+            TrajectoryEntity other = createTrajectory(TrajectoryType.RES_LOAD, "OTHER_HORIZON");
+            other.setHorizon(otherHorizon);
+            TrajectoryEntity missingDirectory = createTrajectory(TrajectoryType.RES_LOAD, "non_existent_folder");
+            missingDirectory.setHorizon(otherHorizon);
+            TrajectoryEntity missingHorizon = createTrajectory(TrajectoryType.RES_LOAD, "missing_horizon_folder");
+
+            StudyEntity study = createStudy(
+                    other, missingDirectory, missingHorizon, current,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+            study.setHorizon(studyHorizon);
+
+            var payload = getGroupPayload(service.assembleResProperties(study), "DE", "wind_onshore");
+
+            assertEquals(List.of("current_horizon.arrow"), payload.series());
+            verify(nasFileService).readAndSaveMatrixToNas(eq(expectedFile), eq(OUTPUT_DIR), any(), anyBoolean());
+            verifyNoMoreInteractions(nasFileService);
+        }
+
+        @Test
+        void shouldFailOnConflictingTrajectoriesForSameHorizon() throws IOException {
+            String seriesPath = "wind_onshore/wind_onshore/wind_onshore_DE_2030_2031.csv";
+            preparePhysicalFile("FIRST", seriesPath);
+            preparePhysicalFile("SECOND", seriesPath);
+            TrajectoryEntity first = createTrajectory(TrajectoryType.RES_LOAD, "FIRST");
+            first.setHorizon("2030-2031");
+            TrajectoryEntity second = createTrajectory(TrajectoryType.RES_LOAD, "SECOND");
+            second.setHorizon("2030-2031");
+            StudyEntity study = createStudy(
+                    first, second,
+                    createTrajectory(TrajectoryType.RES_CAPACITY, createCapacity("DE", "wind onshore", 100))
+            );
+            study.setHorizon("2030-2031");
+
+            BusinessException exception = assertThrows(BusinessException.class, () -> service.assembleResProperties(study));
+
+            assertTrue(exception.getMessage().contains("Multiple load-factor series found"));
+            verifyNoInteractions(nasFileService);
         }
 
         @Test

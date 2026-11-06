@@ -1,14 +1,19 @@
 package com.rte_france.antares.datamanager_back.service.p2g.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.P2gGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
+import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.P2GCapacityRepository;
 import com.rte_france.antares.datamanager_back.repository.P2GCostRepository;
 import com.rte_france.antares.datamanager_back.repository.P2GParametersRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.p2g.P2GCapacityEntity;
@@ -40,6 +45,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +56,7 @@ class P2gGenerationAssemblerServiceImplTest {
     @Mock private P2GCapacityRepository p2gCapacityRepository;
     @Mock private P2GCostRepository p2gCostRepository;
     @Mock private P2GParametersRepository p2gParametersRepository;
+    @Mock private AreaRepository areaRepository;
     @Mock private ResGenerationAssemblerService resGenerationAssemblerService;
     @Mock private AdequacySettingsAssemblerService adequacySettingsAssemblerService;
     @Mock private NasFileService nasFileService;
@@ -56,18 +64,24 @@ class P2gGenerationAssemblerServiceImplTest {
     @Mock private TimeSeriesReader timeSeriesReader;
 
     private P2gGenerationAssemblerServiceImpl assembler;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     private static final Integer TRAJECTORY_ID = 1;
-    private final StudyEntity study = StudyEntity.builder().horizon("2026-2027").build();
+    private static final Integer STUDY_ID = 10;
+    private final StudyEntity study = StudyEntity.builder().id(STUDY_ID).horizon("2026-2027").build();
     private final TrajectoryEntity capacityCostTrajectory = trajectory(TRAJECTORY_ID, "P2G_traj");
     private final TrajectoryEntity marketModulationTrajectory = trajectory(2, "FE60_liv_same");
 
     @BeforeEach
     void setUp() throws IOException {
         assembler = new P2gGenerationAssemblerServiceImpl(
-                p2gCapacityRepository, p2gCostRepository, p2gParametersRepository, resGenerationAssemblerService,
+                p2gCapacityRepository, p2gCostRepository, p2gParametersRepository, areaRepository, resGenerationAssemblerService,
                 adequacySettingsAssemblerService, nasFileService, properties, timeSeriesReader);
 
+        when(areaRepository.findAllByStudyId(STUDY_ID, TrajectoryType.AREA.name())).thenReturn(List.of(
+                AreaEntity.builder().name("AT").build(),
+                AreaEntity.builder().name("BE").build()
+        ));
         lenient().doAnswer(inv -> new AdequacySettingsAssemblerServiceImpl()
                         .resolveMode(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)))
                 .when(adequacySettingsAssemblerService).resolveMode(any(), any(), any());
@@ -114,6 +128,113 @@ class P2gGenerationAssemblerServiceImplTest {
         assertMargCluster(dto);
         assertMethanationCluster(dto);
         assertAsserviCluster(dto);
+    }
+
+    @Test
+    void assembleP2g_shouldExcludeAreasOutsideStudyFromAllClustersAndResValidation() throws Exception {
+        when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                capacity("AT", 2.0, 100.0, 90.0, 50.0, 30.0, 20.0),
+                capacity("FR", 1.0, 40.0, 35.0, 15.0, 10.0, 5.0)
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        assertThat(dto.base().properties().nominalCapacity()).isEqualTo(100.0);
+        assertThat(dto.marg().properties().nominalCapacity()).isEqualTo(50.0);
+        assertThat(dto.methanation().properties().nominalCapacity()).isEqualTo(30.0);
+        assertThat(dto.asservi().properties().nominalCapacity()).isEqualTo(20.0);
+        for (var cluster : List.of(dto.base(), dto.marg(), dto.methanation(), dto.asservi())) {
+            assertThat(cluster.links()).containsOnlyKeys("AT");
+        }
+        JsonNode json = mapper.readTree(mapper.writeValueAsString(dto));
+        for (String cluster : List.of("base", "marg", "methanation", "asservi")) {
+            assertThat(json.path(cluster).path("links").has("FR")).isFalse();
+            assertThat(json.path(cluster).path("links").has("AT")).isTrue();
+        }
+        verify(areaRepository).findAllByStudyId(STUDY_ID, TrajectoryType.AREA.name());
+    }
+
+    @Test
+    void assembleP2g_shouldMatchAreaNamesIgnoringCaseAndPreserveLinkName() {
+        when(areaRepository.findAllByStudyId(STUDY_ID, TrajectoryType.AREA.name())).thenReturn(List.of(
+                AreaEntity.builder().name("at").build()
+        ));
+        when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                capacity("At", 2.0, 100.0, 90.0, 50.0, 30.0, 20.0)
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        for (var cluster : List.of(dto.base(), dto.marg(), dto.methanation(), dto.asservi())) {
+            assertThat(cluster.links()).containsOnlyKeys("At");
+        }
+    }
+
+    @Test
+    void assembleP2g_shouldOmitAllClustersWhenNoCapacityAreaBelongsToStudy() throws Exception {
+        when(areaRepository.findAllByStudyId(STUDY_ID, TrajectoryType.AREA.name())).thenReturn(List.of(
+                AreaEntity.builder().name("DEKF").build()
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        JsonNode json = mapper.readTree(mapper.writeValueAsString(dto));
+        assertThat(json.size()).isEqualTo(1);
+        assertThat(json.path("market_modulation").asText()).isEqualTo("MB_MC_modulation_FE60_liv_same_2027.arrow");
+        verifyNoInteractions(resGenerationAssemblerService);
+    }
+
+    @Test
+    void assembleP2g_shouldRetainZeroCapacityClustersAndDekfLinkInJson() throws Exception {
+        when(areaRepository.findAllByStudyId(STUDY_ID, TrajectoryType.AREA.name())).thenReturn(List.of(
+                AreaEntity.builder().name("DEKF").build()
+        ));
+        when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                capacity("DEKF", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                capacity("AT", 2.0, 100.0, 90.0, 50.0, 30.0, 20.0)
+        ));
+        when(resGenerationAssemblerService.assembleResProperties(study)).thenReturn(Map.of(
+                "DEKF", Map.of(
+                        "solar", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "solar_pv"), List.of(), null),
+                        "wind", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "wind_onshore"), List.of(), null)
+                )
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        for (var cluster : List.of(dto.base(), dto.marg(), dto.methanation(), dto.asservi())) {
+            assertThat(cluster.properties().nominalCapacity()).isZero();
+            assertThat(cluster.links()).containsOnlyKeys("DEKF");
+        }
+        JsonNode json = mapper.readTree(mapper.writeValueAsString(dto));
+        for (String cluster : List.of("base", "marg", "methanation", "asservi")) {
+            JsonNode link = json.path(cluster).path("links").path("DEKF");
+            assertThat(link.has("capacity")).isTrue();
+            assertThat(link.path("capacity").doubleValue()).isZero();
+        }
+        JsonNode baseLink = json.path("base").path("links").path("DEKF");
+        assertThat(baseLink.size()).isEqualTo(2);
+        assertThat(baseLink.has("capacity")).isTrue();
+        assertThat(baseLink.has("fatal_band")).isTrue();
+        assertThat(baseLink.path("fatal_band").doubleValue()).isZero();
+    }
+
+    @Test
+    void assembleP2g_shouldNotConvertNullCapacitiesToZeroInJson() throws Exception {
+        when(p2gCapacityRepository.findByTrajectoryId(TRAJECTORY_ID)).thenReturn(List.of(
+                capacity("AT", 0.0, 0.0, 0.0, null, null, null),
+                capacity("BE", null, null, null, null, null, null)
+        ));
+
+        P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
+
+        JsonNode json = mapper.readTree(mapper.writeValueAsString(dto));
+        assertThat(json.path("base").path("links").has("AT")).isTrue();
+        assertThat(json.path("base").path("links").has("BE")).isFalse();
+        assertThat(json.has("marg")).isFalse();
+        assertThat(json.has("methanation")).isFalse();
+        assertThat(json.has("asservi")).isFalse();
+        verifyNoInteractions(resGenerationAssemblerService);
     }
 
     private static void assertBaseCluster(P2gGenerationDTO dto) {
