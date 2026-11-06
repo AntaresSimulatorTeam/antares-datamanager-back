@@ -543,7 +543,7 @@ class SettingsImportServiceTest {
 
         org.apache.poi.ss.usermodel.Row row1 = sheet.createRow(0);
         row1.createCell(0).setCellValue("hydro heuristic policy");
-        row1.createCell(1).setCellValue("middleages");
+        row1.createCell(1).setCellValue("accommodate rule curves");
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .id(1)
