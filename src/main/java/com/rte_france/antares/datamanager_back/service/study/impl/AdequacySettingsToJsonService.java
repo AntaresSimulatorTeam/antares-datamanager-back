@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +13,7 @@ import java.util.Optional;
 @Service
 public class AdequacySettingsToJsonService {
 
+    @ExecutionTime("ADEQUACY_SETTINGS")
     public Map<String, Object> buildAdequacySettingsMap(Optional<AdequacySettingsEntity> settingsOptional) {
         Map<String, Object> settingsMap = new LinkedHashMap<>();
         if (settingsOptional.isPresent()) {

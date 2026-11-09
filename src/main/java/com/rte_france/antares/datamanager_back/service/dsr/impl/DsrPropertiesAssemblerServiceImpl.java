@@ -43,7 +43,7 @@ public class DsrPropertiesAssemblerServiceImpl implements DsrGenerationAssembler
     private final NasFileService nasFileService;
     private final TimeSeriesReader timeSeriesReader;
 
-    @ExecutionTime
+    @ExecutionTime("DSR")
     @Override
     public Map<String, DsrGenerationDTO> assembleDsrProperties(StudyEntity studyEntity) {
 

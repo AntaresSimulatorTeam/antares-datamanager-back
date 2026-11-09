@@ -20,22 +20,40 @@ public class ExecutionTimeAdvice {
     public void executionTimePointcut() {
     }
 
-    @Around("executionTimePointcut()")
-    public Object executionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+    @Around("executionTimePointcut() && @annotation(executionTime)")
+    public Object executionTime(ProceedingJoinPoint joinPoint, ExecutionTime executionTime) throws Throwable {
         long start = System.currentTimeMillis();
-
+        String methodName = joinPoint.getSignature().getName();
+        
         extractAndSetStudyIdToMdc(joinPoint);
+        
+        String executionContext = executionTime.value();
+        String previousContext = null;
+        
+        if (executionContext != null && !executionContext.isEmpty()) {
+            previousContext = MDC.get("executionContext");
+            MDC.put("executionContext", executionContext);
+        }
 
-        Object proceed = joinPoint.proceed();
-
-        long executionTime = System.currentTimeMillis() - start;
-        //en seconds
-        long executionTimeInSeconds = executionTime / 1000;
-        MDC.put("executionTime", String.valueOf(executionTimeInSeconds));
-        MDC.put("methodName", joinPoint.getSignature().getName());
-        log.info("{} executed in {}ms ({}s)", joinPoint.getSignature().getName(), executionTime, executionTimeInSeconds);
-        return proceed;
-
+        try {
+            Object proceed = joinPoint.proceed();
+            
+            long executionTimeMs = System.currentTimeMillis() - start;
+            long executionTimeInSeconds = executionTimeMs / 1000;
+            MDC.put("executionTime", String.valueOf(executionTimeInSeconds));
+            MDC.put("methodName", methodName);
+            log.info("{} executed in {}ms ({}s)", methodName, executionTimeMs, executionTimeInSeconds);
+            
+            return proceed;
+        } finally {
+            if (executionContext != null && !executionContext.isEmpty()) {
+                if (previousContext != null) {
+                    MDC.put("executionContext", previousContext);
+                } else {
+                    MDC.remove("executionContext");
+                }
+            }
+        }
     }
 
     private void extractAndSetStudyIdToMdc(ProceedingJoinPoint joinPoint) {

@@ -7,9 +7,11 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.repository.model.settings.AdequacySettingsEntity;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettingsAssemblerService;
+import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.TreeMap;
 @Service
 public class AdequacySettingsAssemblerServiceImpl implements AdequacySettingsAssemblerService {
 
+    @ExecutionTime("ADEQUACY_PATCH")
     @Override
     public Optional<AdequacySettingsEntity> assembleAdequacySettings(StudyEntity studyEntity) {
         return findAdequacyTrajectory(studyEntity)
