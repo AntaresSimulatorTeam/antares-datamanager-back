@@ -174,15 +174,15 @@ class SettingsImportServiceImportSettingsTest {
 
         ArgumentCaptor<SettingsOptimizationParametersEntity> optimizationCaptor = ArgumentCaptor.forClass(SettingsOptimizationParametersEntity.class);
         verify(optimizationParametersRepository).save(optimizationCaptor.capture());
-        assertEquals("local_values", optimizationCaptor.getValue().getTransmissionCapacities());
-        assertEquals("false", optimizationCaptor.getValue().getIncludeExportmps());
-        assertEquals("error_verbose", optimizationCaptor.getValue().getIncludeUnfeasibleProblemBehavior());
+        assertEquals("local-values", optimizationCaptor.getValue().getTransmissionCapacities());
+        assertEquals("none", optimizationCaptor.getValue().getIncludeExportmps());
+        assertEquals("error-verbose", optimizationCaptor.getValue().getIncludeUnfeasibleProblemBehavior());
 
         ArgumentCaptor<SettingsAdvancedParametersEntity> advancedCaptor = ArgumentCaptor.forClass(SettingsAdvancedParametersEntity.class);
         verify(advancedParametersRepository).save(advancedCaptor.capture());
-        assertEquals("accommodate_rule_curves", advancedCaptor.getValue().getHydroHeuristicPolicy());
-        assertEquals("FREE_MODULATIONS", advancedCaptor.getValue().getPowerFluctuations());
-        assertEquals("SHAVE_PEAKS", advancedCaptor.getValue().getSheddingPolicy());
+        assertEquals("accommodate rule curves", advancedCaptor.getValue().getHydroHeuristicPolicy());
+        assertEquals("free modulations", advancedCaptor.getValue().getPowerFluctuations());
+        assertEquals("shave peaks", advancedCaptor.getValue().getSheddingPolicy());
     }
 
     @Test

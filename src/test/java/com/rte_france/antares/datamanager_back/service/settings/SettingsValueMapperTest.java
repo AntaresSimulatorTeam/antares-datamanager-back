@@ -35,27 +35,28 @@ class SettingsValueMapperTest {
             "FIRST_WEEK_DAY, FRI - THU, friday",
             "FIRST_WEEK_DAY, SAT - FRI, saturday",
             "FIRST_WEEK_DAY, SUN - SAT, sunday",
-            "TRANSMISSION_CAPACITIES, local-values, local_values",
-            "TRANSMISSION_CAPACITIES, null-for-all-links, null_for_all_links",
-            "TRANSMISSION_CAPACITIES, infinite-for-all-links, infinite_for_all_links",
-            "TRANSMISSION_CAPACITIES, null-for-physical-links, null_for_physical_links",
-            "TRANSMISSION_CAPACITIES, infinite-for-physical-links, infinite_for_physical_links",
-            "EXPORT_MPS, none, false",
-            "EXPORT_MPS, optim-1, optim1",
-            "EXPORT_MPS, optim-2, optim2",
-            "EXPORT_MPS, both-optims, both_optims",
-            "UNFEASIBLE_PROBLEM_BEHAVIOR, warning-dry, warning_dry",
-            "UNFEASIBLE_PROBLEM_BEHAVIOR, warning-verbose, warning_verbose",
-            "UNFEASIBLE_PROBLEM_BEHAVIOR, error-dry, error_dry",
-            "UNFEASIBLE_PROBLEM_BEHAVIOR, error-verbose, error_verbose",
-            "HYDRO_HEURISTIC_POLICY, accommodate rule curves, accommodate_rule_curves",
-            "HYDRO_HEURISTIC_POLICY, maximize generation, maximize_generation",
-            "POWER_FLUCTUATIONS, free modulations, FREE_MODULATIONS",
-            "POWER_FLUCTUATIONS, minimize excursions, MINIMIZE_EXCURSIONS",
-            "POWER_FLUCTUATIONS, minimize ramping, MINIMIZE_RAMPING",
-            "SHEDDING_POLICY, shave peaks, SHAVE_PEAKS",
-            "SHEDDING_POLICY, minimize duration, MINIMIZE_DURATION",
-            "SHEDDING_POLICY, accurate shave peaks, ACCURATE_SHAVE_PEAKS"
+            "TRANSMISSION_CAPACITIES, local-values, local-values",
+            "TRANSMISSION_CAPACITIES, null-for-all-links, null-for-all-links",
+            "TRANSMISSION_CAPACITIES, infinite-for-all-links, infinite-for-all-links",
+            "TRANSMISSION_CAPACITIES, null-for-physical-links, null-for-physical-links",
+            "TRANSMISSION_CAPACITIES, infinite-for-physical-links, infinite-for-physical-links",
+            "EXPORT_MPS, none, none",
+            "EXPORT_MPS, optim-1, optim-1",
+            "EXPORT_MPS, optim-2, optim-2",
+            "EXPORT_MPS, both-optims, both-optims",
+            "UNFEASIBLE_PROBLEM_BEHAVIOR, warning-dry, warning-dry",
+            "UNFEASIBLE_PROBLEM_BEHAVIOR, warning-verbose, warning-verbose",
+            "UNFEASIBLE_PROBLEM_BEHAVIOR, error-dry, error-dry",
+            "UNFEASIBLE_PROBLEM_BEHAVIOR, error-verbose, error-verbose",
+            "HYDRO_HEURISTIC_POLICY, accommodate rule curves, accommodate rule curves",
+            "HYDRO_HEURISTIC_POLICY, maximize generation, maximize generation",
+            "POWER_FLUCTUATIONS, free modulations, free modulations",
+            "POWER_FLUCTUATIONS, minimize excursions, minimize excursions",
+            "POWER_FLUCTUATIONS, minimize ramping, minimize ramping",
+            "SHEDDING_POLICY, shave peaks, shave peaks",
+            "SHEDDING_POLICY, Shave Peaks, shave peaks",
+            "SHEDDING_POLICY, minimize duration, minimize duration",
+            "SHEDDING_POLICY, accurate shave peaks, accurate shave peaks"
     })
     void shouldMapUserValueToAntaresCraftValue(SettingsValueMapper mapper, String rawValue, String expected) {
         assertEquals(expected, mapper.map("param", rawValue));
@@ -80,5 +81,13 @@ class SettingsValueMapperTest {
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("Mode", exception.getErrorMessageArguments().get(1));
         assertEquals("adequacy, economy, economy (linear relaxation)", exception.getErrorMessageArguments().get(2));
+    }
+
+    @Test
+    void shouldRejectUnknownValueForValidationOnlyParameter() {
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> SettingsValueMapper.SHEDDING_POLICY.map("shedding policy", "SHAVE_PEAKS"));
+
+        assertEquals("accurate shave peaks, minimize duration, shave peaks", exception.getErrorMessageArguments().get(2));
     }
 }

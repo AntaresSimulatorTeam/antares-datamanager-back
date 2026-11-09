@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 
 import static java.util.Map.entry;
@@ -46,63 +47,50 @@ public enum SettingsValueMapper {
             "sun - sat", "sunday"
     )),
 
-    TRANSMISSION_CAPACITIES(Map.of(
-            "local-values", "local_values",
-            "null-for-all-links", "null_for_all_links",
-            "infinite-for-all-links", "infinite_for_all_links",
-            "null-for-physical-links", "null_for_physical_links",
-            "infinite-for-physical-links", "infinite_for_physical_links"
+    // Only validated
+    TRANSMISSION_CAPACITIES(Set.of(
+            "local-values",
+            "null-for-all-links",
+            "infinite-for-all-links",
+            "null-for-physical-links",
+            "infinite-for-physical-links"
     )),
 
-    EXPORT_MPS(Map.of(
-            "none", "false",
-            "optim-1", "optim1",
-            "optim-2", "optim2",
-            "both-optims", "both_optims"
-    )),
+    EXPORT_MPS(Set.of("none", "optim-1", "optim-2", "both-optims")),
 
-    UNFEASIBLE_PROBLEM_BEHAVIOR(Map.of(
-            "warning-dry", "warning_dry",
-            "warning-verbose", "warning_verbose",
-            "error-dry", "error_dry",
-            "error-verbose", "error_verbose"
-    )),
+    UNFEASIBLE_PROBLEM_BEHAVIOR(Set.of("warning-dry", "warning-verbose", "error-dry", "error-verbose")),
 
-    HYDRO_HEURISTIC_POLICY(Map.of(
-            "accommodate rule curves", "accommodate_rule_curves",
-            "maximize generation", "maximize_generation"
-    )),
+    HYDRO_HEURISTIC_POLICY(Set.of("accommodate rule curves", "maximize generation")),
 
-    POWER_FLUCTUATIONS(Map.of(
-            "free modulations", "FREE_MODULATIONS",
-            "minimize excursions", "MINIMIZE_EXCURSIONS",
-            "minimize ramping", "MINIMIZE_RAMPING"
-    )),
+    POWER_FLUCTUATIONS(Set.of("free modulations", "minimize excursions", "minimize ramping")),
 
-    SHEDDING_POLICY(Map.of(
-            "shave peaks", "SHAVE_PEAKS",
-            "minimize duration", "MINIMIZE_DURATION",
-            "accurate shave peaks", "ACCURATE_SHAVE_PEAKS"
-    ));
+    SHEDDING_POLICY(Set.of("shave peaks", "minimize duration", "accurate shave peaks"));
 
-    private final Map<String, String> mapping;
+    private final Set<String> allowedValues;
+    private final Map<String, String> translations;
 
-    SettingsValueMapper(Map<String, String> mapping) {
-        this.mapping = mapping;
+    SettingsValueMapper(Map<String, String> translations) {
+        this.allowedValues = translations.keySet();
+        this.translations = translations;
+    }
+
+    SettingsValueMapper(Set<String> allowedValues) {
+        this.allowedValues = allowedValues;
+        this.translations = Map.of();
     }
 
     public String map(String parameterName, String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {
             return "";
         }
-        String mapped = mapping.get(rawValue.trim().toLowerCase(Locale.ROOT));
-        if (mapped == null) {
+        String value = rawValue.trim().toLowerCase(Locale.ROOT);
+        if (!allowedValues.contains(value)) {
             throw BusinessException.builder()
                     .message("Invalid value {0} for settings parameter {1}. Allowed values: {2}")
-                    .errorMessageArguments(List.of(rawValue, parameterName, String.join(", ", new TreeSet<>(mapping.keySet()))))
+                    .errorMessageArguments(List.of(rawValue, parameterName, String.join(", ", new TreeSet<>(allowedValues))))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        return mapped;
+        return translations.getOrDefault(value, value);
     }
 }
