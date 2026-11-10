@@ -1,5 +1,8 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
@@ -60,7 +63,7 @@ public class TrajectoryController {
         return ResponseEntity.ok(trajectoryService.findTrajectoriesByType(trajectoryType, area,technology, fileNameContains));
     }
 
-
+    @CheckStudyGenerationInProgress
     @Operation(summary = "import Trajectory [area , area multi energy, link, link multi energy] file to database ")
     @PostMapping
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("trajectoryType") TrajectoryType trajectoryType,
@@ -77,6 +80,7 @@ public class TrajectoryController {
         return new ResponseEntity<>(toTrajectoryDTO(trajectoryService.processTrajectory(trajectoryType, trajectoryToUse, horizon, studyId)), HttpStatus.CREATED);
     }
 
+    @CheckStudyGenerationInProgress
     @Operation(summary = "import Trajectory load to database ")
     @PostMapping("/load")
     public ResponseEntity<TrajectoryDTO> uploadTrajectory(@RequestParam("area") String area,
@@ -97,8 +101,8 @@ public class TrajectoryController {
         return trajectoryService.findTrajectoriesByTypeAndStudyId(trajectoryType != null ? trajectoryType.name() : null, studyId);
     }
 
-    @Operation(summary = "Attach trajectory data to study ",
-            description = "Maps trajectory to study")
+    @Operation(summary = "Attach trajectory data to study ", description = "Maps trajectory to study")
+    @CheckStudyGenerationInProgress
     @PutMapping("/attach")
     public ResponseEntity<TrajectoryDTO> attachTrajectoryToStudy(@RequestParam TrajectoryType type,
                                                                  @RequestParam Integer trajectoryId,
@@ -111,6 +115,7 @@ public class TrajectoryController {
             description = "Removes mapping between a trajectory and a study"
     )
 
+    @CheckStudyGenerationInProgress
     @DeleteMapping("/detach")
     public ResponseEntity<Void> unlinkTrajectoryFromStudy(@RequestParam Integer trajectoryId,
                                                           @RequestParam Integer studyId) {
@@ -119,6 +124,7 @@ public class TrajectoryController {
     }
 
     @Operation(summary = "Detach multiple trajectories from a study")
+    @CheckStudyGenerationInProgress
     @PostMapping("/detach/batch")
     public ResponseEntity<Void> unlinkBatch(@RequestParam Integer studyId,
                                             @RequestBody List<Integer> trajectoryIds) {
@@ -126,6 +132,7 @@ public class TrajectoryController {
         return ResponseEntity.noContent().build();
     }
 
+    @CheckStudyGenerationInProgress
     @DeleteMapping("/detach/all")
     public ResponseEntity<Void> unlinkAllTrajectoriesFromStudy(@RequestParam Integer studyId) {
         trajectoryService.unlinkAllTrajectoriesFromStudy(studyId);

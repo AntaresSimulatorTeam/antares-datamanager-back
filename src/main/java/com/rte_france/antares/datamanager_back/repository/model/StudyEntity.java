@@ -41,9 +41,13 @@ public class StudyEntity {
     @Column(name = "generation_date")
     private LocalDateTime generationDate;
 
+    @Size(max = 255)
+    @Column(name = "generation_started_by")
+    private String generationStartedBy;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id")
-    private ProjectEntity project ;
+    private ProjectEntity project;
 
     @Enumerated(EnumType.STRING)
     private StudyStatus status;

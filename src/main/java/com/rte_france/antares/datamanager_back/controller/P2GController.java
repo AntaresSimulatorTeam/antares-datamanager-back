@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFileProcessorService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
@@ -32,6 +34,7 @@ public class P2GController {
 
     @Operation(summary = "import capacity cost trajectory to database ")
     @PostMapping("/capacity-cost-p2g")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadCapacityCostP2GTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -46,6 +49,7 @@ public class P2GController {
 
     @Operation(summary = "import modulation P2G trajectory to database ")
     @PostMapping("/modulation-p2g")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadModulationP2GTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,

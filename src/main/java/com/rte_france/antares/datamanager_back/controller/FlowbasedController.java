@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.service.flowbased.FlowbasedFileProcessorService;
@@ -31,6 +33,7 @@ public class FlowbasedController {
 
     @Operation(summary = "import flowbased trajectory to database")
     @PostMapping("/flowbased")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadFlowbasedTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName  String trajectoryToUse,
             @RequestParam("studyId") Integer studyId,

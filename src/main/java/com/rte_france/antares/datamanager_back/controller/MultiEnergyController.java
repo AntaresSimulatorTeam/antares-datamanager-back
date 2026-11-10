@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.constraint_me.ConstraintMeFileProcessorService;
@@ -46,6 +48,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import Trajectory load ME to database ")
     @PostMapping("/load-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadLoadMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                @Parameter(description = "example of horizon : 2020-2021") String horizon,
@@ -59,6 +62,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import CONSTRAINT_ME trajectory file to database")
     @PostMapping("/constraint-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadConstraintMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                      @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                      @Parameter(description = "example of horizon : 2020-2021") String horizon,
@@ -72,6 +76,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import EFFICIENCY_ME trajectory file to database")
     @PostMapping("/efficiency-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadEfficiencyMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                      @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                      @Parameter(description = "example of horizon : 2020-2021") String horizon,
@@ -85,6 +90,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import HYDRO CAPACITY ME trajectory to database")
     @PostMapping("/hydro-capacity-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadHydroCapacityMeTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
@@ -96,6 +102,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import HYDRO PARAMETERS ME trajectory to database")
     @PostMapping("/hydro-parameters-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadHydroParametersMeTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
@@ -110,6 +117,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import THERMAL_ME trajectory file to database")
     @PostMapping("/thermal-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalMeTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                       @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
                                                                       @Parameter(description = "example of horizon : 2020-2021") String horizon,
@@ -123,6 +131,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import HYDRO TIME SERIES ME trajectory to database")
     @PostMapping("/hydro-ts-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadHydroTimeSeriesMeTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
@@ -135,6 +144,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import HYDRO Water Values ME trajectory to database")
     @PostMapping("/hydro-water-values-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadHydroWaterValuesMeTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -145,6 +155,7 @@ public class MultiEnergyController {
 
     @Operation(summary = "import HYDRO RESERVOIR LEVELS ME trajectory to database")
     @PostMapping("/hydro-reservoir-levels-me")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadHydroReservoirLevelsMeTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")

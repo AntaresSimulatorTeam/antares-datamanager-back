@@ -131,9 +131,46 @@ public class StudyServiceImpl implements StudyService {
     @ExecutionTime("GENERATION_STUDY")
     public void generateStudy(Integer studyId) throws TechnicalException {
         log.info("Generating study with ID: {}", studyId);
-        studyGeneratorService.buildJsonForStudyGeneration(studyId);
-        studyGeneratorService.callGenerateStudyService(studyId);
-        updateStudyStatusAsGenerated(studyId);
+        // Transaction 1 (courte): Marquer comme en génération
+        markStudyAsGenerating(studyId);
+        
+        // Génération SANS transaction (peut prendre 5+ min)
+        try {
+            studyGeneratorService.buildJsonForStudyGeneration(studyId);
+            studyGeneratorService.callGenerateStudyService(studyId);
+            // Transaction 2 (courte): Marquer comme généré
+            updateStudyStatusAsGenerated(studyId);
+        } catch (Exception e) {
+            // Transaction 3 (courte): Marquer comme erreur
+            markStudyAsError(studyId);
+            throw e;
+        }
+    }
+
+    protected void markStudyAsGenerating(Integer studyId) {
+        StudyEntity study = studyRepository.findById(studyId)
+            .orElseThrow(() -> BusinessException.builder()
+                .message("Study not found with ID: {0}")
+                .errorMessageArguments(List.of(studyId.toString()))
+                .httpStatus(HttpStatus.NOT_FOUND)
+                .build());
+        
+        String currentUser = userService.getCurrentUserDetails().getNni();
+        study.setStatus(StudyStatus.GENERATION_INPROGRESS);
+        study.setGenerationStartedBy(currentUser);
+        studyRepository.save(study);
+        log.info("Study {} marked as GENERATION_INPROGRESS by {}", studyId, currentUser);
+    }
+
+    protected void markStudyAsError(Integer studyId) {
+        studyRepository.findById(studyId).ifPresentOrElse(
+            study -> {
+                study.setStatus(StudyStatus.ERROR);
+                studyRepository.save(study);
+                log.error("Study {} generation failed, status set to ERROR", studyId);
+            },
+            () -> log.warn("Study {} not found when trying to mark as ERROR", studyId)
+        );
     }
 
     @Override

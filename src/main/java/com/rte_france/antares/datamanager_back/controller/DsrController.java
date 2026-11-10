@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrCapacityModulationFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
@@ -33,6 +35,7 @@ public class DsrController {
 
     @Operation(summary = "import DSR cluster trajectory to database ")
     @PostMapping("/dsr-cluster")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadDsrClusterTrajectory(@RequestParam("area") String area,
                                                                     @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                     @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
@@ -47,6 +50,7 @@ public class DsrController {
 
     @Operation(summary = "import DSR capacity modulation trajectory to database ")
     @PostMapping("/dsr-capacity-modulation")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadDsrCapacityModulationTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")

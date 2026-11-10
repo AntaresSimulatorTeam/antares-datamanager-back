@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
@@ -37,6 +39,7 @@ public class ScenarioBuilderController {
 
     @Operation(summary = "Import scenario builder trajectory from Excel file (scenario_builder_*.xlsx)")
     @PostMapping("/scenario-builder")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadScenarioBuilderTrajectory(
             @RequestParam("trajectoryToUse")
             @ValidTrajectoryName

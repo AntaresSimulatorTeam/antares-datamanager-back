@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroFileProcessorService;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -31,6 +33,7 @@ public class HydroController {
 
     @Operation(summary = "import HYDRO series trajectory to database ")
     @PostMapping("/hydro-series")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadSeriesHydroTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -46,6 +49,7 @@ public class HydroController {
 
     @Operation(summary = "import HYDRO technical parameters trajectory to database ")
     @PostMapping("/hydro-technical-parameters")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadTechnicalParametersHydroTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,

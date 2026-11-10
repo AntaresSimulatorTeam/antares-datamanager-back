@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.nuclear.NuclearFileProcessorService;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
@@ -28,6 +30,7 @@ public class NuclearController {
 
     @Operation(summary = "Import nuclear modulation trajectory to database")
     @PostMapping("/nuclear-modulation")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadNuclearModulationTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -39,6 +42,7 @@ public class NuclearController {
 
     @Operation(summary = "Import nuclear long-term trajectory to database")
     @PostMapping("/nuclear-lt")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadNuclearLongTermTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -50,6 +54,7 @@ public class NuclearController {
 
     @Operation(summary = "Import nuclear EPR time series trajectory to database")
     @PostMapping("/nuclear-ts-erp")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadNuclearTsErpTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -61,6 +66,7 @@ public class NuclearController {
 
     @Operation(summary = "Import nuclear SMR time series trajectory to database")
     @PostMapping("/nuclear-ts-smr")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadNuclearTsSmrTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
@@ -72,6 +78,7 @@ public class NuclearController {
 
     @Operation(summary = "Import nuclear Talon trajectory to database")
     @PostMapping("/nuclear-talon")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadNuclearTalonTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,

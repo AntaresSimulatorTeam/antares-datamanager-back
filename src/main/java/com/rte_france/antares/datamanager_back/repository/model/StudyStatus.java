@@ -5,5 +5,6 @@ public enum StudyStatus {
     IN_PROGRESS,
     CLOSED,
     DELETED,
-    ERROR
+    ERROR,
+    GENERATION_INPROGRESS
 }

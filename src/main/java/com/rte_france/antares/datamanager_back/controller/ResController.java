@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.repository.model.ResTypeEntity;
 import com.rte_france.antares.datamanager_back.service.res.ResFileProcessorService;
@@ -40,6 +42,7 @@ public class ResController {
 
     @Operation(summary = "import load factor RES trajectory to database ")
     @PostMapping("/load-factor-res")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadLoadFactorResTrajectory(
             @RequestParam("area") String area,
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
@@ -52,6 +55,7 @@ public class ResController {
 
     @Operation(summary = "import installed RES trajectory to database ")
     @PostMapping("/installed-power-res")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadInstalledResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,
@@ -67,6 +71,7 @@ public class ResController {
 
     @Operation(summary = "import technology distribution RES trajectory to database ")
     @PostMapping("/technology-distribution-res")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadTechnologyDistributionResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,
@@ -82,6 +87,7 @@ public class ResController {
 
     @Operation(summary = "import zonal distribution RES trajectory to database ")
     @PostMapping("/zonal-distribution-res")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadZonalDistributionResTrajectory(
             @RequestParam("area") String area,
             @RequestParam(value = "technology", required = false) @Pattern(regexp = "^[a-zA-Z0-9 _-]*$", message = "Technology contains invalid characters") String technology,

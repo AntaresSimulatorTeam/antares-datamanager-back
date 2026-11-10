@@ -176,3 +176,5 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V84-create-flowbased-constraint-restriction-tables.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V85-alter-trajectory-file-name-length.sql
+  - include:
+      file: classpath*:db/changelog/1.1.0/V85-add_generation_started_by_column_scenario_table.sql
