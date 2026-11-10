@@ -422,7 +422,6 @@ class TrajectoryServiceImplTest {
         } else {
             trajectoryService.unlinkTrajectoryFromStudy(1, 10);
             verify(studyTrajectoryRepository).delete(association);
-            assertFalse(study.getTrajectories().contains(link));
         }
     }
 
@@ -837,8 +836,6 @@ class TrajectoryServiceImplTest {
 
         // Then
         verify(studyTrajectoryRepository, times(1)).delete(entity);
-        assertFalse(study.getTrajectories().contains(trajectory));
-        assertFalse(trajectory.getScenarioEntities().contains(study));
     }
 
 
@@ -888,8 +885,6 @@ class TrajectoryServiceImplTest {
 
         // Then
         verify(studyTrajectoryRepository, times(1)).delete(entity);
-        assertFalse(study.getTrajectories().contains(areaTrajectory));
-        assertFalse(areaTrajectory.getScenarioEntities().contains(study));
     }
 
     @Test
@@ -5475,7 +5470,7 @@ class TrajectoryServiceImplTest {
 
         // Then
         verify(studyTrajectoryRepository, times(1)).delete(entity);
-        assertTrue(study.getTrajectories().isEmpty() || !study.getTrajectories().contains(linkMeT));
+        verify(studyTrajectoryRepository, never()).delete(argThat(e -> e != entity));
     }
 
     /**

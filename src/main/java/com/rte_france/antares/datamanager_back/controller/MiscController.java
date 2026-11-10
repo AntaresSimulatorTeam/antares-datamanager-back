@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
@@ -29,6 +31,7 @@ public class MiscController {
 
     @Operation(summary = "import installed misc trajectory to database ")
     @PostMapping("/installed-misc")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadInstalledMiscTrajectory(
             @RequestParam("area") String area,
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
@@ -43,6 +46,7 @@ public class MiscController {
 
     @Operation(summary = "import load factor misc trajectory to database ")
     @PostMapping("/load-factor-misc")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadLoadFactorMiscTrajectory(
             @RequestParam("area") String area,
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,

@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.adequacy.AdequacyFileProcessorService;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
@@ -32,6 +34,7 @@ public class AdequacyController {
 
     @Operation(summary = "import adequacy patch trajectory to database ")
     @PostMapping("/adequacy-patch")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadAdequacyTrajectory(@RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
                                                                   @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$") String horizon,
                                                                   @RequestParam("studyId") Integer studyId,

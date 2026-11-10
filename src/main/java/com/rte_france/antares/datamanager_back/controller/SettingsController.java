@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.settings.SettingsImportService;
 import com.rte_france.antares.datamanager_back.validation.ValidTrajectoryName;
@@ -34,6 +36,7 @@ public class SettingsController {
 
     @Operation(summary = "Import trajectory settings from Excel file (general_data_*.xlsx)")
     @PostMapping("/settings")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> importTrajectorySettings(
             @RequestParam("trajectoryToUse") 
             @ValidTrajectoryName

@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.service.study.StudyService;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.List;
@@ -70,6 +72,7 @@ public class StudyController {
 
 
     @PostMapping("/generate")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<Void> generateStudy(@RequestParam Integer id) throws TechnicalException {
         studyService.generateStudy(id);
         return new ResponseEntity<>(HttpStatus.CREATED);

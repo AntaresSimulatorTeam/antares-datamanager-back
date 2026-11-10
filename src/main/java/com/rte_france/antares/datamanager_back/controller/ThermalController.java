@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.controller;
 
+import com.rte_france.antares.datamanager_back.annotation.CheckStudyGenerationInProgress;
+
 import com.rte_france.antares.datamanager_back.dto.TrajectoryDTO;
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
@@ -33,6 +35,7 @@ public class ThermalController {
 
     @Operation(summary = "import thermal capacity trajectory to database ")
     @PostMapping("/thermal-capacity")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalCapacityTrajectory(@RequestParam("area") String area, // FR, // GB, DE, IT, ES, PT, BE, NL, LU, CH //OTHER
                                                                          @RequestParam(value = "technology", required = false) String technology,
                                                                          @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
@@ -48,6 +51,7 @@ public class ThermalController {
 
     @Operation(summary = "import thermal common parameters trajectory to database ")
     @PostMapping("/thermal-common-parameter")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalParameterTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
@@ -61,6 +65,7 @@ public class ThermalController {
 
     @Operation(summary = "import thermal specific parameters trajectory to database ")
     @PostMapping("/thermal-specific-parameter")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalSpecificParameterTrajectory(
             @RequestParam("area") String area,
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
@@ -73,6 +78,7 @@ public class ThermalController {
 
     @Operation(summary = "import thermal modulation parameters trajectory to database ")
     @PostMapping("/thermal-modulation-parameter")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalModulationParameterTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") String horizon,
@@ -84,6 +90,7 @@ public class ThermalController {
 
     @Operation(summary = "import thermal economic costs trajectory to database ")
     @PostMapping("/thermal-economic-costs")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalEconomicCostsTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")
@@ -96,6 +103,7 @@ public class ThermalController {
 
     @Operation(summary = "import thermal economic parameters trajectory to database ")
     @PostMapping("/thermal-economic-parameter")
+    @CheckStudyGenerationInProgress
     public ResponseEntity<TrajectoryDTO> uploadThermalEconomicParamTrajectory(
             @RequestParam("trajectoryToUse") @ValidTrajectoryName String trajectoryToUse,
             @RequestParam("horizon") @Pattern(regexp = "^\\d{4}-\\d{4}$")

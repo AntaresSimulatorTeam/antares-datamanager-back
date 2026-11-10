@@ -782,7 +782,6 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     ? trajectoryRepository.findByTypeAndStudyId(TrajectoryType.DSR_CAPACITY_MODULATION.name(), studyId)
                     : List.<TrajectoryEntity>of();
 
-            studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
             studyTrajectoryRepository.delete(studyTrajectory);
 
             // Handle CM unlink if needed
@@ -823,10 +822,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // Filter and unlink ONLY LINK_ME trajectories
         allStudyTrajectories.stream()
                 .filter(st -> TrajectoryType.LINK_ME.name().equals(st.getTrajectory().getType()) || AREA_ME.name().equals(st.getTrajectory().getType()))
-                .forEach(studyTrajectory -> {
-                    studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
-                    studyTrajectoryRepository.delete(studyTrajectory);
-                });
+                .forEach(studyTrajectoryRepository::delete);
     }
 
     private boolean isRemovingLastDsrWithTimeSeries(Integer studyId, List<Integer> trajectoryIdsToRemove) {
@@ -850,10 +846,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .scenarioId(studyId)
                 .build();
 
-        studyTrajectoryRepository.findById(key).ifPresent(studyTrajectory -> {
-            studyTrajectory.getStudyEntity().removeTrajectoryEntity(studyTrajectory.getTrajectory());
-            studyTrajectoryRepository.delete(studyTrajectory);
-        });
+        studyTrajectoryRepository.findById(key).ifPresent(studyTrajectoryRepository::delete);
         log.info("Unlinked CM trajectory: {} from study: {}", cmTrajectory.getFileName(), studyId);
     }
 

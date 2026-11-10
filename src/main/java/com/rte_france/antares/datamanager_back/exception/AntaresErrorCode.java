@@ -6,7 +6,9 @@ public enum AntaresErrorCode {
     LINKS_ALL_VALUES_ZERO("links.all_values_zero"),
     LINKS_UNILATERAL_VALUES_ZERO("links.unilateral_values_zero"),
     LINKS_AREA_NOT_PRESENT("links.area_not_present"),
-    INVALID_TRAJECTORY_NAME("invalid.trajectory.name");
+    INVALID_TRAJECTORY_NAME("invalid.trajectory.name"),
+    STUDY_GENERATION_IN_PROGRESS("study.generation.in.progress"),
+    STUDY_ALREADY_GENERATED("study.already.generated");
 
     private final String value;
 
