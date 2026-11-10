@@ -15,11 +15,14 @@ import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.*;
 @Component
 public class TrajectoryValidator {
 
+    public static final int DEFAULT_MAX_LENGTH = 60;
+
     private static final Pattern TRAJECTORY_PREFIX = Pattern.compile(
             "^(?:" + Stream.of(AREAS_PREFIX, DSR_PREFIX, DSR_CAPACITY_PREFIX, LINKS_PREFIX,
                             MISC_CAPACITY_PREFIX, RES_CAPACITY_PREFIX, RES_TECHNOLOGY_DISTRIBUTION_PREFIX,
                             RES_ZONAL_DISTRIBUTION_PREFIX, SETTINGS_PREFIX, SCENARIO_BUILDER_PREFIX,
-                            NUCLEAR_TALON_PREFIX, NUCLEAR_TALON_EPR_PREFIX, NUCLEAR_TALON_SMR_PREFIX,
+                            NUCLEAR_TALON_PREFIX, NUCLEAR_EPR_PREFIX, NUCLEAR_SMR_PREFIX,
+                            NUCLEAR_TALON_EPR_PREFIX, NUCLEAR_TALON_SMR_PREFIX,
                             THERMAL_CAPACITY_PREFIX, THERMAL_COMMON_PREFIX, THERMAL_SPECIFIC_PREFIX,
                             THERMAL_ECONOMIC_COST_PREFIX, THERMAL_ECONOMIC_PREFIX)
                     .map(Pattern::quote)
@@ -28,17 +31,25 @@ public class TrajectoryValidator {
             Pattern.CASE_INSENSITIVE);
 
     public void validate(String trajectoryName, int maxLength) {
+        validateTrajectoryName(trajectoryName, maxLength);
+    }
+
+    public static void validateTrajectoryName(String trajectoryName, int maxLength) {
         if (trajectoryName == null) {
             return;
         }
 
         Matcher prefixMatcher = TRAJECTORY_PREFIX.matcher(trajectoryName);
-        String nameWithoutPrefix = prefixMatcher.find() ? trajectoryName.substring(prefixMatcher.end()) : trajectoryName;
+        String matchedPrefix = prefixMatcher.find() ? trajectoryName.substring(0, prefixMatcher.end()) : null;
+        String nameWithoutPrefix = matchedPrefix == null
+                ? trajectoryName
+                : trajectoryName.substring(matchedPrefix.length());
 
         if (nameWithoutPrefix.length() > maxLength) {
             throw BusinessException.builder()
                     .antaresErrorCode(AntaresErrorCode.INVALID_TRAJECTORY_NAME)
-                    .message("Trajectory name cannot exceed " + maxLength + " characters excluding its prefix")
+                    .message("Trajectory name cannot exceed " + maxLength + " characters excluding its prefix"
+                            + (matchedPrefix == null ? "" : " '" + matchedPrefix + "'"))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }

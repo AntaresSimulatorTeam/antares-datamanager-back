@@ -2,7 +2,6 @@ package com.rte_france.antares.datamanager_back.service.scenario_builder.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
-import com.rte_france.antares.datamanager_back.exception.AntaresErrorCode;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.ScenarioBuilderRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
@@ -11,6 +10,7 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.scenario_builder.ScenarioBuilderFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.validation.TrajectoryValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -39,7 +39,6 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
 
     private static final String UNKNOWN_USER = "UNKNOWN";
     private static final String SCENARIO_BUILDER_FILE_SUFFIX = ".xlsx";
-    private static final int SB_FILE_NAME_MAX_SIZE= 40;
     private final TrajectoryRepository trajectoryRepository;
     private final ScenarioBuilderRepository scenarioBuilderRepository;
     private final TrajectoryService trajectoryService;
@@ -74,13 +73,7 @@ public class ScenarioBuilderFileProcessorServiceImpl implements ScenarioBuilderF
                 ? trajectoryToUse.substring(0, trajectoryToUse.length() - SCENARIO_BUILDER_FILE_SUFFIX.length())
                 : trajectoryToUse;
 
-        if (rawNameWithoutExt.length() > SB_FILE_NAME_MAX_SIZE) {
-            throw BusinessException.builder()
-                    .antaresErrorCode(AntaresErrorCode.INVALID_TRAJECTORY_NAME)
-                    .message("Trajectory name cannot exceed 40 characters")
-                    .httpStatus(HttpStatus.BAD_REQUEST)
-                    .build();
-        }
+        TrajectoryValidator.validateTrajectoryName(rawNameWithoutExt, TrajectoryValidator.DEFAULT_MAX_LENGTH);
 
         Path normalizedTrajectoryFolder = trajectoryFolder
                 .toAbsolutePath()

@@ -74,7 +74,7 @@ class StStorageControllerTest {
     void postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
         String area = "FR";
         String technology = "techno";
-        // trajectoryToUse > 40 chars
+        // trajectoryToUse > 60 chars excluding its prefix
         String trajectoryToUse = "cluster_" + technology + "_" + "a".repeat(61) + ".xls";
         String horizon = "2025-2026";
 

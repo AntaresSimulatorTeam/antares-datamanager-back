@@ -12,5 +12,5 @@ public @interface ValidTrajectoryName {
      * Maximum name length after excluding one recognized leading trajectory prefix.
      * Prefix matching is case-insensitive; the original argument remains unchanged.
      */
-    int maxLength() default 60;
+    int maxLength() default TrajectoryValidator.DEFAULT_MAX_LENGTH;
 }

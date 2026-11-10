@@ -75,8 +75,8 @@ class DsrControllerTest {
     @Test
     void postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
         String area = "FR";
-        // trajectoryToUse > 40 chars
-        String trajectoryToUse = "cluster_DSR_" + "a".repeat(45) + ".xls";
+        // trajectoryToUse > 60 chars excluding its prefix
+        String trajectoryToUse = "cluster_DSR_" + "a".repeat(61) + ".xls";
         String horizon = "2025-2026";
 
         mockMvc.perform(post("/v1/trajectory/dsr-cluster")
@@ -141,8 +141,8 @@ class DsrControllerTest {
 
     @Test
     void processDsrCapacityModulationFile_postWithTooLongTrajectoryName_should_returnBadRequest() throws Exception {
-        // trajectoryToUse > 40 chars
-        String trajectoryToUse = "CM_" + "a".repeat(54) + ".xls";
+        // trajectoryToUse > 60 chars excluding its prefix
+        String trajectoryToUse = "CM_" + "a".repeat(61) + ".xls";
         String horizon = "2025-2026";
 
         mockMvc.perform(post("/v1/trajectory/dsr-capacity-modulation")

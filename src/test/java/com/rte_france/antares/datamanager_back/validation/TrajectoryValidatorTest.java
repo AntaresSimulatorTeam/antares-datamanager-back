@@ -48,7 +48,7 @@ class TrajectoryValidatorTest {
         String longName = "a".repeat(61);
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> validator.validate(longName, 60));
-        assertTrue(exception.getMessage().contains("cannot exceed"));
+        assertEquals("Trajectory name cannot exceed 60 characters excluding its prefix", exception.getMessage());
     }
 
     @Test
@@ -78,14 +78,14 @@ class TrajectoryValidatorTest {
         String longName = "a".repeat(31);
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> validator.validate(longName, 30));
-        assertTrue(exception.getMessage().contains("cannot exceed"));
-        assertTrue(exception.getMessage().contains("30"));
+        assertEquals("Trajectory name cannot exceed 30 characters excluding its prefix", exception.getMessage());
     }
 
     static Stream<String> trajectoryPrefixes() {
         return Stream.of("areas_", "cluster_dsr_", "CM_", "links_", "installedMisc_", "installedRES_",
                         "repartition_techno_", "repartition_zonale_", "general_data_", "scenario_builder_",
-                        "talon_nuc_", "talon_epr_", "talon_smr_", "cluster_battery_", "cluster_NewTech42_",
+                        "talon_nuc_", "ts_epr_", "ts_smr_", "talon_epr_", "talon_smr_",
+                        "cluster_battery_", "cluster_NewTech42_",
                         "thermal_", "common_param_", "specific_param_", "costs_", "economic_param_")
                 .flatMap(prefix -> Stream.of(prefix, prefix.toLowerCase(Locale.ROOT), prefix.toUpperCase(Locale.ROOT)))
                 .distinct();
@@ -97,7 +97,8 @@ class TrajectoryValidatorTest {
         assertDoesNotThrow(() -> validator.validate(prefix + "a".repeat(60), 60));
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> validator.validate(prefix + "a".repeat(61), 60));
-        assertTrue(exception.getMessage().contains("cannot exceed 60"));
+        assertEquals("Trajectory name cannot exceed 60 characters excluding its prefix '" + prefix + "'",
+                exception.getMessage());
     }
 
     @ParameterizedTest
@@ -108,7 +109,7 @@ class TrajectoryValidatorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"", "unknown_", "before_areas_", "cluster__", "cluster_", " areas_", "ts_epr_", "ts_smr_"})
+    @ValueSource(strings = {"", "unknown_", "before_areas_", "cluster__", "cluster_", " areas_"})
     void countsUnknownMalformedAndNonLeadingPrefixes(String prefix) {
         assertDoesNotThrow(() -> validator.validate(prefix + "a".repeat(60 - prefix.length()), 60));
         assertThrows(BusinessException.class,

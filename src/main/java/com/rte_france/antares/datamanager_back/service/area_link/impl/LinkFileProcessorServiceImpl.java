@@ -16,6 +16,7 @@ import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelC
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ExcelFileType;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.LinksColumns;
+import com.rte_france.antares.datamanager_back.validation.TrajectoryValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -44,7 +45,7 @@ import static com.rte_france.antares.datamanager_back.util.excel_file_validators
 @RequiredArgsConstructor
 public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private final StudyRepository studyRepository;
-    private static final int LINKS_FILE_NAME_MAX_SIZE = 40;
+    private static final int LINKS_FILE_NAME_MAX_SIZE = TrajectoryValidator.DEFAULT_MAX_LENGTH;
     private final LinkRepository linkRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final WarningService warningService;
@@ -165,8 +166,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
 
     public TrajectoryEntity saveTrajectory(TrajectoryEntity trajectory, List<LinkEntity> linkEntities, Set<WarningMessageEntity> warningMessages) {
-        if (trajectory.getFileName() != null && trajectory.getFileName().length() > LINKS_FILE_NAME_MAX_SIZE) {
-            throw BusinessException.builder().message("Trajectory name cannot exceed 40 characters.").build();
+        if (trajectory.getFileName() != null) {
+            TrajectoryValidator.validateTrajectoryName(trajectory.getFileName(), LINKS_FILE_NAME_MAX_SIZE);
         }
 
         TrajectoryEntity trajectoryEntity = trajectoryRepository.save(trajectory);

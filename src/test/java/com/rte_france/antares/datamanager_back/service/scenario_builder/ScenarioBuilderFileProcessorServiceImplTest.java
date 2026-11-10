@@ -231,7 +231,7 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
     @Test
     void processScenarioBuilderFile_trajectoryNameTooLong_shouldThrowBusinessException() {
-        String longTrajectoryName = "scenario_builder_very_long_name_exceeding_forty_characters_limit";
+        String longTrajectoryName = "scenario_builder_" + "a".repeat(61);
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 scenarioBuilderFileProcessorService.processScenarioBuilderFile(
@@ -240,7 +240,8 @@ class ScenarioBuilderFileProcessorServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals(AntaresErrorCode.INVALID_TRAJECTORY_NAME, exception.getAntaresErrorCode());
-        assertEquals("Trajectory name cannot exceed 40 characters", exception.getMessage());
+        assertEquals("Trajectory name cannot exceed 60 characters excluding its prefix 'scenario_builder_'",
+                exception.getMessage());
     }
 
     @Test
