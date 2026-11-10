@@ -4,10 +4,13 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +27,25 @@ class TrajectoryRepositoryTest {
 
     @Autowired
     private TrajectoryRepository trajectoryRepository;
+
+    @ParameterizedTest
+    @ValueSource(ints = {69, 255})
+    @Transactional
+    void saveAndReadTrajectoryWithLongFileName_preservesFullName(int length) {
+        String fileName = "talon_nuc_" + "a".repeat(length - "talon_nuc_".length());
+        TrajectoryEntity trajectory = trajectoryRepository
+                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("testFile.txt", "2023-2024", "AREA")
+                .orElseThrow();
+        trajectory.setFileName(fileName);
+        trajectoryRepository.flush();
+
+        assertThat(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                fileName, "2023-2024", trajectory.getType()))
+                .isPresent()
+                .get()
+                .extracting(TrajectoryEntity::getFileName)
+                .isEqualTo(fileName);
+    }
 
     @Test
     void findFirstByFileNameOrderByVersionDesc_returnsTrajectoryEntity() {
@@ -131,5 +153,3 @@ class TrajectoryRepositoryTest {
 
 
 }
-
-

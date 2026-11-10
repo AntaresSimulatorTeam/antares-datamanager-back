@@ -7,6 +7,8 @@ import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -174,6 +176,23 @@ class TrajectoryValidationAspectTest {
 
         verify(trajectoryValidator).validate(trajectory1, 60);
         verify(trajectoryValidator).validate(trajectory2, 60);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"methodWithValidTrajectoryName, 60", "methodWithCustomMaxLength, 50"})
+    void validateTrajectoryName_withRealValidator_excludesPrefixWithoutChangingArgument(String methodName, int limit) {
+        TrajectoryValidationAspect realAspect = new TrajectoryValidationAspect(new TrajectoryValidator());
+        String trajectoryName = "repartition_techno_" + "a".repeat(limit);
+        Object[] args = {trajectoryName};
+        when(joinPoint.getTarget()).thenReturn(new TestController());
+        when(signature.getName()).thenReturn(methodName);
+        when(joinPoint.getArgs()).thenReturn(args);
+
+        assertDoesNotThrow(() -> realAspect.validateTrajectoryName(joinPoint));
+        assertSame(trajectoryName, args[0]);
+
+        args[0] = trajectoryName + "a";
+        assertThrows(BusinessException.class, () -> realAspect.validateTrajectoryName(joinPoint));
     }
 
     /* Test Controller with various method signatures for testing */

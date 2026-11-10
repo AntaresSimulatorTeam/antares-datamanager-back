@@ -33,6 +33,7 @@ public class TrajectoryEntity {
     @SequenceGenerator(name = "trajectory_seq_gen", sequenceName = "trajectory_sequence", allocationSize = 1)
     private Integer id;
 
+    @Column(name = "file_name")
     private String fileName;
 
     private Long fileSize;

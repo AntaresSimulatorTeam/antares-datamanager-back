@@ -31,7 +31,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
+import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.*;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDecimal;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
@@ -174,10 +174,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private Path validateAndGetTrajectoryFilePath(Path trajectoryFolder, String trajectoryToUse, String technology) throws IOException {
         if (technology != null && !technology.isBlank()) {
             Path technologyFolder = resolveTechnologyFolder(trajectoryFolder, technology);
-            
+
             // Validate that at least one subdirectory contains CSV files
             validateSubdirectoryHasCsvFiles(technologyFolder, technology);
-            
+
             return technologyFolder;
         } else {
             // Validate all 4 required technologies exist
@@ -191,7 +191,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
      */
     private void validateSubdirectoryHasCsvFiles(Path technologyFolder, String technology) throws IOException {
         List<Path> subFolders = getAllSubdirectories(technologyFolder);
-        
+
         boolean hasValidSubFolder = subFolders.stream()
                 .anyMatch(subFolder -> {
                     try {
@@ -200,7 +200,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                         return false;
                     }
                 });
-        
+
         if (!hasValidSubFolder) {
             throw BusinessException.builder()
                     .message("No subdirectory with CSV files found for technology: " + technology)
@@ -264,12 +264,12 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
           // Construire la trajectoire complète AVANT la validation
           TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, filePath, TrajectoryType.RES_TECHNOLOGY_DISTRIBUTION, result);
-          
+
           // Valider la cohérence IP/TD AVANT le save (inclut la trajectoire en cours d'import)
           resCoherenceCheckService.validateIPTDCoherence(studyId, trajectory);
           resCoherenceCheckService.validateLFDTCoherence(studyId, trajectory);
         resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-          
+
           // Sauvegarder uniquement si validation OK
           return trajectoryRepository.save(trajectory);
      }
@@ -329,10 +329,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
          // Construire la trajectoire complète AVANT la validation
          TrajectoryEntity trajectory = buildCompleteTrajectory(horizon, areaParam, technology, filePath, TrajectoryType.RES_ZONAL_DISTRIBUTION, result);
-         
+
          // Valider la cohérence entre Distribution Technology et Distribution Zonal (clé: area/group/zone PECD)
          resCoherenceCheckService.validateDTDZCoherence(studyId, trajectory);
-         
+
          // Sauvegarder uniquement si validation OK
          return trajectoryRepository.save(trajectory);
      }
@@ -340,7 +340,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
     /**
      * Vérifie si trajectoryFolder contient les 4 répertoires technologies requises.
-     * Pour chaque technologie, récupère tous les sous-répertoires et vérifie 
+     * Pour chaque technologie, récupère tous les sous-répertoires et vérifie
      * qu'au moins un contient des fichiers CSV.
      */
     public void checkAllRequiredTechnologiesExist(Path trajectoryFolder, String trajectoryToUse) throws IOException {
@@ -364,10 +364,10 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             try {
                 // Get the actual technology folder path (this validates that it exists)
                 Path techFolder = resolveTechnologyFolder(trajectoryFolder, technology);
-                
+
                 // Get all subdirectories under the technology folder
                 List<Path> subFolders = getAllSubdirectories(techFolder);
-                
+
                 // Check if at least one subdirectory contains CSV files
                 boolean hasValidSubFolder = subFolders.stream()
                         .anyMatch(subFolder -> {
@@ -377,7 +377,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                                 return false;
                             }
                         });
-                
+
                 if (!hasValidSubFolder) {
                     missingTechnologies.add(technology);
                 }
@@ -465,7 +465,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        
+
         return techFolder;
     }
     // ...existing code...
@@ -1149,7 +1149,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
                 trajectoryType,
                 result
         );
-        
+
         return trajectoryRepository.save(trajectory);
     }
 
