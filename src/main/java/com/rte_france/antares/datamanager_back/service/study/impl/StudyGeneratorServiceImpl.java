@@ -211,6 +211,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     }
 
+    @ExecutionTime
     private Map<String, Object> buildInnerGeneratorMap(StudyEntity study, TrajectoryDispatchResult dispatchResult,
                                                          Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         Map<String, Object> areasMap = dispatchResult.areasMap();

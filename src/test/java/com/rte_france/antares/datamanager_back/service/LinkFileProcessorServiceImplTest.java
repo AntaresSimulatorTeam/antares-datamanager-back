@@ -577,13 +577,13 @@ class LinkFileProcessorServiceImplTest {
     @Test
     void saveTrajectory_shouldThrowExceptionWhenFileNameExceedsMaxLength() {
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .fileName("ThisFileNameIsWayTooLongToBeAcceptedByTheSystemAndShouldFail")
+                .fileName("links_" + "a".repeat(61))
                 .build();
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 linkFileProcessorService.saveTrajectory(trajectory, List.of(), Set.of()));
 
-        assertEquals("Trajectory name cannot exceed 40 characters.", exception.getMessage());
+        assertEquals("Trajectory name cannot exceed 60 characters excluding its prefix 'links_'", exception.getMessage());
     }
 
     @Test

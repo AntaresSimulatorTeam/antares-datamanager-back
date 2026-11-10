@@ -387,7 +387,7 @@ class TrajectoryControllerTest {
 
     @Test
     void whenTrajectoryToUseTooLong_thenBusinessException() throws Exception {
-        String longTrajectory = "a".repeat(61);
+        String longTrajectory = "areas_" + "a".repeat(61);
 
         mockMvc.perform(post("/v1/trajectory")
                         .param("trajectoryType", "AREA")
@@ -397,7 +397,7 @@ class TrajectoryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.antaresErrorMessage")
-                        .value("Trajectory name cannot exceed 60 characters"))
+                        .value("Trajectory name cannot exceed 60 characters excluding its prefix 'areas_'"))
                 .andExpect(jsonPath("$.type").value("BUSINESS"));
     }
 
