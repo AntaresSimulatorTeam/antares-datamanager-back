@@ -26,8 +26,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_CAPACITY_PREFIX;
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
+import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.RES_CAPACITY_PREFIX;
+import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.RES_TECHNOLOGY_DISTRIBUTION_PREFIX;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.checkNumericDataCMorMR;
 import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.junit.jupiter.api.Assertions.*;

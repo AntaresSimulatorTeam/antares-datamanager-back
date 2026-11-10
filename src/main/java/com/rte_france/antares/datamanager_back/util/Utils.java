@@ -49,6 +49,7 @@ import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
+import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.*;
 import static java.util.regex.Pattern.compile;
 
 
@@ -59,16 +60,6 @@ import static java.util.regex.Pattern.compile;
 @UtilityClass
 public class Utils {
 
-    private static final String AREAS_PREFIX = "areas_";
-    private static final String LINKS_PREFIX = "links_";
-    private static final String THERMAL_PREFIX = "thermal_";
-    private static final String THERMAL_COMMON_PREFIX = "common_param_";
-    private static final String THERMAL_SPECIFIC_PREFIX = "specific_param_";
-    private static final String THERMAL_ECONOMIC_PREFIX = "economic_param_";
-    private static final String THERMAL_ECONOMIC_COST_PREFIX = "costs_";
-    private static final String DSR_PREFIX = "cluster_DSR_";
-    private static final String DSR_CAPACITY_MODULATION = "cm_";
-    private static final String MISC_CAPACITY_PREFIX = "installedMisc_";
     private static final String HORIZON_PATTERN= "^\\d{4}-\\d{4}$";
     private static final String SHA_256 = "SHA-256";
     private static final String ERROR_PROCESSING_FILE = "Error processing file: ";
@@ -250,7 +241,7 @@ public class Utils {
         } else if (Objects.equals(trajectoryType, TrajectoryType.LINK.toString())) {
             prefix = LINKS_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_CAPACITY.toString())) {
-            prefix = THERMAL_PREFIX;
+            prefix = THERMAL_CAPACITY_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.toString())) {
             prefix = THERMAL_COMMON_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.toString())) {
@@ -262,7 +253,7 @@ public class Utils {
         } else if (Objects.equals(trajectoryType, TrajectoryType.DSR.toString())) {
             prefix = DSR_PREFIX;
         } else if (Objects.equals(trajectoryType, TrajectoryType.DSR_CAPACITY_MODULATION.toString())) {
-            prefix = DSR_CAPACITY_MODULATION;
+            prefix = DSR_CAPACITY_PREFIX;
         } else if (Objects.equals(trajectoryType, MISC_CAPACITY.toString())) {
             prefix = MISC_CAPACITY_PREFIX;
         } else if (Objects.equals(trajectoryType, RES_CAPACITY.toString())) {

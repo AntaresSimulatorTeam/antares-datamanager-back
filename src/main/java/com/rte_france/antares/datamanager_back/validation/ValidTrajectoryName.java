@@ -8,5 +8,9 @@ import java.lang.annotation.Target;
 @Target({ElementType.PARAMETER, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidTrajectoryName {
+    /**
+     * Maximum name length after excluding one recognized leading trajectory prefix.
+     * Prefix matching is case-insensitive; the original argument remains unchanged.
+     */
     int maxLength() default 60;
 }

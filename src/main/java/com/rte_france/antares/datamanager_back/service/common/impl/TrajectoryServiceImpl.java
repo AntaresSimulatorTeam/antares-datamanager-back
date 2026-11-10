@@ -55,6 +55,7 @@ import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.HYDRO_TYPES;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
+import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.*;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 
@@ -127,28 +128,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
 
 
-    private static final String AREAS_PREFIX = "areas_";
-    private static final String LINKS_PREFIX = "links_";
-    private static final String SPECIFIC_PREFIX = "specific_param_";
-    private static final String COMMON_PREFIX = "common_param_";
-    private static final String CAPACITY_PREFIX = "thermal_";
-    private static final String ECONOMIC_COST_PREFIX = "costs_";
-    private static final String ECONOMIC_PREFIX = "economic_param_";
-    private static final String STS_PREFIX = "cluster_";
-    private static final String DSR_PREFIX = "cluster_dsr_";
-    private static final String DSR_CAPACITY_PREFIX = "cm_";
-    private static final String MISC_CAPACITY_PREFIX = "installedmisc_";
     private static final String FILE_ALREADY_PROCESSED_WITH_SAME_CONTENT = "File already processed with same content {0}";
-    public static final String RES_CAPACITY_PREFIX = "installedres_";
-    public static final String RES_ZONAL_DISTRIBUTION_PREFIX = "repartition_zonale_";
-    public static final String RES_TECHNOLOGY_DISTRIBUTION_PREFIX = "repartition_techno_";
-    private static final String NUCLEAR_TALON_PREFIX = "talon_nuc_";
-    private static final String NUCLEAR_EPR_PREFIX = "ts_epr_";
-    private static final String NUCLEAR_SMR_PREFIX = "ts_smr_";
     private static final String NUCLEAR_EPR_FOLDER = "epr";
     private static final String NUCLEAR_SMR_FOLDER = "smr";
-    public static final String SETTINGS_PREFIX = "general_data_";
-    public static final String SCENARIO_BUILDER_PREFIX = "scenario_builder_";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
     @Transactional(rollbackFor = {IOException.class})
@@ -286,9 +268,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
      */
     @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
-        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(CAPACITY_PREFIX)) {
+        if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(THERMAL_CAPACITY_PREFIX)) {
             throw BusinessException.builder()
-                    .message("The trajectory file name must start with '" + CAPACITY_PREFIX + "'")
+                    .message("The trajectory file name must start with '" + THERMAL_CAPACITY_PREFIX + "'")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -561,14 +543,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         String fileName = path.getFileName().toString().toLowerCase();
         String technologyPrefix = (technology == null ? "" : technology.toLowerCase() + "_");
         return switch (trajectoryType) {
-            case THERMAL_CAPACITY -> fileName.startsWith(CAPACITY_PREFIX);
-            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(SPECIFIC_PREFIX);
-            case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(COMMON_PREFIX);
+            case THERMAL_CAPACITY -> fileName.startsWith(THERMAL_CAPACITY_PREFIX);
+            case THERMAL_TECHNICAL_SPECIFIC_PARAMETER -> fileName.startsWith(THERMAL_SPECIFIC_PREFIX);
+            case THERMAL_TECHNICAL_COMMON_PARAMETER -> fileName.startsWith(THERMAL_COMMON_PREFIX);
             case LOAD, LOAD_ME, MISC_LOAD, RES_LOAD, THERMAL_TECHNICAL_MODULATION_PARAMETER, HYDRO_SERIES,
                  HYDRO_TECHNICAL_PARAMETERS, HYDRO_PSP_SERIES, HYDRO_PSP_TECHNICAL_PARAMETERS, NUCLEAR_FR_MODULATION,
                  NUCLEAR_FR_TS_LONG_TERM, HYDRO_RESERVOIR_LEVELS_ME, HYDRO_TIME_SERIES_ME, HYDRO_WATER_VALUES_ME -> Files.isDirectory(path);
-            case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(ECONOMIC_COST_PREFIX);
-            case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(ECONOMIC_PREFIX);
+            case THERMAL_ECONOMIC_COST_PARAMETER -> fileName.startsWith(THERMAL_ECONOMIC_COST_PREFIX);
+            case THERMAL_ECONOMIC_PARAMETER -> fileName.startsWith(THERMAL_ECONOMIC_PREFIX);
             case DSR -> fileName.startsWith(DSR_PREFIX);
             case DSR_CAPACITY_MODULATION -> fileName.startsWith(DSR_CAPACITY_PREFIX);
             case STS -> fileName.matches("^" + Pattern.quote(STS_PREFIX) + "(?i:" + Pattern.quote(technology) + ")_.*");
