@@ -91,6 +91,7 @@ public class StudyController {
     }
 
     @Operation(summary = "Update a study that is not generated yet (name, project name, keywords)")
+    @CheckStudyGenerationInProgress
     @PutMapping("/{id}")
     public ResponseEntity<StudyDTO> updateStudy(
             @PathVariable Integer id,
