@@ -377,6 +377,16 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
                         winterHPDirect, winterHPIndirect, winterHCDirect, winterHCIndirect,
                         summerHPDirect, summerHPIndirect, summerHCDirect, summerHCIndirect);
 
+                Boolean hurdlesCost = Utils.getBooleanCellOrDefault(
+                        row, columnIndexMap.getOrDefault("hurdles_cost", 9), false);
+                if (hurdlesCost == null) {
+                    throw BusinessException.builder()
+                            .message("hurdles_cost for link {0} is not boolean in Flowbased trajectory {1}")
+                            .errorMessageArguments(List.of(name, trajectoryFilePath.getFileName().toString()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+
                 FlowbasedLinkCapacityEntity entity = FlowbasedLinkCapacityEntity.builder()
                         .name(name)
                         .winterHPDirectMW(winterHPDirect.getValue())
@@ -387,7 +397,7 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
                         .summerHPIndirectMW(summerHPIndirect.getValue())
                         .summerHCDirectMW(summerHCDirect.getValue())
                         .summerHCIndirectMW(summerHCIndirect.getValue())
-                        .hurdlesCost(getBooleanCellValue(row, columnIndexMap.getOrDefault("hurdles_cost", 9)))
+                        .hurdlesCost(hurdlesCost)
                         .type(overallType)
                         .build();
                 result.add(entity);
@@ -535,16 +545,6 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
                 .build();
     }
 
-    private Boolean getBooleanCellValue(Row row, int cellIndex) {
-        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-        if (cell == null) return false;
-
-        if (cell.getCellType() == CellType.BOOLEAN) {
-            return cell.getBooleanCellValue();
-        }
-        return false;
-    }
-
     protected FlowbasedLinkCapacityType determineOverallType(
             IntegerCellValue winterHPDirect,
             IntegerCellValue winterHPIndirect,
@@ -564,15 +564,12 @@ public class FlowbasedFileProcessorServiceImpl implements FlowbasedFileProcessor
         // Count each type
         int infiniteCount = 0;
         int enabledCount = 0;
-        int disabledCount = 0;
 
         for (IntegerCellValue cellValue : values) {
             if (cellValue.getType() == FlowbasedLinkCapacityType.INFINITE) {
                 infiniteCount++;
             } else if (cellValue.getType() == FlowbasedLinkCapacityType.ENABLED) {
                 enabledCount++;
-            } else if (cellValue.getType() == FlowbasedLinkCapacityType.DISABLED) {
-                disabledCount++;
             }
         }
 

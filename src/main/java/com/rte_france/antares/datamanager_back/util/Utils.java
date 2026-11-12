@@ -69,6 +69,8 @@ public class Utils {
     private static final String DSR_PREFIX = "cluster_DSR_";
     private static final String DSR_CAPACITY_MODULATION = "cm_";
     private static final String MISC_CAPACITY_PREFIX = "installedMisc_";
+    private static final Set<String> TRUE_VALUES= Set.of("true", "vrai", "oui", "yes", "1");
+    private static final Set<String> FALSE_VALUES = Set.of("false", "faux", "non", "no", "0");
     private static final String HORIZON_PATTERN= "^\\d{4}-\\d{4}$";
     private static final String SHA_256 = "SHA-256";
     private static final String ERROR_PROCESSING_FILE = "Error processing file: ";
@@ -964,15 +966,13 @@ public class Utils {
         return s;
     }
 
+    @Nullable
     private Boolean parseBooleanString(String s) {
         if (s == null) return null;
         s = s.trim().toLowerCase(Locale.ROOT);
         if (s.isEmpty()) return null;
-
-        if (s.equals("true")) return true;
-        if (s.equals("false")) return false;
-        if (s.equals("1")) return true;
-        if (s.equals("0")) return false;
+        if (TRUE_VALUES.contains(s)) return true;
+        if(FALSE_VALUES.contains(s)) return false;
 
         return null;
     }
@@ -991,7 +991,7 @@ public class Utils {
                     case BOOLEAN:
                         return cell.getBooleanCellValue();
                     case NUMERIC:
-                        return cell.getNumericCellValue() == 1.0 || cell.getNumericCellValue() == 1;
+                        return parserBooleanNumber(cell.getNumericCellValue());
                     case STRING:
                         return parseBooleanString(cell.getStringCellValue());
                     default:
@@ -1002,7 +1002,7 @@ public class Utils {
                 return parseBooleanString(cell.getStringCellValue());
 
             case NUMERIC:
-                return cell.getNumericCellValue() == 1.0 || cell.getNumericCellValue() == 1;
+                return parserBooleanNumber(cell.getNumericCellValue());
 
             default:
                 return null;
@@ -1928,8 +1928,7 @@ public class Utils {
     public static boolean isBooleanStringValue(String value) {
         if (value == null) return false;
         String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
-        return "true".equals(normalized) || "false".equals(normalized) || "1".equals(normalized)
-                || "0".equals(normalized);
+        return TRUE_VALUES.contains(normalized) || FALSE_VALUES.contains(normalized);
     }
 
     public Path buildTrajectoryPath(String nasDir, String trajFilePath, String directoryByType, String trajectoryToUse) throws IOException {
@@ -2014,5 +2013,20 @@ public class Utils {
         }
 
         return areaNames;
+    }
+
+    public Boolean getBooleanCellOrDefault(Row row, int index, Boolean defaultValue){
+        var cell = row.getCell(index);
+        if(cell == null || cell.getCellType() == CellType.BLANK){
+            return defaultValue;
+        }
+        return getBooleanCell(row, index);
+    }
+
+    @Nullable
+    private Boolean parserBooleanNumber(double n){
+        if(n == 1d) return true;
+        if(n == 0d) return false;
+        return null;
     }
 }

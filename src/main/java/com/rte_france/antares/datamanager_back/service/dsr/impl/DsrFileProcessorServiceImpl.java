@@ -9,7 +9,6 @@ import com.rte_france.antares.datamanager_back.repository.model.DsrClusterEntity
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.dsr.DsrFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
-import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.DsrClusterColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ import java.nio.file.Path;
 import java.util.*;
 
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
-import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castInt;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
 
@@ -184,7 +182,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
     }
 
     private void validateBooleanValue(Row row, int idx, String rowArea, String clusterName, String trajectoryFileName) {
-        if (getBooleanCell(row, idx) == null) {
+        if (getBooleanCellOrDefault(row, idx, false) == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
                     .message("Modulation for node {0} / cluster {1} are not boolean in DSR trajectory {2}")
@@ -216,22 +214,13 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
                 // Zone must be present
                 validateRow(rowArea, trajectoryFileName, r);
 
-                Boolean toUse = ExcelCommonValidator.getBooleanCellValue(row.getCell(0)).orElse(null);
+                Boolean toUse = getBooleanCellOrDefault(row, 0, false);
                 if (toUse == null || !toUse) continue;
 
                 fileAreas.add(rowArea);
-
                 if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
                     continue;
                 }
-
-                Object value = getCellValue(row, 0);
-                Integer intValue = (value != null) ? castInt(value) : null;
-
-                if (intValue == null || intValue == 0) {
-                    continue;
-                }
-
                 String clusterName = getStringCellValue(row, 2);
 
                 // Cluster name should not exceed 40 characters
@@ -278,7 +267,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
 
         dsrClusterEntity.setArea(rowArea);
         dsrClusterEntity.setName(clusterName);
-        dsrClusterEntity.setToUse(getBooleanCell(row, 0));
+        dsrClusterEntity.setToUse(getBooleanCellOrDefault(row, 0, false));
         dsrClusterEntity.setCapacity(BigDecimal.valueOf(row.getCell(3).getNumericCellValue()));
         dsrClusterEntity.setNbHourPerDay((int) row.getCell(4).getNumericCellValue());
         dsrClusterEntity.setMaxHourPerDay((int) row.getCell(5).getNumericCellValue());
@@ -286,7 +275,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         dsrClusterEntity.setNbUnits((int) row.getCell(7).getNumericCellValue());
         dsrClusterEntity.setFoRate(BigDecimal.valueOf(row.getCell(8).getNumericCellValue()));
         dsrClusterEntity.setFoDuration((int) row.getCell(9).getNumericCellValue());
-        dsrClusterEntity.setModulation(getBooleanCell(row, 10));
+        dsrClusterEntity.setModulation(getBooleanCellOrDefault(row, 10, false));
         return dsrClusterEntity;
     }
 }
