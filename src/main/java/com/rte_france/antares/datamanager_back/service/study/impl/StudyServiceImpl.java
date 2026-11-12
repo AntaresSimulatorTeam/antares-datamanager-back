@@ -498,7 +498,8 @@ public class StudyServiceImpl implements StudyService {
     }
 
     private void ensureNotGenerated(StudyEntity study) {
-        if (StudyStatus.GENERATED.equals(study.getStatus())) {
+        if (StudyStatus.GENERATED.equals(study.getStatus())
+                || StudyStatus.GENERATION_INPROGRESS.equals(study.getStatus())) {
             throw BusinessException.builder()
                     .message("Only studies with status IN_PROGRESS can be updated.")
                     .httpStatus(HttpStatus.BAD_REQUEST)

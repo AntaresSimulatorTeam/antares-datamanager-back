@@ -406,6 +406,22 @@ class StudyServiceImplTest {
     }
 
     @Test
+    void updateStudy_throwsBadRequest_whenStatusGenerationInProgress() {
+        var study = StudyEntity.builder()
+                .id(1)
+                .status(StudyStatus.GENERATION_INPROGRESS)
+                .build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        var dto = StudyDTO.builder().project("P").build();
+        var ex = assertThrows(BusinessException.class,
+                () -> studyServiceImpl.updateStudy(1, dto));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+    }
+
+    @Test
     void updateStudy_throwsConflict_whenSameNameExistsInTargetProject() {
         var study = StudyEntity.builder()
                 .id(1)
