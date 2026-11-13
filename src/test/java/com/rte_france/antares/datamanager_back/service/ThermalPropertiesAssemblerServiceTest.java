@@ -612,6 +612,44 @@ class ThermalPropertiesAssemblerServiceTest {
     }
 
     @Test
+    void assembleForTrajectory_handlesNullRatioForMatchingFuel() {
+        var capacity = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_CAPACITY.name())
+                .thermalClusterCapacities(List.of(
+                        cap(gasRef, CategoryEnum.POWER, 100.0, true).toBuilder().area("FR").build(),
+                        cap(gasRef, CategoryEnum.NUMBER, 1.0, true).toBuilder().area("FR").build()))
+                .build();
+        var common = params(gasRef, 0.4, 3, 2, 0.5, 7.2);
+        common.setFuel("gas");
+        common.setCo2(50.0);
+        var commonTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_TECHNICAL_COMMON_PARAMETER.name())
+                .thermalCommonParameters(List.of(common)).build();
+        var gasCost = ThermalCostEntity.builder()
+                .thermalType(ThermalCostTypeEntity.builder().fuel("GAS").build())
+                .cost(BigDecimal.valueOf(40)).build();
+        var costs = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_COST_PARAMETER.name())
+                .thermalCosts(List.of(gasCost)).build();
+        var economic = TrajectoryEntity.builder()
+                .type(TrajectoryType.THERMAL_ECONOMIC_PARAMETER.name())
+                .horizon("2025")
+                .thermalEconomicEnerContents(List.of(ThermalEconomicEnerContentEntity.builder().unit("mwht/gj").build()))
+                .thermalEconomicCo2s(List.of(ThermalEconomicCo2Entity.builder()
+                        .fuel("gas").year(2025).co2EmissionFuel(BigDecimal.valueOf(100)).build()))
+                .build();
+        when(groupMappingService.toGroup("Gas1")).thenReturn(Optional.of("GAS"));
+        var study = StudyEntity.builder().trajectories(Set.of(capacity, commonTrajectory, costs, economic)).build();
+
+        var result = service.assembleThermalForTrajectories(study);
+        assertThat(result.get(new AreaClusterRefKey("FR", gasRef)).getCo2()).isEqualTo(0.36);
+
+        common.setCo2(null);
+        result = service.assembleThermalForTrajectories(study);
+        assertThat(result.get(new AreaClusterRefKey("FR", gasRef)).getCo2()).isEqualTo(0.2);
+    }
+
+    @Test
     void assembleForTrajectory_returnsNullCo2WhenNoLink() {
         // given
         var capTraj = TrajectoryEntity.builder()

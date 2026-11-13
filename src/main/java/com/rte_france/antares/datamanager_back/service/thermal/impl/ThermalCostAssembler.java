@@ -47,8 +47,8 @@ public class ThermalCostAssembler {
                 ratioNcvHcv = economicCostTrajectory.getThermalCosts().stream()
                         .filter(tc -> tc.getThermalType() != null && fuel.equalsIgnoreCase(tc.getThermalType().getFuel()))
                         .map(ThermalCostEntity::getThermalType)
-                        .map(ThermalCostTypeEntity::getRatioNcvHcv)
                         .findFirst()
+                        .map(ThermalCostTypeEntity::getRatioNcvHcv)
                         .orElse(null);
             }
 

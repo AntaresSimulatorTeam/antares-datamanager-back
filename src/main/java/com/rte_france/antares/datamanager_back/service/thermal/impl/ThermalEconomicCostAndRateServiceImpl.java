@@ -27,7 +27,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
- import java.util.stream.Collectors;
+import java.util.stream.Collectors;
 
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
@@ -59,27 +59,26 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
+            int offset = ThermalCostSheetValidator.validate(sheet, trajectoryName);
             Row header = sheet.getRow(0);
-            if (header == null) {
+
+            Integer horizonCol = findHorizonColumnIndex(header, horizon);
+            if (horizonCol == null) {
                 throw BusinessException.builder()
-                        .message("Header row is missing in 'costs' sheet for trajectory {0}")
+                        .message("Horizon does not exist in THERMAL Costs trajectory {0} in costs tab")
                         .errorMessageArguments(List.of(trajectoryName))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
-
-            validateEconomicCostHeaderColumns(header, trajectoryFilePath);
-
-            Integer horizonCol = findHorizonColumnIndex(header, horizon);
             List<ThermalCostTypeEntity> result = new ArrayList<>();
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
-                String fuel = castString(getCellValue(row, ThermalEconomicCostColumns.FUEL.getIndex()));
+                String fuel = castString(getCellValue(row, ThermalEconomicCostColumns.FUEL.indexWithCountryOffset(offset)));
                 if (fuel == null || fuel.isBlank()) continue;
-                ThermalCostTypeEntity type = findOrCreateThermalEconomicCostType(row, header);
+                ThermalCostTypeEntity type = findOrCreateThermalEconomicCostType(row, offset);
 
-                BigDecimal costValue = CastCellUtil.castBigDecimal(getCellValue(row, horizonCol), String.valueOf(header.getCell(horizonCol).getNumericCellValue()), horizonCol);
+                BigDecimal costValue = CastCellUtil.castBigDecimal(getCellValue(row, horizonCol), horizon, r + 1);
                 Integer yearValue = parseYear(horizon);
                 if (costValue != null) {
                     ThermalCostEntity cost = ThermalCostEntity.builder()
@@ -238,16 +237,15 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
 
 
 
-    ThermalCostTypeEntity findOrCreateThermalEconomicCostType(Row row, Row header) {
-        if(row == null || header == null){
-            return null;
-        }
-        String country = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.COUNTRY.getIndex())));
-        String fuel = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.FUEL.getIndex())));
-        String comment = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.COMMENT.getIndex())));
-        String unit = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.UNIT.getIndex())));
-        String modulation = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.MODULATION.getIndex())));
-        Double ratio = castDouble(getCellValue(row, ThermalEconomicCostColumns.RATIO.getIndex()), header.getCell(ThermalEconomicCostColumns.RATIO.getIndex()).getStringCellValue(), row.getRowNum());
+    ThermalCostTypeEntity findOrCreateThermalEconomicCostType(Row row, int offset) {
+        String country = offset == 0 ? null : trimOrNull(castString(getCellValue(row, 0)));
+        String fuel = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.FUEL.indexWithCountryOffset(offset))));
+        String comment = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.COMMENT.indexWithCountryOffset(offset))));
+        String unit = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.UNIT.indexWithCountryOffset(offset))));
+        String modulation = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.MODULATION.indexWithCountryOffset(offset))));
+        Object ratioValue = getCellValue(row, ThermalEconomicCostColumns.RATIO.indexWithCountryOffset(offset));
+        Double ratio = ratioValue instanceof String text && text.isBlank()
+                ? null : castDouble(ratioValue, ThermalEconomicCostColumns.RATIO.getDisplayName(), row.getRowNum());
 
         return thermalCostTypeRepository
                 .findByCountryAndFuelAndCommentAndUnitAndModulationAndRatioNcvHcv(country, fuel, comment, unit, modulation, ratio)
@@ -274,17 +272,4 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
         }
     }
 
-    private void validateEconomicCostHeaderColumns(Row header, Path path) {
-        var allColumnNames = ThermalEconomicCostColumns.getAllColumnNames();
-        for (int i = 0; i < allColumnNames.size(); i++) {
-            Cell cell = header.getCell(i);
-            String cellValue = cell != null && cell.getCellType() == CellType.STRING
-                    ? cell.getStringCellValue().trim() : null;
-            if (cellValue == null || !cellValue.equalsIgnoreCase(allColumnNames.get(i))) {
-                throw BusinessException.builder()
-                        .message("The expected column '" + allColumnNames.get(i) + "' is missing or misplaced in the Economic Cost file " + path.getFileName())
-                        .build();
-            }
-        }
-    }
 }

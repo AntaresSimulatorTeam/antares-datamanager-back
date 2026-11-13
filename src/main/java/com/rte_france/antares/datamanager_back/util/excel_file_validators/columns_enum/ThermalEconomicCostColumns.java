@@ -19,6 +19,10 @@ public enum ThermalEconomicCostColumns {
     private final int index;
     private final String displayName;
 
+    public int indexWithCountryOffset(int offset) {
+        return this == COUNTRY ? 0 : index - 1 + offset;
+    }
+
     public static List<String> getAllColumnNames() {
         return Arrays.stream(values())
                 .map(ThermalEconomicCostColumns::getDisplayName)
