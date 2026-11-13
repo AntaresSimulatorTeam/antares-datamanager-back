@@ -9,6 +9,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.dsr.impl.DsrFileProcessorServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -16,6 +17,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
@@ -26,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -735,5 +740,129 @@ class DsrFileProcessorServiceImplTest {
             }
         }
         return file;
+    }
+
+    @Test
+    void shouldApplyDefaultFalseValueWhenBooleanCellIsBlank() throws IOException {
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            Row row = s.createRow(1);
+            row.createCell(0).setCellType(CellType.BLANK);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("DSR_industries");
+            row.createCell(3).setCellValue(2000);
+            row.createCell(4).setCellValue(12);
+            row.createCell(5).setCellValue(8);
+            row.createCell(6).setCellValue(200);
+            row.createCell(7).setCellValue(80);
+            row.createCell(8).setCellValue(0.8);
+            row.createCell(9).setCellValue(1);
+            row.createCell(10).setCellType(CellType.BLANK);
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInCluster(file, FILE_NAME_DSR_CLUSTER);
+
+        // Comme toUse devient false par défaut, la ligne est filtrée (ignorée),
+        // ce qui lève l'exception "No data in DSR Cluster trajectory..." prouvant que le défaut à false a bien fonctionné.
+        assertThatThrownBy(() ->
+                service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
+        ).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("None of the areas of trajectory AREA are present in {0} trajectory {1}");
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void shouldParseAndSetCorrectBooleanForModulation(String keyword, boolean expectedBoolean) throws IOException {
+        // GIVEN
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            Row row = s.createRow(1);
+            row.createCell(0).setCellValue(1);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("DSR_industries");
+            row.createCell(3).setCellValue(2000);
+            row.createCell(4).setCellValue(12);
+            row.createCell(5).setCellValue(8);
+            row.createCell(6).setCellValue(200);
+            row.createCell(7).setCellValue(80);
+            row.createCell(8).setCellValue(0.8);
+            row.createCell(9).setCellValue(1);
+            row.createCell(10).setCellValue(keyword);
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInCluster(file, FILE_NAME_DSR_CLUSTER);
+
+        when(userService.getCurrentUserDetails()).thenReturn(null);
+        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
+                any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // WHEN
+        TrajectoryEntity trajectory = service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR");
+
+        // THEN
+        assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getDsrClusterEntities()).hasSize(1);
+
+        DsrClusterEntity entity = trajectory.getDsrClusterEntities().getFirst();
+        assertThat(entity.getModulation()).isEqualTo(expectedBoolean);
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
+    }
+
+    @Test
+    void shouldThrowExceptionWhenBooleanKeywordIsInvalid() throws IOException {
+        // GIVEN
+        Path file = tempDir.resolve("test.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            Row row = s.createRow(1);
+            row.createCell(0).setCellValue(1);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("Dsr_industries");
+            row.createCell(3).setCellValue(2000);
+            row.createCell(4).setCellValue(12);
+            row.createCell(5).setCellValue(8);
+            row.createCell(6).setCellValue(200);
+            row.createCell(7).setCellValue(80);
+            row.createCell(8).setCellValue(0.8);
+            row.createCell(9).setCellValue(1);
+            row.createCell(10).setCellValue("invalide");
+
+            try (OutputStream os = Files.newOutputStream(file)) {
+                wb.write(os);
+            }
+        }
+        placeInCluster(file, FILE_NAME_DSR_CLUSTER);
+
+        // WHEN / THEN
+        assertThatThrownBy(() ->
+                service.processDsrClusterFile("cluster_DSR_test", "2029-2030", 1, false, "FR")
+        )
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Modulation for node {0} / cluster {1} are not boolean in DSR trajectory {2}");
     }
 }
