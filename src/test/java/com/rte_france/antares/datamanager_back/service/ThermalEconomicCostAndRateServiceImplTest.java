@@ -399,8 +399,9 @@ class ThermalEconomicCostAndRateServiceImplTest {
             );
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
-            assertEquals("Header row is missing in 'costs' sheet for trajectory {0}", exception.getMessage());
-            assertEquals(List.of("costs_trajectoryTest"), exception.getErrorMessageArguments());
+            assertEquals("Missing columns {0} in Thermal Costs trajectory {1}", exception.getMessage());
+            assertEquals(List.of("fuel, comment, unit, modulation, ratio_ncv_hcv, YYYY", "costs_trajectoryTest"),
+                    exception.getErrorMessageArguments());
         }
     }
 

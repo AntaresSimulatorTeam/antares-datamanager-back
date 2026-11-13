@@ -582,6 +582,26 @@ class ThermalCostAssemblerTest {
     }
 
     @Test
+    void ratioNcvHcv_shouldDefaultWhenFirstMatchingFuelHasNullRatio() {
+        var dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
+        var commonParam = ThermalCommonParameterEntity.builder().fuel("gas").build();
+        var nullRatioCost = ThermalCostEntity.builder()
+                .thermalType(ThermalCostTypeEntity.builder().fuel("GAS").build()).build();
+        var secondCost = ThermalCostEntity.builder()
+                .thermalType(ThermalCostTypeEntity.builder().fuel("gas").ratioNcvHcv(0.5).build()).build();
+        var economicCo2 = ThermalEconomicCo2Entity.builder()
+                .fuel("gas").year(2025).co2EmissionFuel(BigDecimal.valueOf(100)).build();
+        var trajectory = TrajectoryEntity.builder().horizon("2025")
+                .thermalCosts(List.of(nullRatioCost, secondCost))
+                .thermalEconomicCo2s(List.of(economicCo2)).build();
+        var energy = ThermalEconomicEnerContentEntity.builder().trajectory(trajectory).build();
+
+        thermalCostAssembler.computeCo2(dto, List.of(commonParam), energy, trajectory);
+
+        assertThat(dto.getCo2()).isEqualTo(0.2);
+    }
+
+    @Test
     void ratioNcvHcv_shouldBeNullWhenFuelIsNull() {
         ThermalClusterGenerationDto dto = ThermalClusterGenerationDto.builder().efficiency(50.0).build();
         ThermalCommonParameterEntity commonParam = new ThermalCommonParameterEntity();
