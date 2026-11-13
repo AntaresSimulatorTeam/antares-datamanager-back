@@ -56,6 +56,14 @@ class ThermalControlsServiceImplTest {
         return tmp;
     }
 
+    private void createCostsHeader(Sheet costs, String year) {
+        Row header = costs.createRow(0);
+        String[] columns = {"country", "fuel", "comment", "unit", "modulation", "ratio_ncv_hcv", year};
+        for (int i = 0; i < columns.length; i++) {
+            header.createCell(i).setCellValue(columns[i]);
+        }
+    }
+
     @Test
     void checkMissingClusters_shouldNotThrowExceptionWhenAllClustersArePresent() {
         Integer studyId = 1;
@@ -190,14 +198,7 @@ class ThermalControlsServiceImplTest {
             rate.createRow(1).createCell(0).setCellValue("rate1");
 
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            Row header = costs.createRow(0);
-
-            header.createCell(0).setCellValue("country");
-            header.createCell(1).setCellValue("fuel");
-            header.createCell(2).setCellValue("comment");
-            header.createCell(3).setCellValue("unit");
-            header.createCell(4).setCellValue("modulation");
-            header.createCell(5).setCellValue("2025");
+            createCostsHeader(costs, "2025");
 
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
@@ -211,14 +212,13 @@ class ThermalControlsServiceImplTest {
     void verifyCostsTrajectory_shouldThrowWhenHorizonMissingInCostsHeader() throws IOException {
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            Row header = costs.createRow(0);
-            header.createCell(5).setCellValue("OTHER"); // horizon not matching
-            costs.createRow(1).createCell(5).setCellValue(1.0); // ensure lastRowNum >=1
+            createCostsHeader(costs, "2024");
+            costs.createRow(1).createCell(6).setCellValue(1.0);
             wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE).createRow(0).createCell(0).setCellValue("H");
             wb.getSheet(ThermalControlsServiceImpl.SHEET_RATE).createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("costs tab"));
         assertTrue(ex.getErrorMessageArguments().contains("costs_testTrajectory"));
@@ -228,16 +228,15 @@ class ThermalControlsServiceImplTest {
     void verifyCostsTrajectory_shouldThrowWhenNonNumericValueInCostsData() throws IOException {
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            Row header = costs.createRow(0);
-            header.createCell(5).setCellValue("2025-2026");
+            createCostsHeader(costs, "2025");
             Row row = costs.createRow(1);
-            row.createCell(5).setCellValue("abc"); // non-numeric
+            row.createCell(6).setCellValue("abc"); // non-numeric
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
             rate.createRow(0).createCell(0).setCellValue("H");
             rate.createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "costs_testTrajectory", 1));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "costs_testTrajectory", 1));
         assertTrue(ex.getMessage().contains("must be numeric"));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
     }
@@ -246,9 +245,8 @@ class ThermalControlsServiceImplTest {
     void verifyCostsTrajectory_shouldThrowWhenRateHasNoData() throws IOException {
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            Row header = costs.createRow(0);
-            header.createCell(5).setCellValue("2025");
-            costs.createRow(1).createCell(5).setCellValue(2.0);
+            createCostsHeader(costs, "2025");
+            costs.createRow(1).createCell(6).setCellValue(2.0);
 
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
             Row rateHeader = rate.createRow(0);
@@ -268,15 +266,14 @@ class ThermalControlsServiceImplTest {
     void verifyCostsTrajectory_shouldThrowWhenRateHeaderInvalid() throws IOException {
         Path file = createWorkbook(wb -> {
             Sheet costs = wb.createSheet(ThermalControlsServiceImpl.SHEET_COSTS);
-            Row header = costs.createRow(0);
-            header.createCell(5).setCellValue("2025-2026");
-            costs.createRow(1).createCell(5).setCellValue(2.0);
+            createCostsHeader(costs, "2025");
+            costs.createRow(1).createCell(6).setCellValue(2.0);
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
             rate.createRow(0).createCell(0).setCellValue("c1"); // only 1 cell -> lastCellNum<2
             rate.createRow(1).createCell(0).setCellValue("x");
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                thermalControlsService.verifyCostsTrajectory("2025-2026", file, "CostTraj", 1));
+                thermalControlsService.verifyCostsTrajectory("2025", file, "CostTraj", 1));
         assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
         assertTrue(ex.getMessage().contains("rate tab"));
     }

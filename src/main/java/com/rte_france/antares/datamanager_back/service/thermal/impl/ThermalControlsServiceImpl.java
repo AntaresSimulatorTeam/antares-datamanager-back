@@ -183,6 +183,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
             Sheet costsSheet = workbook.getSheet(SHEET_COSTS);
             Sheet rateSheet = workbook.getSheet(SHEET_RATE);
             validateCostsAndRateSheets(costsSheet, rateSheet, trajectoryName);
+            ThermalCostSheetValidator.validate(costsSheet, trajectoryName);
 
             Map<String, Sheet> sheetsByName = Map.of(
                     SHEET_COSTS, costsSheet,
