@@ -640,10 +640,10 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String interMonthlyBreakdown = getStringNumberCell(row, 3);
         String initializeReservoirDate = getStringNumberCell(row, 4);
         String pumpingEfficiency = getStringNumberCell(row, 5);
-        Boolean reservoir = Utils.getBooleanCellOrDefault(row,6, null);
+        Boolean reservoir = Utils.getBooleanCellOrNull(row,6);
         String reservoirCapacity = getStringNumberCell(row, 7);
-        Boolean followLoad = Utils.getBooleanCellOrDefault(row,8, null);
-        Boolean useWater = Utils.getBooleanCellOrDefault(row,9, null);
+        Boolean followLoad = Utils.getBooleanCellOrNull(row,8);
+        Boolean useWater = Utils.getBooleanCellOrNull(row,9);
 
         if (!shouldProcessArea(context, area)) return;
 
