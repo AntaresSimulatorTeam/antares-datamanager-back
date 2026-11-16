@@ -287,7 +287,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     
     private ConstraintRowData extractConstraintRowData(Row row) {
         return ConstraintRowData.builder()
-                .enabled(getBooleanCellOrDefault(row, ConstraintMeColumns.ENABLED.getIndex(), null))
+                .enabled(getBooleanCellOrNull(row, ConstraintMeColumns.ENABLED.getIndex()))
                 .sign(getCellStringValue(row, ConstraintMeColumns.SIGN.getIndex()))
                 .temporality(getCellStringValue(row, ConstraintMeColumns.TEMPORALITY.getIndex()))
                 .type(getCellStringValue(row, ConstraintMeColumns.TYPE.getIndex()))
