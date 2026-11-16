@@ -51,7 +51,6 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     private static final String MSG_AREA_NOT_IN_STUDY = "Area {0} in group {1} does not exist in the AREA trajectory";
     private static final String MSG_TAB_EMPTY = "{0} Tab cant be empty in CONSTRAINTS_ME trajectory {1}";
     private static final String MSG_COLUMN_EMPTY = "{0} column in listArea_desc tab can't be empty in CONSTRAINTS_ME trajectory {1}";
-    private static final String ENABLED_VALUE = "YES";
     private static final String HORIZON_PATTERN = "^\\d{4}-\\d{4}$";
 
     private final TrajectoryRepository trajectoryRepository;
@@ -130,7 +129,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         return savedTrajectory;
     }
 
-    private void insertConstraintMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory, Integer studyId) throws IOException {
+    private void insertConstraintMeData(Workbook workbook, String horizon, TrajectoryEntity trajectory, Integer studyId) {
         String horizonYear = extractHorizonYear(horizon);
         
         Set<String> groupAreaNames = processListAreaDescSheet(workbook, trajectory, studyId);
@@ -288,7 +287,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
     
     private ConstraintRowData extractConstraintRowData(Row row) {
         return ConstraintRowData.builder()
-                .enabled(ENABLED_VALUE.equalsIgnoreCase(getCellStringValue(row, ConstraintMeColumns.ENABLED.getIndex())))
+                .enabled(getBooleanCellOrDefault(row, ConstraintMeColumns.ENABLED.getIndex(), null))
                 .sign(getCellStringValue(row, ConstraintMeColumns.SIGN.getIndex()))
                 .temporality(getCellStringValue(row, ConstraintMeColumns.TEMPORALITY.getIndex()))
                 .type(getCellStringValue(row, ConstraintMeColumns.TYPE.getIndex()))
@@ -372,7 +371,7 @@ public class ConstraintMeFileProcessorServiceImpl implements ConstraintMeFilePro
         return trajectoryFilePath;
     }
 
-    private void validateConstraintMeExcelFile(Workbook workbook, String trajectoryName, String horizon) throws IOException {
+    private void validateConstraintMeExcelFile(Workbook workbook, String trajectoryName, String horizon) {
         List<String> missingTabs = collectMissingTabs(workbook, horizon);
         
         if (!missingTabs.isEmpty()) {

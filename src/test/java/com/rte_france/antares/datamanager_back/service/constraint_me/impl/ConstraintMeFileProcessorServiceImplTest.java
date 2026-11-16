@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.TestConstants;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.multi_energy.impl.MultiEnergyCoherenceCheckServiceImpl;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
@@ -16,6 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -26,11 +30,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -1344,5 +1351,70 @@ class ConstraintMeFileProcessorServiceImplTest {
                 .lastModificationContentDate(LocalDateTime.now())
                 .checksum("test_checksum")
                 .build();
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void shouldParseAndSetCorrectBooleanForEnabled(String keyword, boolean expectedBoolean) throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2026-2027";
+
+        Path filePath = tempDir.resolve(trajectoryName + ".xlsx");
+        Workbook workbook = new XSSFWorkbook();
+
+        workbook.createSheet("listArea_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listArea_desc").createRow(1).createCell(0).setCellValue("AT");
+        workbook.createSheet("listCluster_desc").createRow(0).createCell(0).setCellValue("Group");
+        workbook.getSheet("listCluster_desc").createRow(1).createCell(0).setCellValue("Cluster1");
+
+        Sheet horizonSheet = workbook.createSheet("2027");
+        Row headerRow = horizonSheet.createRow(0);
+        for (int i = 0; i < 12; i++) {
+            headerRow.createCell(i).setCellValue("Header" + i);
+        }
+
+        Row dataRow = horizonSheet.createRow(1);
+        dataRow.createCell(0).setCellValue("TestConstraint");
+        dataRow.createCell(1).setCellValue(keyword); // keyword under test for "Enabled"
+
+        saveWorkbook(workbook, filePath);
+
+        setupMocks(tempDir.toString(), "", "");
+        when(userService.getCurrentUserDetails()).thenReturn(userInfoDto);
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenReturn(createTrajectoryEntity(trajectoryName, horizon, 1));
+        when(groupAreaDescRepository.save(any(GroupAreaDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupAreaDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(groupClusterDescRepository.save(any(GroupClusterDescEntity.class)))
+                .thenAnswer(inv -> {
+                    GroupClusterDescEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+        when(meConstraintRepository.save(any(MeConstraintEntity.class)))
+                .thenAnswer(inv -> {
+                    MeConstraintEntity e = inv.getArgument(0);
+                    e.setId(1);
+                    return e;
+                });
+
+        service.saveConstraintMeTrajectoryInDb(trajectoryName, horizon, 1);
+
+        ArgumentCaptor<MeConstraintEntity> captor = ArgumentCaptor.forClass(MeConstraintEntity.class);
+        verify(meConstraintRepository).save(captor.capture());
+
+        assertEquals(expectedBoolean, captor.getValue().getEnabled(),
+                "Enabled should be " + expectedBoolean + " for keyword '" + keyword + "'");
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
     }
 }
