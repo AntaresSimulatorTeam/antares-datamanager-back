@@ -2016,6 +2016,10 @@ public class Utils {
         return areaNames;
     }
 
+    public Boolean getBooleanCellOrDefault(Row row, int index){
+        return getBooleanCellOrDefault(row, index, null);
+    }
+
     public Boolean getBooleanCellOrDefault(Row row, int index, Boolean defaultValue){
         var cell = row.getCell(index);
         if(cell == null || cell.getCellType() == CellType.BLANK){
