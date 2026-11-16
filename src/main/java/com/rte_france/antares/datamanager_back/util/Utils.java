@@ -2016,7 +2016,7 @@ public class Utils {
         return areaNames;
     }
 
-    public Boolean getBooleanCellOrDefault(Row row, int index){
+    public Boolean getBooleanCellOrNull(Row row, int index){
         return getBooleanCellOrDefault(row, index, null);
     }
 
