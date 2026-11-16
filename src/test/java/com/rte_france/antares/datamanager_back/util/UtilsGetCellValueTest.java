@@ -61,6 +61,20 @@ class UtilsGetCellValueTest {
     }
 
     @Test
+    void returnsBooleanForBooleanCellWithGetBooleanCellOrNull() throws Exception {
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sh = wb.createSheet("S");
+            Row row = sh.createRow(0);
+            row.createCell(2).setCellValue(true);
+
+            Object v = Utils.getBooleanCellOrNull(row, 2);
+            assertTrue(v instanceof Boolean);
+            assertEquals(true, v);
+        }
+    }
+
+
+    @Test
     void returnsEvaluatedValueForNumericFormula() throws Exception {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet sh = wb.createSheet("S");
