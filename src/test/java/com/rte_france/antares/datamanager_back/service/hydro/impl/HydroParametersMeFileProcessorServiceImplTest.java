@@ -11,6 +11,7 @@ import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.HydroAllocationMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.TestConstants;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -19,6 +20,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,8 +34,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -880,6 +887,69 @@ class HydroParametersMeFileProcessorServiceImplTest {
         // Verify the if block was executed (findFirstBy was called)
         verify(trajectoryRepository, times(1)).findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
                 trajectoryName, horizon, TrajectoryType.HYDRO_PARAMETERS_ME.name());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    @SuppressWarnings("unchecked")
+    void shouldParseAndSetCorrectBooleanForHydroParameters(String keyword, boolean expectedBoolean) throws IOException {
+        var workbook = new XSSFWorkbook();
+        var sheet = workbook.createSheet(horizonYear);
+
+        var headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("Node");
+        headerRow.createCell(9).setCellValue("reservoir management");
+        headerRow.createCell(10).setCellValue("follow.load");
+        headerRow.createCell(11).setCellValue("use.heuristic");
+        headerRow.createCell(12).setCellValue("use.water");
+        headerRow.createCell(13).setCellValue("hard.bounds");
+        headerRow.createCell(14).setCellValue("use.leeway");
+        headerRow.createCell(15).setCellValue("power.to.level");
+
+        var dataRow = sheet.createRow(1);
+        fillValidParamRow(dataRow, "node_1");
+        // keyword under test for the 7 boolean columns (9 to 15)
+        for (int i = 9; i <= 15; i++) {
+            dataRow.getCell(i).setCellValue(keyword);
+        }
+
+        try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
+            workbook.write(fos);
+        }
+        workbook.close();
+
+        createHydroAllocationMeFile();
+        mockNewTrajectorySave();
+        mockValidAreasAndNodes();
+
+        service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
+
+        ArgumentCaptor<Iterable<HydroParametersMeEntity>> captor = ArgumentCaptor.forClass(Iterable.class);
+        verify(hydroParametersMeRepository).saveAll(captor.capture());
+
+        List<HydroParametersMeEntity> saved = new ArrayList<>();
+        captor.getValue().forEach(saved::add);
+        assertEquals(1, saved.size());
+
+        HydroParametersMeEntity entity = saved.get(0);
+        assertEquals(expectedBoolean, entity.getReservoirManagement(),
+                "reservoir management should be " + expectedBoolean + " for keyword '" + keyword + "'");
+        assertEquals(expectedBoolean, entity.getFollowLoad(),
+                "follow.load should be " + expectedBoolean + " for keyword '" + keyword + "'");
+        assertEquals(expectedBoolean, entity.getUseHeuristic(),
+                "use.heuristic should be " + expectedBoolean + " for keyword '" + keyword + "'");
+        assertEquals(expectedBoolean, entity.getUseWater(),
+                "use.water should be " + expectedBoolean + " for keyword '" + keyword + "'");
+        assertEquals(expectedBoolean, entity.getHardBounds(),
+                "hard.bounds should be " + expectedBoolean + " for keyword '" + keyword + "'");
+        assertEquals(expectedBoolean, entity.getUseLeeway(),
+                "use.leeway should be " + expectedBoolean + " for keyword '" + keyword + "'");
+        assertEquals(expectedBoolean, entity.getPowerToLevel(),
+                "power.to.level should be " + expectedBoolean + " for keyword '" + keyword + "'");
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
     }
 
     // ==================== Test Helper Methods ====================

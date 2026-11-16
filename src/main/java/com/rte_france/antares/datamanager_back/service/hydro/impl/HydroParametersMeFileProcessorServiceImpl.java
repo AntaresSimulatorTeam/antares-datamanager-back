@@ -47,7 +47,8 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     private final UserService userService;
     private final PathSecurityUtil pathSecurityUtil;
 
-
+    private static final Set<String> TRUE_VALUES= Set.of("true", "vrai", "oui", "yes", "1");
+    private static final Set<String> FALSE_VALUES = Set.of("false", "faux", "non", "no", "0");
     private static final String PARAM_HYDRO_ME_FILE = "param_hydro_ME.xlsx";
     private static final String HYDRO_ALLOCATION_ME_FILE = "hydroAllocation_ME.xlsx";
 
@@ -453,7 +454,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
         }
         if (cell.getCellType() != CellType.BLANK) {
             String value = getCellStringValue(cell).toLowerCase().trim();
-            if (!value.isEmpty() && !value.matches("^(true|false|0|1|yes|no)$")) {
+            if (!value.isEmpty() && !TRUE_VALUES.contains(value) && !FALSE_VALUES.contains(value)) {
                 throw BusinessException.builder()
                         .message("Column {0} must be boolean in HYDRO_ME Param Hydro trajectory {1}")
                         .errorMessageArguments(List.of(columnName, trajectoryName))
