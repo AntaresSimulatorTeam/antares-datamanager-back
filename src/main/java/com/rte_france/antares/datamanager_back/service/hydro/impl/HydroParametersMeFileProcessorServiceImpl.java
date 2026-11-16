@@ -280,13 +280,13 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                         .leewayLow(getNumericCellValue(row.getCell(HydroParametersMeColumns.LEEWAY_LOW.getIndex())))
                         .leewayUp(getNumericCellValue(row.getCell(HydroParametersMeColumns.LEEWAY_UP.getIndex())))
                         .pumpingEfficiency(getNumericCellValue(row.getCell(HydroParametersMeColumns.PUMPING_EFFICIENCY.getIndex())))
-                        .reservoirManagement(getBooleanCellValue(row.getCell(HydroParametersMeColumns.RESERVOIR_MANAGEMENT.getIndex())))
-                        .followLoad(getBooleanCellValue(row.getCell(HydroParametersMeColumns.FOLLOW_LOAD.getIndex())))
-                        .useHeuristic(getBooleanCellValue(row.getCell(HydroParametersMeColumns.USE_HEURISTIC.getIndex())))
-                        .useWater(getBooleanCellValue(row.getCell(HydroParametersMeColumns.USE_WATER.getIndex())))
-                        .hardBounds(getBooleanCellValue(row.getCell(HydroParametersMeColumns.HARD_BOUNDS.getIndex())))
-                        .useLeeway(getBooleanCellValue(row.getCell(HydroParametersMeColumns.USE_LEEWAY.getIndex())))
-                        .powerToLevel(getBooleanCellValue(row.getCell(HydroParametersMeColumns.POWER_TO_LEVEL.getIndex())))
+                        .reservoirManagement(getBooleanCellOrNull(row, HydroParametersMeColumns.RESERVOIR_MANAGEMENT.getIndex()))
+                        .followLoad(getBooleanCellOrNull(row, HydroParametersMeColumns.FOLLOW_LOAD.getIndex()))
+                        .useHeuristic(getBooleanCellOrNull(row, HydroParametersMeColumns.USE_HEURISTIC.getIndex()))
+                        .useWater(getBooleanCellOrNull(row, HydroParametersMeColumns.USE_WATER.getIndex()))
+                        .hardBounds(getBooleanCellOrNull(row, HydroParametersMeColumns.HARD_BOUNDS.getIndex()))
+                        .useLeeway(getBooleanCellOrNull(row, HydroParametersMeColumns.USE_LEEWAY.getIndex()))
+                        .powerToLevel(getBooleanCellOrNull(row, HydroParametersMeColumns.POWER_TO_LEVEL.getIndex()))
                         .build();
 
                     paramNodes.add(normalizedNodeName);
@@ -535,19 +535,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     private Integer getIntCellValue(Cell cell) {
         BigDecimal decimal = getNumericCellValue(cell);
         return decimal != null ? decimal.intValue() : null;
-    }
-
-    @Nullable
-    private Boolean getBooleanCellValue(Cell cell) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) {
-            return null;
-        }
-        if (cell.getCellType() == CellType.BOOLEAN) {
-            return cell.getBooleanCellValue();
-        }
-        String value = getCellStringValue(cell).toLowerCase().trim();
-        if (value.isEmpty()) return null;
-        return value.matches("^(true|1|yes)$");
     }
 
     private String getCellColumnLetter(int cellIndex) {
