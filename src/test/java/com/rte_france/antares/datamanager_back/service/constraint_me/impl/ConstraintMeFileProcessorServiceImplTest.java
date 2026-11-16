@@ -30,14 +30,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -473,7 +471,7 @@ class ConstraintMeFileProcessorServiceImplTest {
 
     @Test
     @DisplayName("buildTrajectoryPath - should throw when path is outside base directory")
-    void testBuildTrajectoryPathPathTraversal() throws IOException {
+    void testBuildTrajectoryPathPathTraversal() {
         String trajectoryName = "../../../etc/passwd";
         String horizon = "2024-2025";
         
@@ -1175,7 +1173,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         Workbook workbook = new XSSFWorkbook();
         
         // Create empty listArea_desc sheet
-        Sheet areaSheet = workbook.createSheet("listArea_desc");
+        workbook.createSheet("listArea_desc");
         // No rows added - sheet is empty
         
         Sheet clusterSheet = workbook.createSheet("listCluster_desc");
@@ -1219,7 +1217,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         areaRow.createCell(0).setCellValue("AT");
         
         // Create empty listCluster_desc sheet
-        Sheet clusterSheet = workbook.createSheet("listCluster_desc");
+        workbook.createSheet("listCluster_desc");
         // No rows added - sheet is empty
         
         Sheet horizonSheet = workbook.createSheet("2025");
@@ -1263,7 +1261,7 @@ class ConstraintMeFileProcessorServiceImplTest {
         clusterRow.createCell(0).setCellValue("Cluster1");
         
         // Create empty horizon sheet (2025)
-        Sheet horizonSheet = workbook.createSheet("2025");
+        workbook.createSheet("2025");
         // No rows added - sheet is empty
         
         saveWorkbook(workbook, filePath);
