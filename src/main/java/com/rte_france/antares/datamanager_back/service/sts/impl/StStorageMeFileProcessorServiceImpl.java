@@ -171,7 +171,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
                                             String horizonYear, Map<Path, Set<String>> headersCache, Map<String, List<String>> missingFilesMeKeysMap) {
         StStorageEntity stStorageEntity = new StStorageEntity();
 
-        Boolean hasSeriesMe = getBooleanCell(row, StsMeColumns.SERIES.getIndex());
+        Boolean hasSeriesMe = getBooleanCellOrNull(row, StsMeColumns.SERIES.getIndex());
         if (hasSeriesMe) {
             Path seriesPath = buildStsOptionalFilesPathMe(trajectoryFilePath);
             if(!Files.exists(seriesPath) || !Files.isDirectory(seriesPath)) {
@@ -195,10 +195,10 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         stStorageEntity.setStorage(BigDecimal.valueOf(row.getCell(StsMeColumns.STORAGE.getIndex()).getNumericCellValue()));
         stStorageEntity.setEfficiencyInjection(BigDecimal.valueOf(row.getCell(StsMeColumns.EFFICIENCY.getIndex()).getNumericCellValue()));
         stStorageEntity.setInitialLevel(BigDecimal.valueOf(row.getCell(StsMeColumns.INITIAL_LEVEL.getIndex()).getNumericCellValue()));
-        stStorageEntity.setInitialLevelOptim(getBooleanCell(row, StsMeColumns.INITIAL_LEVEL_OPTIM.getIndex()));
-        stStorageEntity.setEnabled(getBooleanCell(row, StsMeColumns.ENABLED.getIndex()));
+        stStorageEntity.setInitialLevelOptim(getBooleanCellOrNull(row, StsMeColumns.INITIAL_LEVEL_OPTIM.getIndex()));
+        stStorageEntity.setEnabled(getBooleanCellOrNull(row, StsMeColumns.ENABLED.getIndex()));
         stStorageEntity.setSeries(hasSeriesMe);
-        stStorageEntity.setConstraintsFlag(getBooleanCell(row, StsMeColumns.CONSTRAINTS_FLAG.getIndex()));
+        stStorageEntity.setConstraintsFlag(getBooleanCellOrNull(row, StsMeColumns.CONSTRAINTS_FLAG.getIndex()));
         return stStorageEntity;
     }
 
@@ -390,16 +390,6 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
             if (cell != null && cell.getCellType() != CellType.BLANK) return false;
         }
         return true;
-    }
-
-
-    private Boolean getBooleanCell(Row row, int idx) {
-        Cell cell = row.getCell(idx);
-        if (cell == null) return false;
-        if (cell.getCellType() == CellType.BOOLEAN || cell.getCellType() == CellType.FORMULA) return cell.getBooleanCellValue();
-        String s = cell.toString().trim().toLowerCase(java.util.Locale.ROOT);
-        if (s.isEmpty()) return false;
-        return "true".equals(s) || "1".equals(s);
     }
 
     public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName) throws IOException {

@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.WarningRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
+import com.rte_france.antares.datamanager_back.service.TestConstants;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.*;
@@ -14,6 +15,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
@@ -23,6 +27,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -384,6 +389,71 @@ class StStorageMeFileProcessorServiceImplTest {
 
         assertThat(result).isNotNull();
         verify(trajectoryRepository).save(any(TrajectoryEntity.class));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void shouldParseAndSetCorrectBooleanValues(String keyword, boolean expectedBoolean) throws IOException {
+        Path seriesDir = tempDir
+                .resolve("trajectories")
+                .resolve("ME/st_storage_ME/series")
+                .resolve("me_test");
+        Files.createDirectories(seriesDir);
+        Files.createFile(seriesDir.resolve("lower_curve.xlsx"));
+        Files.createFile(seriesDir.resolve("Pmax_injection.xlsx"));
+        Files.createFile(seriesDir.resolve("Pmax_soutirage.xlsx"));
+        Files.createFile(seriesDir.resolve("upper_curve.xlsx"));
+
+        Path xlsx = tempDir.resolve("test_boolean.xlsx");
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("2030");
+            Row header = s.createRow(0);
+            String[] headers = {"Node", "Name", "Group", "Injection [MW]", "Withdrawal [MW]", "Storage [MWh]",
+                    "Efficiency", "initial_level", "initial_level_optim", "Enabled", "Series", "constraints_flag"};
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+
+            Row r = s.createRow(1);
+            r.createCell(0).setCellValue("FR");
+            r.createCell(1).setCellValue("cluster1");
+            r.createCell(2).setCellValue("g1");
+            r.createCell(3).setCellValue(10);
+            r.createCell(4).setCellValue(20);
+            r.createCell(5).setCellValue(30);
+            r.createCell(6).setCellValue(0.9);
+            r.createCell(7).setCellValue(0.5);
+            r.createCell(8).setCellValue(keyword);  // initial_level_optim
+            r.createCell(9).setCellValue("false");  // Enabled
+            r.createCell(10).setCellValue(keyword); // Series
+            r.createCell(11).setCellValue(keyword); // constraints_flag
+
+            try (OutputStream os = Files.newOutputStream(xlsx)) {
+                wb.write(os);
+            }
+        }
+
+        placeInMeClusters(xlsx, "me_test.xlsx");
+
+        TrajectoryEntity result = service.processStStorageMeFile("me_test", "2029-2030", 1);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getStStorageEntities()).hasSize(1);
+
+        StStorageEntity entity = result.getStStorageEntities().get(0);
+        assertThat(entity.getInitialLevelOptim())
+                .as("initialLevelOptim should be %s for keyword '%s'", expectedBoolean, keyword)
+                .isEqualTo(expectedBoolean);
+        assertThat(entity.getSeries())
+                .as("series should be %s for keyword '%s'", expectedBoolean, keyword)
+                .isEqualTo(expectedBoolean);
+        assertThat(entity.getConstraintsFlag()) // ou le getter correspondant dans StStorageEntity
+                .as("constraintsFlag should be %s for keyword '%s'", expectedBoolean, keyword)
+                .isEqualTo(expectedBoolean);
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
     }
 
     // ============ Helper methods for creating test data ============
