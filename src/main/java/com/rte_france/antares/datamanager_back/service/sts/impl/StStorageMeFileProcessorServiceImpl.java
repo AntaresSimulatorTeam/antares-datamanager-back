@@ -172,7 +172,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         StStorageEntity stStorageEntity = new StStorageEntity();
 
         Boolean hasSeriesMe = getBooleanCellOrNull(row, StsMeColumns.SERIES.getIndex());
-        if (hasSeriesMe != null) {
+        if (Boolean.TRUE.equals(hasSeriesMe)) {
             Path seriesPath = buildStsOptionalFilesPathMe(trajectoryFilePath);
             if(!Files.exists(seriesPath) || !Files.isDirectory(seriesPath)) {
                 throw createValidationError("Missing ST_STORAGE ME Series trajectory directory {0}",
