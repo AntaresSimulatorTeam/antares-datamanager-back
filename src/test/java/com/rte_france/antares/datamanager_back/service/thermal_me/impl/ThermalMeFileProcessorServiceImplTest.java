@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.ThermalMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.TestConstants;
 import com.rte_france.antares.datamanager_back.service.multi_energy.MultiEnergyCoherenceCheckService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import org.apache.poi.ss.usermodel.Cell;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -36,6 +39,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.computeChecksumByType;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -740,6 +744,50 @@ class ThermalMeFileProcessorServiceImplTest {
         assertNotNull(result);
         assertEquals(1, result.getThermalMeEntities().size());
         assertEquals("FR", result.getThermalMeEntities().get(0).getNode());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void shouldParseAndSetCorrectBooleanForEnabled(String keyword, boolean expectedBoolean) throws IOException {
+        String trajectoryName = "test_trajectory";
+        String horizon = "2024-2025";
+
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("2025");
+
+        sheet.createRow(0);
+        sheet.createRow(1);
+        sheet.createRow(2);
+
+        Row headerRow = sheet.createRow(3);
+        for (int i = 0; i < HEADERS.length; i++) {
+            headerRow.createCell(i).setCellValue(HEADERS[i]);
+        }
+
+        Row dataRow = sheet.createRow(4);
+        fillDataRow(dataRow, "FR", "group1", "cluster1", "annual");
+        dataRow.getCell(3).setCellValue(keyword); // keyword under test for "enabled"
+
+        for (int r = 5; r <= 17; r++) {
+            sheet.createRow(r);
+        }
+
+        saveWorkbook(workbook, trajectoryFilePath.resolve(trajectoryName + ".xlsx"));
+
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                eq(trajectoryName), eq(horizon), eq(TrajectoryType.THERMAL_CAPACITY_ME.name())))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity result = service.saveThermalMeTrajectoryInDb(trajectoryName, horizon, 1);
+
+        assertEquals(expectedBoolean, result.getThermalMeEntities().get(0).getEnabled(),
+                "enabled should be " + expectedBoolean + " for keyword '" + keyword + "'");
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
     }
 
     // ============ Helper Methods ============
