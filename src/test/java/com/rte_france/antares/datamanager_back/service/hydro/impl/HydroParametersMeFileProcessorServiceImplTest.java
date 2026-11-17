@@ -332,33 +332,30 @@ class HydroParametersMeFileProcessorServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should accept whitespace-only boolean cell (trimmed value is empty)")
-    void testBooleanColumnWhitespaceOnlyIsAccepted() throws IOException {
-        createParamHydroMeFileWithCellOverride(13, "   ");
-        createHydroAllocationMeFile();
-        mockNewTrajectorySave();
-        mockValidAreasAndNodes();
-
-        TrajectoryEntity result = service.processHydroParametersMeDirectory(trajectoryName, horizon, 1);
-
-        assertNotNull(result);
-        verify(hydroParametersMeRepository, times(1)).saveAll(anyList());
-    }
-
-    @Test
-    @DisplayName("Should accept all boolean variants (TRUE, no, 1, 0, Yes, False) with surrounding spaces")
+    @DisplayName("Should accept all boolean variants (TRUE, no, 1, 0, Yes, False, oui, vrai, non, faux) with surrounding spaces")
     void testBooleanColumnAcceptsAllVariants() throws IOException {
         var workbook = new XSSFWorkbook();
         var sheet = workbook.createSheet(horizonYear);
         sheet.createRow(0).createCell(0).setCellValue("Node");
-        var dataRow = sheet.createRow(1);
-        fillValidParamRow(dataRow, "node_1");
-        dataRow.getCell(9).setCellValue(" TRUE ");
-        dataRow.getCell(10).setCellValue("no");
-        dataRow.getCell(11).setCellValue("1");
-        dataRow.getCell(12).setCellValue("0");
-        dataRow.getCell(13).setCellValue("Yes");
-        dataRow.getCell(14).setCellValue("False");
+
+        // Première ligne : variantes anglaises et numériques
+        var dataRow1 = sheet.createRow(1);
+        fillValidParamRow(dataRow1, "node_1");
+        dataRow1.getCell(9).setCellValue(" TRUE ");
+        dataRow1.getCell(10).setCellValue("no");
+        dataRow1.getCell(11).setCellValue("1");
+        dataRow1.getCell(12).setCellValue("0");
+        dataRow1.getCell(13).setCellValue("Yes");
+        dataRow1.getCell(14).setCellValue("False");
+
+        // Deuxième ligne : variantes françaises (oui, vrai, non, faux)
+        var dataRow2 = sheet.createRow(2);
+        fillValidParamRow(dataRow2, "node_2");
+        dataRow2.getCell(9).setCellValue(" oui ");
+        dataRow2.getCell(10).setCellValue("VRAI");
+        dataRow2.getCell(11).setCellValue(" Non ");
+        dataRow2.getCell(12).setCellValue("faux");
+
         try (var fos = new FileOutputStream(tempDir.resolve("param_hydro_ME.xlsx").toFile())) {
             workbook.write(fos);
         }

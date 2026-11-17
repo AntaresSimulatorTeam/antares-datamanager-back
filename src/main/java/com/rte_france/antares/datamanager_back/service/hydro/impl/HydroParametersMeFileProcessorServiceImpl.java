@@ -223,6 +223,9 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
+                if (row == null || isRowEmpty(row)) {
+                    continue;
+                }
                 if (row != null) {
                     // Validate Node column (A) - must be filled
                     Cell nodeCell = row.getCell(0);
@@ -444,7 +447,8 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
     private void validateBooleanColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
         Cell cell = row.getCell(cellIndex);
-        if(cell == null || cell.getCellType() == CellType.BLANK || getCellStringValue(cell).isEmpty())
+        var rawvalue = getCellStringValue(cell);
+        if(cell == null || cell.getCellType() == CellType.BLANK || rawvalue.isEmpty())
         {
             throw BusinessException.builder()
                     .message("Column {0} must not be null or empty  in HYDRO_ME Param Hydro trajectory {1}")
@@ -453,8 +457,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                     .build();
         }
         if (cell.getCellType() != CellType.BLANK) {
-            String value = getCellStringValue(cell).toLowerCase().trim();
-            if (!value.isEmpty() && !TRUE_VALUES.contains(value) && !FALSE_VALUES.contains(value)) {
+            if (getBooleanCellOrNull(cell.getRow(), cell.getColumnIndex()) == null) {
                 throw BusinessException.builder()
                         .message("Column {0} must be boolean in HYDRO_ME Param Hydro trajectory {1}")
                         .errorMessageArguments(List.of(columnName, trajectoryName))
@@ -505,14 +508,7 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
     private String getCellStringValue(Cell cell) {
         if (cell == null) return "";
-        if (cell.getCellType() == CellType.STRING) {
-            return cell.getStringCellValue();
-        } else if (cell.getCellType() == CellType.NUMERIC) {
-            return String.valueOf((int) cell.getNumericCellValue());
-        } else if (cell.getCellType() == CellType.BOOLEAN) {
-            return String.valueOf(cell.getBooleanCellValue());
-        }
-        return "";
+        return getStringCell(cell.getRow(), cell.getColumnIndex());
     }
 
     private BigDecimal getNumericCellValue(Cell cell) {
