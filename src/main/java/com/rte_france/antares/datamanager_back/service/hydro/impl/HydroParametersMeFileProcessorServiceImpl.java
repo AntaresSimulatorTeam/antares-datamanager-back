@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
-import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.dto.UserInfoDto;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -9,15 +8,12 @@ import com.rte_france.antares.datamanager_back.repository.model.HydroAllocationM
 import com.rte_france.antares.datamanager_back.repository.model.HydroParametersMeEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.hydro.HydroParametersMeFileProcessorService;
-import com.rte_france.antares.datamanager_back.service.common.TrajectoryService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
-import jakarta.validation.constraints.Null;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.HydroParametersMeColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,8 +43,6 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
     private final UserService userService;
     private final PathSecurityUtil pathSecurityUtil;
 
-    private static final Set<String> TRUE_VALUES= Set.of("true", "vrai", "oui", "yes", "1");
-    private static final Set<String> FALSE_VALUES = Set.of("false", "faux", "non", "no", "0");
     private static final String PARAM_HYDRO_ME_FILE = "param_hydro_ME.xlsx";
     private static final String HYDRO_ALLOCATION_ME_FILE = "hydroAllocation_ME.xlsx";
 
@@ -447,8 +441,8 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
     private void validateBooleanColumn(Row row, int cellIndex, String columnName, String trajectoryName) {
         Cell cell = row.getCell(cellIndex);
-        var rawvalue = getCellStringValue(cell);
-        if(cell == null || cell.getCellType() == CellType.BLANK || rawvalue.isEmpty())
+        var rawValue = getCellStringValue(cell);
+        if(cell == null || cell.getCellType() == CellType.BLANK || rawValue == null || rawValue.isEmpty())
         {
             throw BusinessException.builder()
                     .message("Column {0} must not be null or empty  in HYDRO_ME Param Hydro trajectory {1}")
@@ -456,14 +450,12 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
-        if (cell.getCellType() != CellType.BLANK) {
-            if (getBooleanCellOrNull(cell.getRow(), cell.getColumnIndex()) == null) {
-                throw BusinessException.builder()
-                        .message("Column {0} must be boolean in HYDRO_ME Param Hydro trajectory {1}")
-                        .errorMessageArguments(List.of(columnName, trajectoryName))
-                        .httpStatus(HttpStatus.BAD_REQUEST)
-                        .build();
-            }
+        if (cell.getCellType() != CellType.BLANK && getBooleanCellOrNull(cell.getRow(), cell.getColumnIndex()) == null) {
+            throw BusinessException.builder()
+                    .message("Column {0} must be boolean in HYDRO_ME Param Hydro trajectory {1}")
+                    .errorMessageArguments(List.of(columnName, trajectoryName))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
     }
 
