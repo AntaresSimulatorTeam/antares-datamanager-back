@@ -216,11 +216,8 @@ public class HydroParametersMeFileProcessorServiceImpl implements HydroParameter
 
             // Single pass: validate and collect data
             for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                if (row == null || isRowEmpty(row)) {
-                    continue;
-                }
-                if (row != null) {
+                var row = sheet.getRow(rowIndex);
+                if (row != null && !isRowEmpty(row)) {
                     // Validate Node column (A) - must be filled
                     Cell nodeCell = row.getCell(0);
                     String nodeName = getCellStringValue(nodeCell);
