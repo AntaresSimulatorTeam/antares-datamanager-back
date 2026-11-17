@@ -238,6 +238,12 @@ public class ThermalEconomicCostAndRateServiceImpl implements ThermalEconomicCos
 
 
     ThermalCostTypeEntity findOrCreateThermalEconomicCostType(Row row, int offset) {
+        if (row == null) {
+            throw BusinessException.builder()
+                    .message("Thermal economic cost row must not be null")
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         String country = offset == 0 ? null : trimOrNull(castString(getCellValue(row, 0)));
         String fuel = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.FUEL.indexWithCountryOffset(offset))));
         String comment = trimOrNull(castString(getCellValue(row, ThermalEconomicCostColumns.COMMENT.indexWithCountryOffset(offset))));
