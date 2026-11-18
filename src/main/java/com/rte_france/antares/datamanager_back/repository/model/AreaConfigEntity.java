@@ -19,6 +19,7 @@ public class AreaConfigEntity {
     @SequenceGenerator(name = "area_config_seq_gen", sequenceName = "area_config_sequence", allocationSize = 1)
     private Integer id;
 
+    @Column(length = 100)
     private String district;
 
     @Column(name = "spilled_energy_cost", nullable = false)

@@ -447,6 +447,50 @@ class AreaFileValidatorTest {
         );
     }
 
+    @Test
+    void checkIfColumnsAreValid_shouldAcceptEmptyDistrict() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "EmptyDistrict.xlsx", "2035-2036",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "", 100.0, 200.0, "230", "420", "128", "260", "113"),
+                        List.of("Area2", "Dist2", "150.0", "250.0", "168", "650", "125", "265", "113")
+                )
+        );
+
+        assertDoesNotThrow(() ->
+                ExcelCommonValidator.checkIfColumnsAreValid(tempFile, ExcelFileType.AREAS, "2035-2036", TrajectoryType.AREA.name()));
+    }
+
+    @Test
+    void validateAreaColumns_shouldRejectDistrictOver100Characters() throws IOException {
+        String district = "D".repeat(101);
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "District101.xlsx", "2035-2036",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", district, 100.0, 200.0, 230, 420, 128, 260, 113)
+                )
+        );
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                AreasValidator.validateAreaColumns(tempFile, "2035-2036", TrajectoryType.AREA.name()));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void validateAreaColumns_shouldAcceptDistrictOf100Characters() throws IOException {
+        String district = "D".repeat(100);
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "District100.xlsx", "2035-2036",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", district, 100.0, 200.0, 230, 420, 128, 260, 113)
+                )
+        );
+
+        assertDoesNotThrow(() ->
+                AreasValidator.validateAreaColumns(tempFile, "2035-2036", TrajectoryType.AREA.name()));
+    }
+
 
 
 
