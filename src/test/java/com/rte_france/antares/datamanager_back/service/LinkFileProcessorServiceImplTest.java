@@ -359,6 +359,48 @@ class LinkFileProcessorServiceImplTest {
         verify(trajectoryRepository, times(1)).findByTypeAndStudyId(TrajectoryType.LINK.name(), studyId);
     }
 
+    @Test
+    void buildLinkList_whenHurdleCostIsNotNumeric_throwsBusinessException(@TempDir Path dir) throws IOException {
+        Path file = createLinksWorkbookWithHurdleCost(dir, "abc");
+
+        var exception = assertThrows(BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(linkFileProcessorService, "buildLinkList", file, "2030-2031"));
+
+        assertTrue(exception.getMessage().contains("Waiting for numeric hurdle_cost value"));
+        assertEquals(List.of("2030-2031"), exception.getErrorMessageArguments());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    @Test
+    void buildLinkList_whenHurdleCostRowIsMissing_throwsBusinessException(@TempDir Path dir) throws IOException {
+        Path file = createLinksWorkbookWithHurdleCost(dir, null);
+
+        var exception = assertThrows(BusinessException.class,
+                () -> ReflectionTestUtils.invokeMethod(linkFileProcessorService, "buildLinkList", file, "2030-2031"));
+
+        assertTrue(exception.getMessage().contains("Waiting for numeric hurdle_cost value"));
+        assertEquals(List.of("2030-2031"), exception.getErrorMessageArguments());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+    }
+
+    private static Path createLinksWorkbookWithHurdleCost(Path dir, String hurdleCostValue) throws IOException {
+        Path file = dir.resolve("links_hurdle_cost.xlsx");
+        try (var workbook = new XSSFWorkbook()) {
+            var parametersSheet = workbook.createSheet("parameters");
+            parametersSheet.createRow(0).createCell(1).setCellValue("2030-2031");
+            if (hurdleCostValue != null) {
+                var hurdleCostRow = parametersSheet.createRow(1);
+                hurdleCostRow.createCell(0).setCellValue("Hurdle Costs");
+                hurdleCostRow.createCell(1).setCellValue(hurdleCostValue);
+            }
+            workbook.createSheet("2030-2031");
+            try (var outputStream = Files.newOutputStream(file)) {
+                workbook.write(outputStream);
+            }
+        }
+        return file;
+    }
+
     private static byte[] generateTestExcelFile() throws IOException {
         try (var outputStream = new ByteArrayOutputStream();
              var workbook = new XSSFWorkbook()) {
