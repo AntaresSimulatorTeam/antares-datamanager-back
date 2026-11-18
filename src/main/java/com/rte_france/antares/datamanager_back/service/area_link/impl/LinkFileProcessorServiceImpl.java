@@ -200,7 +200,16 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
             // Get hurdle_cost from the parameters sheet (fixed per horizon)
             int horizonCellIndex = findCellIndexByHorizon(parametersSheet, horizon);
-            double hurdleCost = parametersSheet.getRow(1).getCell(horizonCellIndex).getNumericCellValue();
+            Row hurdleCostRow = parametersSheet.getRow(1);
+            Cell hurdleCostCell = hurdleCostRow != null ? hurdleCostRow.getCell(horizonCellIndex) : null;
+            if (hurdleCostCell == null || hurdleCostCell.getCellType() != CellType.NUMERIC) {
+                throw BusinessException.builder()
+                        .message("Waiting for numeric hurdle_cost value for horizon {0} in parameters sheet")
+                        .errorMessageArguments(List.of(horizon))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
+            double hurdleCost = hurdleCostCell.getNumericCellValue();
 
             for (Row row : sLinksSheet) {
                 if (row.getRowNum() != 0 && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) {
@@ -256,7 +265,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     public int findCellIndexByHorizon(Sheet sheet, String horizon) {
         Row headerRow = sheet.getRow(0); // Récupère la ligne 0
         if (headerRow == null) {
-            throw TechnicalException.builder().message("Header row is missing in the sheet.").build();
+            throw BusinessException.builder().message("Header row is missing in the sheet.").build();
         }
 
         for (Cell cell : headerRow) {

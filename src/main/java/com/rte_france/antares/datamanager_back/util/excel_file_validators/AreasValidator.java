@@ -23,7 +23,7 @@ public class AreasValidator {
 
     private static final int AREAS_MAX_LENGTH = 20;
     private static final int AREAS_ME_MAX_LENGTH = 60;
-    private static final int DISTRICT_MAX_LENGTH = 20;
+    private static final int DISTRICT_MAX_LENGTH = 100;
 
     private AreasValidator() {
 
@@ -57,7 +57,21 @@ public class AreasValidator {
     private static void checkColumnsRules(Sheet sheet, String horizon, List<String> booleanColumns, List<String> stringColumns, List<String> numericalColumns, String trajectoryType) {
         checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);
         checkNumericalColumns(sheet, horizon, numericalColumns, trajectoryType);
-        stringColumns.forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.AREA.name()));
+        stringColumns.stream()
+                .filter(column -> !AreaColumns.AREAS.getDisplayName().equals(column))
+                .forEach(column -> ExcelCommonValidator.checkStringColumns(sheet, horizon, column, TrajectoryType.AREA.name()));
+    }
+
+    /**
+     * Returns the area name as text, whether the cell is numeric, alphanumeric or alphabetic.
+     * Returns an empty string for missing or blank cells.
+     */
+    private static String getAreaName(Row row) {
+        Cell cell = row.getCell(0);
+        if (cell == null || cell.getCellType() == CellType.BLANK) {
+            return "";
+        }
+        return getCellValue(cell).trim();
     }
 
     public static void checkNumericalColumns(Sheet sheet, String horizon, List<String> numericalColumns, String trajectoryType) {
@@ -75,7 +89,7 @@ public class AreasValidator {
             Row row = sheet.getRow(r);
             if (row == null || isRowEmpty(row)) continue;
 
-            String areaName = row.getCell(0).getStringCellValue();
+            String areaName = getAreaName(row);
 
             for (int i = 0; i < numericalColumns.size(); i++) {
                 String columnName = numericalColumns.get(i);
@@ -131,7 +145,7 @@ public class AreasValidator {
         List<String> invalidRows = IntStream.range(1, sheet.getPhysicalNumberOfRows())
                 .mapToObj(sheet::getRow)
                 .filter(row -> row != null && row.getPhysicalNumberOfCells() > 0
-                        && row.getCell(0) != null && !row.getCell(0).getStringCellValue().isEmpty()) // Skip empty rows
+                        && !getAreaName(row).isEmpty()) // Skip empty rows
                 .filter(row -> {
                     Cell cell = row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                     if (cell != null && cell.getCellType() == CellType.STRING) {

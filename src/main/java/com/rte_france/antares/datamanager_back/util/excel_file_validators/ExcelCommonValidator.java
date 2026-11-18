@@ -166,6 +166,9 @@ public class ExcelCommonValidator {
                             .mapToObj(colIndex -> {
                                 Cell cell = row.getCell(colIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                                 if (cell == null || isCellEmpty(cell)) {
+                                    if (TrajectoryType.AREA.name().equals(trajectoryType) && colIndex == AreaColumns.DISTRICT.getIndex()) {
+                                        return null;
+                                    }
                                     if (TrajectoryType.LINK.name().equals(trajectoryType) && headerRow != null) {
                                         Cell headerCell = headerRow.getCell(colIndex);
                                         if (headerCell != null && headerCell.getCellType() == CellType.STRING) {
@@ -439,7 +442,7 @@ public class ExcelCommonValidator {
         return String.join("-", parts);
     }
 
-    static String getCellValue(Cell cell) {
+    public static String getCellValue(Cell cell) {
         if (cell == null) {
             return "NULL";
         }

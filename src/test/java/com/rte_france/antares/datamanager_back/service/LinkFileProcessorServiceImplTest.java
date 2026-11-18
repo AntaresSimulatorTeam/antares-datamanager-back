@@ -616,7 +616,7 @@ class LinkFileProcessorServiceImplTest {
         Sheet mockSheet = mock(Sheet.class);
         when(mockSheet.getRow(0)).thenReturn(null);
 
-        TechnicalException exception = assertThrows(TechnicalException.class, () -> {
+        BusinessException exception = assertThrows(BusinessException.class, () -> {
             linkFileProcessorService.findCellIndexByHorizon(mockSheet, "2030-2031");
         });
 

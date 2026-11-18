@@ -92,7 +92,8 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
 
                 AreaEntity areaEntity = findOrCreateAreaEntity(row);
 
-                var value1 = Objects.requireNonNull(getCellValue(row, AreaColumns.DISTRICT.getIndex())).toString().toUpperCase(Locale.ROOT);
+                var districtValue = getCellValue(row, AreaColumns.DISTRICT.getIndex());
+                var value1 = districtValue == null || districtValue.toString().isBlank() ? null : districtValue.toString().trim().toUpperCase(Locale.ROOT);
                 var value2 = castDouble(getCellValue(row,AreaColumns.SPILLED_ENERGY_COST.getIndex()), header.getCell(AreaColumns.SPILLED_ENERGY_COST.getIndex()).getStringCellValue(), row.getRowNum());
                 var value3 = castDouble(getCellValue(row,AreaColumns.UNSUPPLIED_ENERGY_COST.getIndex()), header.getCell(AreaColumns.UNSUPPLIED_ENERGY_COST.getIndex()).getStringCellValue(), row.getRowNum());
 
@@ -112,7 +113,7 @@ public class AreaFileProcessorServiceImpl implements AreaFileProcessorService {
     }
 
     private AreaEntity findOrCreateAreaEntity(Row area) {
-        String name = area.getCell(AreaColumns.AREAS.getIndex()).getStringCellValue().toUpperCase(Locale.ROOT);
+        String name = ExcelCommonValidator.getCellValue(area.getCell(AreaColumns.AREAS.getIndex())).trim().toUpperCase(Locale.ROOT);
 
         AreaEntity entity = areaRepository.findAreaByNameIgnoreCase(name).orElseGet(() -> AreaEntity.builder().name(name).build());
         entity.setX(area.getCell(AreaColumns.X.getIndex()).getNumericCellValue());
