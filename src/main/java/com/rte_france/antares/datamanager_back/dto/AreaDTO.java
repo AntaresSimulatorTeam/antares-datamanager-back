@@ -16,6 +16,21 @@ public class AreaDTO {
     @JsonProperty("areaName")
     String name;
 
+    @JsonProperty("areaY")
+    String y;
+
+    @JsonProperty("areaX")
+    Double x;
+
+    @JsonProperty("areaColorR")
+    String r;
+
+    @JsonProperty("areaColorG")
+    String g;
+
+    @JsonProperty("areaColorB")
+    String b;
+
     @JsonProperty("energy_cost_unsupplied")
     String unsuppliedEnergyCost;
 
