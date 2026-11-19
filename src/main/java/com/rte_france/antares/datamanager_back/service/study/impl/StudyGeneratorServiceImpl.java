@@ -470,10 +470,28 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private Map<String, Object> areasMapGenerator(AreaDTO areaDTO, AreasGenerationContextDTO context) {
         log.info("areasMapGenerator invoked for area={}", areaDTO.getName());
-        // This is a placeholder for the actual AreaUI and AreaProperties classes
-        // Replace with actual implementations or JSON representations
         Map<String, Object> areaMap = new HashMap<>();
-        areaMap.put("ui", "AreaUI class as JSON");
+        Map<String, Object> areaUi = new HashMap<>();
+        if (areaDTO.getX() != null) {
+            areaUi.put("x", areaDTO.getX().intValue());
+        }
+        if (areaDTO.getY() != null) {
+            areaUi.put("y", Double.valueOf(areaDTO.getY()).intValue());
+        }
+        List<Integer> colorRgb = new ArrayList<>();
+        if (areaDTO.getR() != null) {
+            colorRgb.add(Double.valueOf(areaDTO.getR()).intValue());
+        }
+        if (areaDTO.getG() != null) {
+            colorRgb.add(Double.valueOf(areaDTO.getG()).intValue());
+        }
+        if (areaDTO.getB() != null) {
+            colorRgb.add(Double.valueOf(areaDTO.getB()).intValue());
+        }
+        if (!colorRgb.isEmpty()) {
+            areaUi.put("color_rgb", colorRgb);
+        }
+        areaMap.put("ui", areaUi);
 
         Map<String, Object> areaProperties = new HashMap<>();
         areaProperties.put("energy_cost_unsupplied", areaDTO.getUnsuppliedEnergyCost());

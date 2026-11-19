@@ -390,6 +390,66 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         assertDoesNotThrow(() -> studyGeneratorService.buildJsonForStudyGeneration(studyId));
     }
 
+    @ParameterizedTest
+    @CsvSource({"true, true, true, true", "false, false, false, false",
+            "true, true, false, false", "false, false, true, false",
+            "true, false, false, true", "false, true, true, false",
+            "true, true, false, true", "false, false, true, true"})
+    void buildJsonForStudyGenerationIncludesAreaUi(boolean withCoordinates, boolean withRed,
+                                                   boolean withGreen, boolean withBlue) throws IOException {
+        AreaEntity area = trajectoryEntityList.stream()
+                .filter(trajectory -> "AREA".equals(trajectory.getType()))
+                .findFirst().orElseThrow().getAreaConfigEntities().getFirst().getArea();
+        if (withCoordinates) {
+            area.setX(12.7);
+            area.setY(-34.7);
+        }
+        List<Integer> expectedColors = new ArrayList<>();
+        if (withRed) {
+            area.setR(255.0);
+            expectedColors.add(255);
+        }
+        if (withGreen) {
+            area.setG(128.0);
+            expectedColors.add(128);
+        }
+        if (withBlue) {
+            area.setB(0.0);
+            expectedColors.add(0);
+        }
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+        when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Collections.emptyMap());
+
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        var ui = new ObjectMapper().readTree(captureGeneratedJson(1))
+                .path("studyTest").path("areas").path("DE").path("ui");
+        assertThat(ui.isObject()).isTrue();
+        if (withCoordinates) {
+            assertThat(ui.path("x").isInt()).isTrue();
+            assertThat(ui.path("x").intValue()).isEqualTo(12);
+            assertThat(ui.path("y").isInt()).isTrue();
+            assertThat(ui.path("y").intValue()).isEqualTo(-34);
+        } else {
+            assertThat(ui.has("x")).isFalse();
+            assertThat(ui.has("y")).isFalse();
+        }
+        for (String property : List.of("r", "g", "b")) {
+            assertThat(ui.has(property)).isFalse();
+        }
+        if (!expectedColors.isEmpty()) {
+            var colors = ui.path("color_rgb");
+            assertThat(colors.isArray()).isTrue();
+            assertThat(colors.size()).isEqualTo(expectedColors.size());
+            for (int i = 0; i < colors.size(); i++) {
+                assertThat(colors.get(i).isInt()).isTrue();
+                assertThat(colors.get(i).intValue()).isEqualTo(expectedColors.get(i));
+            }
+        } else {
+            assertThat(ui.has("color_rgb")).isFalse();
+        }
+    }
+
     @Test
     void buildJsonForStudyGeneration_withOnlyReservoirLevels_shouldNotIncludeMeHydro() throws Exception {
         TrajectoryEntity reservoirLevels = TrajectoryEntity.builder()
