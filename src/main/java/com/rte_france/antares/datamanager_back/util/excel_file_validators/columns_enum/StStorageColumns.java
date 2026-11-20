@@ -18,7 +18,8 @@ public enum StStorageColumns {
     INITIAL_LEVEL_OPTIM("Initial_level_optim"),
     ENABLED("Enabled"),
     SERIES("Series"),
-    CONSTRAINTS("Constraints");
+    CONSTRAINTS("Constraints"),
+    ALLOW_OVERFLOW("Allow_overflow");
 
     private final String displayName;
 

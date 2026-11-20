@@ -60,6 +60,9 @@ public class StStorageEntity {
     @Column(name = "st_constraints")
     private Boolean constraintsFlag;
 
+    @Column(name = "allow_overflow")
+    private Boolean allowOverflow;
+
     @Column(name="ts_path")
     String tsPath;
 
