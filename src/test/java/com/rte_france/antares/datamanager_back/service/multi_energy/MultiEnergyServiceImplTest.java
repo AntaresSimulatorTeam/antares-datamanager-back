@@ -24,6 +24,7 @@ import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonServi
 import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
 import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -122,7 +123,7 @@ class MultiEnergyServiceImplTest {
     void buildMultiEnergyMap_withAdequacyMode_shouldReturnExpectedStructure() {
         // Given
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
-                .thenReturn(Map.of("area_me", "outside"));
+                .thenReturn(Map.of(AreaKey.of("area_me"), "outside"));
         when(adequacySettingsAssemblerService.resolveMode(eq("area_me"), any(), any()))
                 .thenReturn(Optional.of("outside"));
 
@@ -559,7 +560,7 @@ class MultiEnergyServiceImplTest {
 
         when(adequacySettingsAssemblerService.findAdequacyTrajectory(any())).thenReturn(Optional.of(adequacyTrajectory));
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
-                .thenReturn(Map.of("AREA1_ME", "inside", "AREA2_ME", "outside"));
+                .thenReturn(Map.of(AreaKey.of("AREA1_ME"), "inside", AreaKey.of("AREA2_ME"), "outside"));
         when(adequacySettingsAssemblerService.resolveMode(eq("AREA1_ME"), any(), any()))
                 .thenReturn(Optional.of("inside"));
         when(adequacySettingsAssemblerService.resolveMode(eq("AREA2_ME"), any(), any()))
@@ -836,7 +837,7 @@ class MultiEnergyServiceImplTest {
     void buildMultiEnergyMap_withBothAreaMeAndLinkMe_shouldReturnBothSections() {
         // Given
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(any()))
-                .thenReturn(Map.of("area_me", "inside"));
+                .thenReturn(Map.of(AreaKey.of("area_me"), "inside"));
         when(adequacySettingsAssemblerService.resolveMode(eq("area_me"), any(), any()))
                 .thenReturn(Optional.of("inside"));
 

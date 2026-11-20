@@ -26,6 +26,7 @@ import com.rte_france.antares.datamanager_back.service.sts.StsGenerationAssemble
 import com.rte_france.antares.datamanager_back.service.study.*;
 import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -332,7 +333,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                 .toList();
 
         // Get LOAD files by area from all study trajectories
-        Map<String, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
+        Map<AreaKey, List<String>> listArrowLoadFilesByArea = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(studyEntity);
         log.info("Number of zones LOAD found: {}", listArrowLoadFilesByArea != null ? listArrowLoadFilesByArea.size() : 0);
 
 
@@ -429,7 +430,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
 
     private void assembleAdequacyModeForStudyAreas(StudyEntity study, Map<String, Object> studyMap) throws BusinessException {
         TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
-        Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
+        Map<AreaKey, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
         if (studyMap.get("areas") instanceof Map<?, ?> areasMap) {
             applyAdequacyModeToAreas(areasMap, adequacyTrajectory, adequacyModeByArea);
@@ -441,7 +442,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     }
 
     private void applyAdequacyModeToAreas(Map<?, ?> areasMap, TrajectoryEntity adequacyTrajectory,
-                                          Map<String, String> adequacyModeByArea) {
+                                          Map<AreaKey, String> adequacyModeByArea) {
         for (Map.Entry<?, ?> areaEntry : areasMap.entrySet()) {
             String areaName = (String) areaEntry.getKey();
             if (areaEntry.getValue() instanceof Map<?, ?> rawAreaData) {
@@ -520,7 +521,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         var resMap = resToJsonService.buildResDataMap(areaDTO.getName(), context.getResProps());
         Map<String, Object> hydroMap = hydroToJsonService.buildHydroDataMap(areaDTO.getName(), context.getHydroProps());
 
-        List<String> arrowLoadFiles = context.getArrowLoadFilesByArea().get(areaDTO.getName());
+        List<String> arrowLoadFiles = context.getArrowLoadFilesByArea().get(AreaKey.of(areaDTO.getName()));
         areaMap.put("loads", arrowLoadFiles != null && !arrowLoadFiles.isEmpty() ? arrowLoadFiles : "No LOAD files for this area");
         areaMap.put("thermals", thermalsMap);
         areaMap.put("nuclear", Map.of("clusters", nuclearClustersMap));

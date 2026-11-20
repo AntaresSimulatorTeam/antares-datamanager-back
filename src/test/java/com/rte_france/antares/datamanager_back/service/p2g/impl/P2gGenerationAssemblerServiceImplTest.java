@@ -23,6 +23,7 @@ import com.rte_france.antares.datamanager_back.service.adequacy.AdequacySettings
 import com.rte_france.antares.datamanager_back.service.adequacy.impl.AdequacySettingsAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
@@ -317,10 +318,10 @@ class P2gGenerationAssemblerServiceImplTest {
         TrajectoryEntity adequacyTrajectory = trajectory(3, "adequacy_traj");
         when(adequacySettingsAssemblerService.findAdequacyTrajectory(study)).thenReturn(Optional.of(adequacyTrajectory));
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)).thenReturn(Map.of(
-                "z_p2g_base", "inside",
-                "z_p2g_marg", "outside",
-                "z_p2g_methanation", "virtual",
-                "z_p2g_asservi", "inside"
+                AreaKey.of("z_p2g_base"), "inside",
+                AreaKey.of("z_p2g_marg"), "outside",
+                AreaKey.of("z_p2g_methanation"), "virtual",
+                AreaKey.of("z_p2g_asservi"), "inside"
         ));
 
         P2gGenerationDTO dto = assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory);
@@ -336,9 +337,9 @@ class P2gGenerationAssemblerServiceImplTest {
         TrajectoryEntity adequacyTrajectory = trajectory(3, "adequacy_traj");
         when(adequacySettingsAssemblerService.findAdequacyTrajectory(study)).thenReturn(Optional.of(adequacyTrajectory));
         when(adequacySettingsAssemblerService.assembleAdequacyModeByArea(study)).thenReturn(Map.of(
-                "z_p2g_marg", "outside",
-                "z_p2g_methanation", "virtual",
-                "z_p2g_asservi", "inside"
+                AreaKey.of("z_p2g_marg"), "outside",
+                AreaKey.of("z_p2g_methanation"), "virtual",
+                AreaKey.of("z_p2g_asservi"), "inside"
         ));
 
         assertThatThrownBy(() -> assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory))

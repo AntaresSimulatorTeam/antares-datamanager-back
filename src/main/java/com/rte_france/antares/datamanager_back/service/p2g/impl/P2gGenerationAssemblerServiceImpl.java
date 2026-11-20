@@ -24,6 +24,7 @@ import com.rte_france.antares.datamanager_back.service.common.impl.NasFileServic
 import com.rte_france.antares.datamanager_back.service.p2g.P2gFilePrefixes;
 import com.rte_france.antares.datamanager_back.service.p2g.P2gGenerationAssemblerService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
 import lombok.RequiredArgsConstructor;
@@ -111,7 +112,7 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         P2gClusterGenerationDTO.AsserviParameters asserviParameters = buildAsserviParameters(data.parameters(), trajectoryName);
 
         TrajectoryEntity adequacyTrajectory = adequacySettingsAssemblerService.findAdequacyTrajectory(study).orElse(null);
-        Map<String, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
+        Map<AreaKey, String> adequacyModeByArea = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
         P2gClusterGenerationDTO base = buildCluster(capacities, requireCost(data.costsByType(), TYPE_BASE, trajectoryName),
                 BASE_COLUMNS, null,
