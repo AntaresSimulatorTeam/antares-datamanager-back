@@ -488,7 +488,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         if (areaDTO.getB() != null) {
             colorRgb.add(Double.valueOf(areaDTO.getB()).intValue());
         }
-        if (!colorRgb.isEmpty()) {
+        if (colorRgb.size() == 3) {
             areaUi.put("color_rgb", colorRgb);
         }
         areaMap.put("ui", areaUi);

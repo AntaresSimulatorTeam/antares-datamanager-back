@@ -437,7 +437,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         for (String property : List.of("r", "g", "b")) {
             assertThat(ui.has(property)).isFalse();
         }
-        if (!expectedColors.isEmpty()) {
+        if (withRed && withGreen && withBlue) {
             var colors = ui.path("color_rgb");
             assertThat(colors.isArray()).isTrue();
             assertThat(colors.size()).isEqualTo(expectedColors.size());
