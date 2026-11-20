@@ -12,6 +12,7 @@ import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonServi
 import com.rte_france.antares.datamanager_back.service.study.impl.ThermalToJsonService;
 import com.rte_france.antares.datamanager_back.service.thermal.AreaClusterRefKey;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalPropertiesAssemblerService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -279,7 +280,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                         .findAdequacyTrajectory(study)
                         .orElse(null);
 
-        Map<String, String> adequacyModeByArea =
+        Map<AreaKey, String> adequacyModeByArea =
                 study != null
                         ? adequacySettingsAssemblerService
                         .assembleAdequacyModeByArea(study)

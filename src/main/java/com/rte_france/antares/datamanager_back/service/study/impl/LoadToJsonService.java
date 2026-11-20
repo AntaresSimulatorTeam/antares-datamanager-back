@@ -8,6 +8,8 @@ import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -36,10 +38,10 @@ public class LoadToJsonService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
 
     @ExecutionTime("LOAD")
-    public Map<String, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
+    public Map<AreaKey, List<String>> getListArrowLoadFilesByAreaFromStudy(StudyEntity studyEntity) {
         log.info("Retrieve LOAD files for study = {}", studyEntity.getId());
         Map<Integer, String> arrowFileCache = new HashMap<>();
-        Map<String, List<String>> result = studyEntity.getTrajectories().stream()
+        Map<AreaKey, List<String>> result = studyEntity.getTrajectories().stream()
                 .filter(this::isLoadTrajectoryWithEntities)
                 .flatMap(trajectory -> processTrajectoryLoads(trajectory, studyEntity.getId(), DEFAULT_LOAD_PATTERN, arrowFileCache))
                 .collect(Collectors.groupingBy(
@@ -76,18 +78,17 @@ public class LoadToJsonService {
                 && !trajectory.getLoadEntities().isEmpty();
     }
 
-    private Stream<Map.Entry<String, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern,
+    private Stream<Map.Entry<AreaKey, String>> processTrajectoryLoads(TrajectoryEntity trajectory, Integer studyId, Pattern pattern,
                                                                       Map<Integer, String> arrowFileCache) {
         log.info("Load processing for trajectory= {} area={}", trajectory.getFileName(), trajectory.getArea());
-        if ("OTHERS".equals(trajectory.getArea())) {
+        if (AreaNaming.isOthers(trajectory.getArea())) {
             return trajectory.getLoadEntities().stream()
                     .filter(loadEntity -> isLoadLinkedToStudy(loadEntity, studyId))
                     .map(loadEntity -> processLoadEntityWithPattern(loadEntity, trajectory, pattern, arrowFileCache));
         } else {
+            AreaKey area = AreaKey.of(trajectory.getArea());
             return trajectory.getLoadEntities().stream()
-                    .map(loadEntity -> Map.entry(
-                            trajectory.getArea().toUpperCase(Locale.ROOT),
-                            resolveOutputFileName(loadEntity, trajectory, arrowFileCache)));
+                    .map(loadEntity -> Map.entry(area, resolveOutputFileName(loadEntity, trajectory, arrowFileCache)));
         }
     }
 
@@ -110,11 +111,11 @@ public class LoadToJsonService {
         return extractAreaFromFileName(loadEntity.getFileName(), LOAD_ME_PATTERN);
     }
 
-    private  Map.Entry<String, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern,
+    private  Map.Entry<AreaKey, String> processLoadEntityWithPattern(LoadEntity loadEntity, TrajectoryEntity trajectory, Pattern pattern,
                                                                       Map<Integer, String> arrowFileCache) {
         String outputFileName = resolveOutputFileName(loadEntity, trajectory, arrowFileCache);
         String area = extractAreaFromFileName(outputFileName, pattern);
-        return Map.entry(area, outputFileName);
+        return Map.entry(AreaKey.of(area.isBlank() ? AreaNaming.OTHERS : area), outputFileName);
     }
 
     private  String resolveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory, Map<Integer, String> arrowFileCache) {
@@ -153,7 +154,7 @@ public class LoadToJsonService {
 
     private  String extractAreaFromFileName(String fileName, Pattern pattern) {
         var matcher = pattern.matcher(fileName);
-        String area = matcher.find() ? matcher.group(1).toUpperCase(Locale.ROOT) : "OTHERS";
+        String area = matcher.find() ? matcher.group(1).toUpperCase(Locale.ROOT) : AreaNaming.OTHERS;
         log.info("Extraction de la zone à partir du nom de fichier '{}': {}", fileName, area);
         return area;
     }

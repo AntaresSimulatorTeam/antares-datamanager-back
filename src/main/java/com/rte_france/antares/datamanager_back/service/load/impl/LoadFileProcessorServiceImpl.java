@@ -8,6 +8,7 @@ import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.load.LoadFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.WarningService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +30,6 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
     private final AreaRepository areaRepository;
     private final WarningService warningService;
     private final LoadRepository loadRepository;
-
-    private static final String OTHER_AREA = "OTHERS";
 
 
 
@@ -70,7 +69,7 @@ public class LoadFileProcessorServiceImpl implements LoadFileProcessorService {
                 .map(TrajectoryEntity::getArea)
                 .filter(Objects::nonNull)
                 .map(Utils::normalize)
-                .filter(a -> !OTHER_AREA.equals(a))
+                .filter(a -> !AreaNaming.isOthers(a))
                 .collect(Collectors.toSet());
 
         return studyAreas.stream()

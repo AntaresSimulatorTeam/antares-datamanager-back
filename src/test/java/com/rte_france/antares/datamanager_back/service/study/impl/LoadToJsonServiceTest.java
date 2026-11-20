@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.model.LoadEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -110,7 +111,7 @@ class LoadToJsonServiceTest {
                 .build();
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).isEmpty();
@@ -205,11 +206,11 @@ class LoadToJsonServiceTest {
                 .thenReturn("load_fr_2026-2027.txt.uuid.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
-                .containsEntry("FR", List.of("load_fr_2026-2027.txt.uuid.arrow"));
+                .containsEntry(AreaKey.of("FR"), List.of("load_fr_2026-2027.txt.uuid.arrow"));
     }
 
     @Test
@@ -247,11 +248,11 @@ class LoadToJsonServiceTest {
                 .thenReturn("load_fr_2026-2027.txt.uuid.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
-                .containsEntry("FR", List.of("load_fr_2026-2027.txt.uuid.arrow"));
+                .containsEntry(AreaKey.of("FR"), List.of("load_fr_2026-2027.txt.uuid.arrow"));
     }
 
     @Test
@@ -263,7 +264,7 @@ class LoadToJsonServiceTest {
                 .build();
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).isEmpty();
@@ -285,7 +286,7 @@ class LoadToJsonServiceTest {
                 .build();
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).isEmpty();
@@ -314,7 +315,7 @@ class LoadToJsonServiceTest {
                 .build();
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).isEmpty();
@@ -445,11 +446,11 @@ class LoadToJsonServiceTest {
                 .thenReturn("outputwithoutpattern");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
-                .containsEntry("OTHERS", List.of("outputwithoutpattern"));
+                .containsEntry(AreaKey.of("OTHERS"), List.of("outputwithoutpattern"));
     }
 
     @Test
@@ -516,11 +517,11 @@ class LoadToJsonServiceTest {
                 .thenReturn("load_fr_cached.arrow");
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).hasSize(1)
-                .containsEntry("FR", List.of("load_fr_cached.arrow", "load_fr_cached.arrow"));
+                .containsEntry(AreaKey.of("FR"), List.of("load_fr_cached.arrow", "load_fr_cached.arrow"));
         verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), any(), any(), anyBoolean());
     }
 
@@ -550,10 +551,94 @@ class LoadToJsonServiceTest {
         study.setTrajectories(Set.of(loadTrajectory));
 
         // When
-        Map<String, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
 
         // Then
         assertThat(result).isEmpty();
         verifyNoInteractions(nasFileService);
+    }
+
+    @Test
+    void getListArrowLoadFilesByAreaFromStudy_withMixedCaseArea_shouldBeFoundWhateverTheCase() throws IOException {
+        // Given
+        LoadEntity loadEntity = LoadEntity.builder().id(1).fileName("load_dekf_2026-2027.txt").build();
+        TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.LOAD.name())
+                .fileName("load_dekf")
+                .area("DEkf")
+                .loadEntities(Set.of(loadEntity))
+                .build();
+        StudyEntity study = StudyEntity.builder().id(1).trajectories(Set.of(loadTrajectory)).build();
+
+        when(nasFileService.readAndSaveMatrixToNas(any(), eq("output_load"), isNull(), eq(false)))
+                .thenReturn("load_dekf_2026-2027.txt.uuid.arrow");
+
+        // When
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+
+        // Then
+        assertThat(result.get(AreaKey.of("DEkf"))).containsExactly("load_dekf_2026-2027.txt.uuid.arrow");
+        assertThat(result.get(AreaKey.of("dekf"))).containsExactly("load_dekf_2026-2027.txt.uuid.arrow");
+        assertThat(result.get(AreaKey.of("DEKF"))).containsExactly("load_dekf_2026-2027.txt.uuid.arrow");
+    }
+
+    @Test
+    void getListArrowLoadFilesByAreaFromStudy_withOthersAreaAndMixedCaseFileName_shouldGroupUnderTheSameKey() throws IOException {
+        // Given
+        StudyEntity study = StudyEntity.builder().id(100).build();
+        TrajectoryEntity trajLinked = TrajectoryEntity.builder().scenarioEntities(Set.of(study)).build();
+        LoadEntity loadLinked = LoadEntity.builder()
+                .id(1)
+                .fileName("load_DEkf_2026-2027.txt")
+                .trajectoryEntities(Set.of(trajLinked))
+                .build();
+        TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.LOAD.name())
+                .fileName("load_others")
+                .area("OTHERS")
+                .loadEntities(Set.of(loadLinked))
+                .build();
+        study.setTrajectories(Set.of(loadTrajectory));
+
+        when(nasFileService.readAndSaveMatrixToNas(any(), eq("output_load"), isNull(), eq(false)))
+                .thenReturn("load_DEkf_2026-2027.txt.uuid.arrow");
+
+        // When
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+
+        // Then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(AreaKey.of("dekf"))).containsExactly("load_DEkf_2026-2027.txt.uuid.arrow");
+    }
+
+    @Test
+    void getListArrowLoadFilesByAreaFromStudy_withOthersAreaAndEmptyExtractedArea_shouldFallbackToOthers() throws IOException {
+        // Given
+        StudyEntity study = StudyEntity.builder().id(100).build();
+        TrajectoryEntity trajLinked = TrajectoryEntity.builder().scenarioEntities(Set.of(study)).build();
+        LoadEntity loadLinked = LoadEntity.builder()
+                .id(1)
+                .fileName("load.txt")
+                .trajectoryEntities(Set.of(trajLinked))
+                .build();
+        TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
+                .id(10)
+                .type(TrajectoryType.LOAD.name())
+                .fileName("load_others")
+                .area("OTHERS")
+                .loadEntities(Set.of(loadLinked))
+                .build();
+        study.setTrajectories(Set.of(loadTrajectory));
+
+        when(nasFileService.readAndSaveMatrixToNas(any(), eq("output_load"), isNull(), eq(false)))
+                .thenReturn("load__2026.arrow");
+
+        // When
+        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
+
+        // Then
+        assertThat(result).containsOnlyKeys(AreaKey.of("OTHERS"));
     }
 }
