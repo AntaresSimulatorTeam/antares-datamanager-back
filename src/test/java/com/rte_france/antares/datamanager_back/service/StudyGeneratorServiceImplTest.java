@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
@@ -678,8 +679,8 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
 
         when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
-                "FR", List.of("load_fr_2030-2031.txt"),
-                "DE", List.of("load_de_2030-2031.txt")
+                AreaKey.of("FR"), List.of("load_fr_2030-2031.txt"),
+                AreaKey.of("DE"), List.of("load_de_2030-2031.txt")
         ));
 
         studyGeneratorService.buildJsonForStudyGeneration(1);
@@ -716,7 +717,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
         when(loadToJsonService.getListArrowLoadFilesByAreaFromStudy(any())).thenReturn(Map.of(
-                "FR", List.of("load_fr_2030-2031.txt")
+                AreaKey.of("FR"), List.of("load_fr_2030-2031.txt")
         ));
 
         studyGeneratorService.buildJsonForStudyGeneration(1);
