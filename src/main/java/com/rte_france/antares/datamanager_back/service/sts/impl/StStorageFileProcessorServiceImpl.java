@@ -14,6 +14,7 @@ import com.rte_france.antares.datamanager_back.service.sts.StStorageFileProcesso
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.StStorageColumns;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
     private static final Integer SERIES_INDEX = 11;
     private static final Integer CONSTRAINTS_INDEX = 12;
+    private static final Integer ALLOW_OVERFLOW_INDEX = 13;
     private static final String SERIES_FILES = "series";
     private static final String CONSTRAINTS_FILES = "constraints";
     private static final String EXCEL_EXTENSION = ".xlsx";
@@ -215,6 +217,30 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         validateNumericRange(row, 3, 8, trajectoryFileName);
         validateZeroToOneRange(row, trajectoryFileName);
         validateBooleanRange(row, 9, 12, trajectoryFileName);
+        validateAllowOverflow(row, horizon, trajectoryFileName);
+    }
+
+    private void validateAllowOverflow(Row row, String horizon, String trajectoryFileName) {
+        Cell cell = row.getCell(ALLOW_OVERFLOW_INDEX);
+        boolean empty = cell == null || cell.getCellType() == CellType.BLANK;
+        if (!empty) {
+            CellType type = cell.getCellType() == CellType.FORMULA
+                    ? cell.getCachedFormulaResultType() : cell.getCellType();
+            empty = type == CellType.BLANK
+                    || (type == CellType.STRING && cell.getStringCellValue().trim().isEmpty());
+        }
+        if (empty) {
+            throw BusinessException.builder()
+                    .message("Empty values found for Allow_overflow for horizon {0} in {1} trajectory")
+                    .errorMessageArguments(List.of(horizon, trajectoryFileName))
+                    .build();
+        }
+        if (!isBooleanCell(cell)) {
+            throw BusinessException.builder()
+                    .message("Waiting for boolean value(s) in column(s) Allow_overflow in {0} trajectory")
+                    .errorMessageArguments(List.of(trajectoryFileName))
+                    .build();
+        }
     }
 
     private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
@@ -340,6 +366,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         stStorageEntity.setEnabled(getBooleanCell(row, 10));
         stStorageEntity.setSeries(stsSeriesFilesFlag);
         stStorageEntity.setConstraintsFlag(stsConstraintsFlag);
+        stStorageEntity.setAllowOverflow(Utils.getBooleanCell(row, ALLOW_OVERFLOW_INDEX));
         return stStorageEntity;
     }
 

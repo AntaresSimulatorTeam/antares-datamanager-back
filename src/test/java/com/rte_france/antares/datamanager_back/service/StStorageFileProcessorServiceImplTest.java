@@ -20,20 +20,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.text.MessageFormat;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -150,6 +153,159 @@ class StStorageFileProcessorServiceImplTest {
         assertThat(entity.getName()).isEqualTo("cluster1");
         assertThat(entity.getInjection()).isEqualByComparingTo(BigDecimal.valueOf(10));
         assertThat(entity.getSeries()).isFalse();
+        assertThat(entity.getAllowOverflow()).isFalse();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "BOOLEAN, true, true",
+            "BOOLEAN, false, false",
+            "NUMERIC, 1, true",
+            "NUMERIC, 0, false",
+            "STRING, true, true",
+            "STRING, FALSE, false",
+            "STRING, ' True ', true",
+            "STRING, ' false ', false",
+            "STRING, 1, true",
+            "STRING, 0, false",
+            "FORMULA, TRUE(), true",
+            "FORMULA, FALSE(), false",
+            "FORMULA, 1, true",
+            "FORMULA, 0, false",
+            "FORMULA, \"true\", true",
+            "FORMULA, \"false\", false",
+            "FORMULA, \"1\", true",
+            "FORMULA, \"0\", false"
+    })
+    void shouldPersistAllowOverflow(CellType type, String value, boolean expected) throws IOException {
+        Path xlsx = createWorkbookWithAllowOverflow(type, value);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(
+                "cluster_battery_test", "2029-2030", 1, false, "FR", "battery");
+
+        assertThat(trajectory.getStStorageEntities()).singleElement()
+                .satisfies(entity -> assertThat(entity.getAllowOverflow()).isEqualTo(expected));
+        verify(trajectoryRepository).save(trajectory);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            ",",
+            "BLANK,",
+            "STRING, ''",
+            "STRING, '   '",
+            "FORMULA, \"\"",
+            "FORMULA, \"   \""
+    })
+    void shouldRejectEmptyAllowOverflow(CellType type, String value) throws IOException {
+        Path xlsx = createWorkbookWithAllowOverflow(type, value);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() -> service.processStStorageFile(
+                "cluster_battery_test", "2029-2030", 1, false, "FR", "battery"))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getMessage()).isEqualTo(
+                            "Empty values found for Allow_overflow for horizon {0} in {1} trajectory");
+                    assertThat(exception.getErrorMessageArguments()).containsExactly("2030", "cluster_battery_test.xlsx");
+                    assertThat(MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray()))
+                            .isEqualTo("Empty values found for Allow_overflow for horizon 2030 in cluster_battery_test.xlsx trajectory");
+                });
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "STRING, yes",
+            "STRING, 2",
+            "NUMERIC, 2",
+            "NUMERIC, -1",
+            "NUMERIC, 0.5",
+            "ERROR,",
+            "FORMULA, 2",
+            "FORMULA, \"yes\"",
+            "FORMULA, 1/0"
+    })
+    void shouldRejectNonBooleanAllowOverflow(CellType type, String value) throws IOException {
+        Path xlsx = createWorkbookWithAllowOverflow(type, value);
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() -> service.processStStorageFile(
+                "cluster_battery_test", "2029-2030", 1, false, "FR", "battery"))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getMessage()).isEqualTo(
+                            "Waiting for boolean value(s) in column(s) Allow_overflow in {0} trajectory");
+                    assertThat(exception.getErrorMessageArguments()).containsExactly("cluster_battery_test.xlsx");
+                    assertThat(MessageFormat.format(exception.getMessage(), exception.getErrorMessageArguments().toArray()))
+                            .isEqualTo("Waiting for boolean value(s) in column(s) Allow_overflow in cluster_battery_test.xlsx trajectory");
+                });
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectMissingAllowOverflowHeader() throws IOException {
+        Path xlsx = updateValidWorkbook(sheet -> sheet.getRow(0).removeCell(sheet.getRow(0).getCell(13)));
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+
+        assertThatThrownBy(() -> service.processStStorageFile(
+                "cluster_battery_test", "2029-2030", 1, false, "FR", "battery"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorMessageArguments()).contains("Allow_overflow"));
+        verify(trajectoryRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"FR", "OTHERS"})
+    void shouldIgnoreEmptyAllowOverflowInExcludedAreas(String area) throws IOException {
+        Path xlsx = updateValidWorkbook(sheet -> {
+            Row excludedRow = sheet.createRow(2);
+            excludedRow.createCell(0).setCellValue("DE");
+        });
+        placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
+        when(trajectoryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity trajectory = service.processStStorageFile(
+                "cluster_battery_test", "2029-2030", 1, false, area, "battery");
+
+        assertThat(trajectory.getStStorageEntities()).singleElement()
+                .satisfies(entity -> assertThat(entity.getArea()).isEqualTo("FR"));
+    }
+
+    private Path createWorkbookWithAllowOverflow(CellType type, String value) throws IOException {
+        return updateValidWorkbook(sheet -> {
+            Row row = sheet.getRow(1);
+            row.removeCell(row.getCell(13));
+            if (type == null) {
+                return;
+            }
+            Cell cell = row.createCell(13);
+            switch (type) {
+                case BOOLEAN -> cell.setCellValue(Boolean.parseBoolean(value));
+                case NUMERIC -> cell.setCellValue(Double.parseDouble(value));
+                case STRING -> cell.setCellValue(value);
+                case FORMULA -> cell.setCellFormula(value);
+                case ERROR -> cell.setCellErrorValue(FormulaError.VALUE.getCode());
+                case BLANK -> cell.setBlank();
+                default -> throw new IllegalArgumentException("Unsupported test cell type: " + type);
+            }
+        });
+    }
+
+    private Path updateValidWorkbook(Consumer<Sheet> update) throws IOException {
+        Path path = createValidWorkbook("2030", false);
+        Workbook workbook;
+        try (InputStream input = Files.newInputStream(path)) {
+            workbook = WorkbookFactory.create(input);
+        }
+        try (workbook) {
+            update.accept(workbook.getSheet("2030"));
+            workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
+            try (OutputStream output = Files.newOutputStream(path)) {
+                workbook.write(output);
+            }
+        }
+        return path;
     }
 
     @Test
@@ -224,7 +380,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet("2030");
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -312,7 +468,7 @@ class StStorageFileProcessorServiceImplTest {
             Row header = sheet.createRow(0);
             String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage",
                     "Efficiency_injection", "Efficiency_withdrawal", "Initial_level",
-                    "Initial_level_optim", "Enabled", "Series", "Constraints"};
+                    "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }
@@ -329,6 +485,7 @@ class StStorageFileProcessorServiceImplTest {
             row.createCell(10).setCellValue(true);
             row.createCell(11).setCellValue(false);
             row.createCell(12).setCellValue(false);
+            row.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(tempFile)) {
                 workbook.write(os);
@@ -466,7 +623,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -480,7 +637,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -497,6 +654,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue("false");
             r.createCell(11).setCellValue(series);
             r.createCell(12).setCellValue("false");
+            r.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -513,7 +671,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -530,6 +688,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue("false");
             r.createCell(11).setCellValue("true"); // series true
             r.createCell(12).setCellValue("false");
+            r.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -543,7 +702,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -561,6 +720,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue("false");
             r.createCell(11).setCellValue("false");
             r.createCell(12).setCellValue("false");
+            r.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -756,93 +916,6 @@ class StStorageFileProcessorServiceImplTest {
         assertThat(result).isNotNull();
     }
 
-    @ParameterizedTest
-    @MethodSource("provideBooleanKeywordsWithExpectedResult")
-    void shouldParseAndSetCorrectBooleanValues(String keyword, boolean expectedBoolean) throws IOException {
-        String horizon = "2029-2030";
-        String technology = "battery";
-        String area = "FR";
-        String clusterName = "cluster1";
-
-        Path seriesDir = tempDir
-                .resolve("trajectories")
-                .resolve("STS")
-                .resolve(technology)
-                .resolve("series")
-                .resolve("test")
-                .resolve(clusterName)
-                .resolve(area);
-        Files.createDirectories(seriesDir);
-        Files.createFile(seriesDir.resolve("inflows.xlsx"));
-        Files.createFile(seriesDir.resolve("lower_curve.xlsx"));
-        Files.createFile(seriesDir.resolve("Pmax_injection.xlsx"));
-        Files.createFile(seriesDir.resolve("Pmax_soutirage.xlsx"));
-        Files.createFile(seriesDir.resolve("upper_curve.xlsx"));
-
-        Path xlsx = tempDir.resolve("test_boolean.xlsx");
-        try (Workbook wb = new XSSFWorkbook()) {
-            Sheet s = wb.createSheet("2030");
-            Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage",
-                    "Efficiency_injection", "Efficiency_withdrawal", "Initial_level",
-                    "Initial_level_optim", "Enabled", "Series", "Constraints"};
-            for (int i = 0; i < headers.length; i++) {
-                header.createCell(i).setCellValue(headers[i]);
-            }
-
-            Row r = s.createRow(1);
-            r.createCell(0).setCellValue(area);
-            r.createCell(1).setCellValue(clusterName);
-            r.createCell(2).setCellValue("g1");
-            r.createCell(3).setCellValue(10);
-            r.createCell(4).setCellValue(20);
-            r.createCell(5).setCellValue(30);
-            r.createCell(6).setCellValue(0.9);
-            r.createCell(7).setCellValue(5);
-            r.createCell(8).setCellValue(0.5);
-            r.createCell(9).setCellValue(keyword);  // Initial_level_optim
-            r.createCell(10).setCellValue(keyword); // Enabled
-            r.createCell(11).setCellValue(keyword); // Series
-            r.createCell(12).setCellValue(keyword); // Constraints
-
-            try (OutputStream os = Files.newOutputStream(xlsx)) {
-                wb.write(os);
-            }
-        }
-
-        placeInClusters(xlsx, technology, "cluster_battery_test.xlsx");
-
-        when(trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(
-                anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(Optional.empty());
-        when(trajectoryRepository.save(any())).thenAnswer((Answer<TrajectoryEntity>) inv -> inv.getArgument(0));
-
-        TrajectoryEntity result = service.processStStorageFile(
-                "cluster_battery_test", horizon, 1, false, area, technology
-        );
-
-        assertThat(result).isNotNull();
-        assertThat(result.getStStorageEntities()).hasSize(1);
-
-        StStorageEntity entity = result.getStStorageEntities().getFirst();
-        assertThat(entity.getInitialLevelOptim())
-                .as("initialLevelOptim should be %s for keyword '%s'", expectedBoolean, keyword)
-                .isEqualTo(expectedBoolean);
-        assertThat(entity.getEnabled())
-                .as("enabled should be %s for keyword '%s'", expectedBoolean, keyword)
-                .isEqualTo(expectedBoolean);
-        assertThat(entity.getSeries())
-                .as("series should be %s for keyword '%s'", expectedBoolean, keyword)
-                .isEqualTo(expectedBoolean);
-        assertThat(entity.getConstraintsFlag())
-                .as("constraintsFlag should be %s for keyword '%s'", expectedBoolean, keyword)
-                .isEqualTo(expectedBoolean);
-    }
-
-    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
-        return TestConstants.booleanKeywords();
-    }
-
     private void createEmptyConstraintWorkbook(Path constraintsDir) throws IOException {
         Path filePath = constraintsDir.resolve("Additional-constraints.xlsx");
         try (Workbook workbook = new XSSFWorkbook()) {
@@ -869,7 +942,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -881,6 +954,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue(true);
             r.createCell(11).setCellValue(false);
             r.createCell(12).setCellValue(true); // Constraints TRUE
+            r.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -907,7 +981,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet("2030");
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -924,6 +998,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue(false);
             r.createCell(11).setCellValue(false);
             r.createCell(12).setCellValue(false);
+            r.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -964,7 +1039,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -989,7 +1064,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -1054,7 +1129,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) {
                 header.createCell(i).setCellValue(headers[i]);
             }
@@ -1070,6 +1145,7 @@ class StStorageFileProcessorServiceImplTest {
             first.createCell(10).setCellValue(true);
             first.createCell(11).setCellValue(false);
             first.createCell(12).setCellValue(true);
+            first.createCell(13).setCellValue(false);
 
             Row second = s.createRow(2);
             second.createCell(0).setCellValue(area);
@@ -1085,6 +1161,7 @@ class StStorageFileProcessorServiceImplTest {
             second.createCell(10).setCellValue(true);
             second.createCell(11).setCellValue(false);
             second.createCell(12).setCellValue(true);
+            second.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -1212,7 +1289,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -1230,6 +1307,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue(false);
             r.createCell(11).setCellValue(false);
             r.createCell(12).setCellValue(false);
+            r.createCell(13).setCellValue(false);
 
             try (OutputStream os = Files.newOutputStream(file)) {
                 wb.write(os);
@@ -1243,7 +1321,7 @@ class StStorageFileProcessorServiceImplTest {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(horizon);
             Row header = s.createRow(0);
-            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints"};
+            String[] headers = {"Area", "Name", "Group", "Injection", "Withdrawal", "Storage", "Efficiency_injection", "Efficiency_withdrawal", "Initial_level", "Initial_level_optim", "Enabled", "Series", "Constraints", "Allow_overflow"};
             for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
 
             Row r = s.createRow(1);
@@ -1260,6 +1338,7 @@ class StStorageFileProcessorServiceImplTest {
             r.createCell(10).setCellValue(true);
             r.createCell(11).setCellValue(false);
             r.createCell(12).setCellValue(false);
+            r.createCell(13).setCellValue(false);
             r.createCell(boolColIdx).setCellValue(42); // override with non-boolean numeric
 
             try (OutputStream os = Files.newOutputStream(file)) {
@@ -1267,6 +1346,121 @@ class StStorageFileProcessorServiceImplTest {
             }
         }
         return file;
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "false, true",
+            "TRUE, true",
+            "FALSE, true",
+            "1, true",
+            "0, true",
+            " 1 , true",
+            "abc, false",
+            "'', false",
+    })
+    void shouldTestIsBooleanStringValue(String value, boolean expected) {
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanStringValue", value);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldReturnFalseForNullInIsBooleanStringValue() {
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanStringValue", (Object) null);
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void shouldReturnFalseWhenCellIsNullInIsBooleanCell() {
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", (Cell) null);
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void shouldReturnTrueForBooleanCellInIsBooleanCell() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.BOOLEAN);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "0.0, true",
+            "1.0, true",
+            "0.5, false"
+    })
+    void shouldTestNumericCellInIsBooleanCell(double value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.NUMERIC);
+        when(cell.getNumericCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "false, true",
+            "1, true",
+            "0, true",
+            "abc, false"
+    })
+    void shouldTestStringCellInIsBooleanCell(String value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.STRING);
+        when(cell.getStringCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldTestFormulaBooleanCellInIsBooleanCell() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.BOOLEAN);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "0.0, true",
+            "1.0, true",
+            "2.0, false"
+    })
+    void shouldTestFormulaNumericCellInIsBooleanCell(double value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.NUMERIC);
+        when(cell.getNumericCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, true",
+            "false, true",
+            "abc, false"
+    })
+    void shouldTestFormulaStringCellInIsBooleanCell(String value, boolean expected) {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.STRING);
+        when(cell.getStringCellValue()).thenReturn(value);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldReturnFalseForOtherFormulaResultTypeInIsBooleanCell() {
+        Cell cell = mock(Cell.class);
+        when(cell.getCellType()).thenReturn(CellType.FORMULA);
+        when(cell.getCachedFormulaResultType()).thenReturn(CellType.ERROR);
+        Boolean result = ReflectionTestUtils.invokeMethod(service, "isBooleanCell", cell);
+        assertThat(result).isFalse();
     }
 
     private StConstraintsParameterEntity paramWithHours(String zone, String cluster) {
