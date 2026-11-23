@@ -30,13 +30,14 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificFileProcessorService {
 
     private static final String VALUES_FOR_NODE_MESSAGE_PREFIX = "Values for node ";
+    private static final String PO_DURATION_COLUMN_NAME = "PO duration for node ";
     private static final String CLUSTER_MESSAGE_SEPARATOR = " / cluster ";
     private static final String MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY = " must be positive in THERMAL Specific Param trajectory ";
+    private static final String MUST_BE_GREATER_THAN_ZERO_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY = " must be greater than zero in THERMAL Specific Param trajectory ";
 
     private final AreaRepository areaRepository;
     private final TrajectoryRepository trajectoryRepository;
     private final ThermalControlService thermalControlService;
-    private final ThermalClusterRefServiceImpl thermalClusterRef;
     private final ThermalSpecificParametersRepository thermalSpecificParametersRepository;
 
     /**
@@ -175,7 +176,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                     .efficiency(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 4), getHeaderText(header, 4), row.getRowNum())))
                     .foRate(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 5), getHeaderText(header, 5), row.getRowNum())))
                     .foDuration(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 6), getHeaderText(header, 6), row.getRowNum())))
-                    .poDuration(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 7), getHeaderText(header, 7), row.getRowNum())))
+                    .poDuration(specificParamValueMustGreaterThanZero(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 7), getHeaderText(header, 7), row.getRowNum())))
                     .poWinter(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 8), getHeaderText(header, 8), row.getRowNum())))
                     .marginalCost(specificParamValueMustBePositiveBigDecimal(areaName, clusterName, trajectoryName, castBigDecimal(getCellValue(row, 9), getHeaderText(header, 9), row.getRowNum())))
                     .marketBid(specificParamValueMustBePositiveBigDecimal(areaName, clusterName, trajectoryName, castBigDecimal(getCellValue(row, 10), getHeaderText(header, 10), row.getRowNum())))
@@ -217,6 +218,13 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     private Double specificParamValueMustBePositive(String areaName, String clusterName, String trajectoryName, Double value) {
         if (value != null && Double.compare(value, 0.0) < 0) {
             throw BusinessException.builder().message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY + trajectoryName).build();
+        }
+        return value;
+    }
+
+    private Double specificParamValueMustGreaterThanZero(String areaName, String clusterName, String trajectoryName, Double value) {
+        if (value != null && Double.compare(value, 0.0) <= 0) {
+            throw BusinessException.builder().message(PO_DURATION_COLUMN_NAME + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + MUST_BE_GREATER_THAN_ZERO_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY + trajectoryName).build();
         }
         return value;
     }
