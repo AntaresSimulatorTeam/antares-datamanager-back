@@ -40,6 +40,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.stream.Stream;
+
+
 class LinkFileProcessorServiceImplTest {
 
     @Mock
@@ -783,5 +788,55 @@ class LinkFileProcessorServiceImplTest {
 
         // Then
         assertTrue(warningMessages.isEmpty());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void shouldParseAndSetCorrectBooleanForFlowbasedPerimeter(String keyword, boolean expectedBoolean) throws IOException {
+        String horizon = "2030-2031";
+
+        tempFile = CreateExcelTestUtil.createExcelFileWithTwoSheets(
+                tempDir,
+                "FlowbasedKeyword.xlsx",
+                List.of("parameters", horizon),
+                List.of(
+                        List.of("Parameter", horizon),
+                        List.of("Name", "Winter_HP_Direct_MW", "Winter_HP_Indirect_MW",
+                                "Winter_HC_Direct_MW", "Winter_HC_Indirect_MW",
+                                "Summer_HP_Direct_MW", "Summer_HP_Indirect_MW",
+                                "Summer_HC_Direct_MW", "Summer_HC_Indirect_MW",
+                                "Flowbased_perimeter", "HVDC_MW_direct", "HVDC_MW_Indirect",
+                                "HVDC_nb_direct", "HVDC_nb_indirect", "HVDC_FO_Rate_direct", "HVDC_FO_Rate_indirect")
+                ),
+                List.of(
+                        List.of(List.of("hurdle_cost", 10.5), List.of("HVDC", true)),
+                        List.of(
+                                List.of("AT-CH", 100, 200, 150, 175, 300, 400, 250, 275, keyword, 50.0, 25.0, 1, 1, 1, 1)
+                        )
+                ));
+
+        when(userService.getCurrentUserDetails()).thenReturn(UserInfoDto.builder().nni("CF001").build());
+        when(studyRepository.findById(any())).thenReturn(Optional.of(StudyEntity.builder().build()));
+        TrajectoryEntity areaTrajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.AREA.name())
+                .areaConfigEntities(List.of(
+                        AreaConfigEntity.builder().area(AreaEntity.builder().name("AT").build()).build(),
+                        AreaConfigEntity.builder().area(AreaEntity.builder().name("CH").build()).build()
+                ))
+                .build();
+        when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.AREA.name(), 1)).thenReturn(List.of(areaTrajectory));
+        when(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(any(String.class), any(String.class), any(String.class)))
+                .thenReturn(Optional.empty());
+        when(trajectoryRepository.save(any(TrajectoryEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity result = linkFileProcessorService.processLinkFile(tempFile, horizon, 1);
+
+        assertEquals(expectedBoolean, result.getLinkEntities().get(0).getFlowbasedPerimeter(),
+                "flowbasedPerimeter should be " + expectedBoolean + " for keyword '" + keyword + "'");
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
     }
 }

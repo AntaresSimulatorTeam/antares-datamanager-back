@@ -223,7 +223,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .summerHpIndirectMw(getNumericCellValue(row, 6))
                             .summerHcDirectMw(getNumericCellValue(row, 7))
                             .summerHcIndirectMw(getNumericCellValue(row, 8))
-                            .flowbasedPerimeter(getBooleanCellValue(row.getCell(9))
+                            .flowbasedPerimeter(Optional.ofNullable(getBooleanCellOrDefault(row, 9, false))
                                     .orElseThrow(() -> BusinessException.builder()
                                             .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
                                             .errorMessageArguments(List.of(LinksColumns.FLOWBASED_PERIMETER.getDisplayName(), TrajectoryType.LINK.name()))
