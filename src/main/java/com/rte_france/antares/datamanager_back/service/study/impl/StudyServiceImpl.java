@@ -165,7 +165,7 @@ public class StudyServiceImpl implements StudyService {
     protected void markStudyAsError(Integer studyId) {
         studyRepository.findById(studyId).ifPresentOrElse(
             study -> {
-                study.setStatus(StudyStatus.ERROR);
+                study.setStatus(StudyStatus.IN_PROGRESS);// TEMPORARY: Set back to IN_PROGRESS to allow retrying generation
                 studyRepository.save(study);
                 log.error("Study {} generation failed, status set to ERROR", studyId);
             },

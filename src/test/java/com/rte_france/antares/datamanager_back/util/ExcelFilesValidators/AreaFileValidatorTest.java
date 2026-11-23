@@ -147,7 +147,7 @@ class AreaFileValidatorTest {
                     () -> ExcelCommonValidator.checkStringColumns(sheet, "2035-2036", "areas", TrajectoryType.AREA.name()));
 
             assertAll(
-                    () -> assertEquals("Waiting for String value for area(s): {2} in {3} trajectory",
+                    () -> assertEquals("Waiting for String value for {0}: {2} in {3} trajectory for horizon {1}",
                             exception.getMessage()),
                     () -> assertIterableEquals(
                             List.of("areas", "2035-2036", "123, 456", TrajectoryType.AREA.name()),
@@ -175,7 +175,7 @@ class AreaFileValidatorTest {
                     () -> ExcelCommonValidator.checkStringColumns(sheet, "2035-2036", "district", TrajectoryType.AREA.name()));
 
             assertAll(
-                    () -> assertEquals("Column {0} errors in sheet {1} in file:{2}. Locations: {3}",
+                    () -> assertEquals("Waiting for String value for {0}: {2} in {3} trajectory for horizon {1}",
                             exception.getMessage()),
                     () -> assertIterableEquals(
                             List.of("district", "2035-2036", "row 2, Column 2: '400', row 3, Column 2: '200'", TrajectoryType.AREA.name()),

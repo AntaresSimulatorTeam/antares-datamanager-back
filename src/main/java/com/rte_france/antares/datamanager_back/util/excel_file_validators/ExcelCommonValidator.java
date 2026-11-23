@@ -314,9 +314,7 @@ public class ExcelCommonValidator {
 
         if (!invalidCells.isEmpty()) {
             throw BusinessException.builder()
-                    .message(AREAS.equals(columnName) ?
-                            "Waiting for String value for area(s): {2} in {3} trajectory" :
-                            "Column {0} errors in sheet {1} in file:{2}. Locations: {3}")
+                    .message("Waiting for String value for {0}: {2} in {3} trajectory for horizon {1}")
                     .errorMessageArguments(List.of(columnName, horizon, String.join(", ", invalidCells),trajectoryType))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();

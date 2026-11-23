@@ -316,7 +316,7 @@ class StudyServiceImplTest {
         assertEquals("Error during JSON generation", exception.getMessage());
         verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(1);
         verify(studyGeneratorService, never()).callGenerateStudyService(1);
-        assertEquals(StudyStatus.ERROR, studyEntity.getStatus());
+        assertEquals(StudyStatus.IN_PROGRESS, studyEntity.getStatus());
     }
 
     @Test
@@ -339,7 +339,7 @@ class StudyServiceImplTest {
         assertEquals("Error during service call", exception.getMessage());
         verify(studyGeneratorService, times(1)).buildJsonForStudyGeneration(1);
         verify(studyGeneratorService, times(1)).callGenerateStudyService(1);
-        assertEquals(StudyStatus.ERROR, studyEntity.getStatus());
+        assertEquals(StudyStatus.IN_PROGRESS, studyEntity.getStatus());
     }
 
     @Test
