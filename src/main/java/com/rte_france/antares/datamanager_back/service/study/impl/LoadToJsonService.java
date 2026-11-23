@@ -115,7 +115,7 @@ public class LoadToJsonService {
                                                                       Map<Integer, String> arrowFileCache) {
         String outputFileName = resolveOutputFileName(loadEntity, trajectory, arrowFileCache);
         String area = extractAreaFromFileName(outputFileName, pattern);
-        return Map.entry(AreaKey.of(area.isBlank() ? AreaNaming.OTHERS : area), outputFileName);
+        return Map.entry(AreaKey.of(area), outputFileName);
     }
 
     private  String resolveOutputFileName(LoadEntity loadEntity, TrajectoryEntity trajectory, Map<Integer, String> arrowFileCache) {
