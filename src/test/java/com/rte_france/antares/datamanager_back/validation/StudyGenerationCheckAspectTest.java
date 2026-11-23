@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StudyStatus;
+import com.rte_france.antares.datamanager_back.service.user.LdapClientEmployeeService;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,9 @@ class StudyGenerationCheckAspectTest {
 
     @Mock
     private StudyRepository studyRepository;
+
+    @Mock
+    private LdapClientEmployeeService ldapClientEmployeeService;
 
     @InjectMocks
     private StudyGenerationCheckAspect aspect;
