@@ -49,7 +49,7 @@ class AreaNamingTest {
         @Test
         void sameKeyWhateverTheCase() {
             assertThat(AreaKey.of("DEkf")).isEqualTo(AreaKey.of("DEKF")).isEqualTo(AreaKey.of("dekf"));
-            assertThat(AreaKey.of("DEkf").hashCode()).isEqualTo(AreaKey.of("dekf").hashCode());
+            assertThat(AreaKey.of("DEkf")).hasSameHashCodeAs(AreaKey.of("dekf"));
             assertThat(AreaKey.of("DEkf").value()).isEqualTo("DEKF");
         }
 
@@ -87,7 +87,7 @@ class AreaNamingTest {
         void worksAsMapKeyWithoutCaseSensitivity() {
             Map<AreaKey, String> byArea = new HashMap<>();
             byArea.put(AreaKey.of("DEKF"), "files");
-            assertThat(byArea.get(AreaKey.of("DEkf"))).isEqualTo("files");
+            assertThat(byArea).containsEntry(AreaKey.of("DEkf"), "files");
         }
 
         @Test
@@ -102,8 +102,8 @@ class AreaNamingTest {
         @Test
         void sameAreaAndClusterWhateverTheCase() {
             assertThat(AreaClusterKey.of("DEkf", "Battery")).isEqualTo(AreaClusterKey.of("DEKF", "battery"));
-            assertThat(AreaClusterKey.of("DEkf", "Battery").hashCode())
-                    .isEqualTo(AreaClusterKey.of("dekf", " BATTERY ").hashCode());
+            assertThat(AreaClusterKey.of("DEkf", "Battery"))
+                    .hasSameHashCodeAs(AreaClusterKey.of("dekf", " BATTERY "));
         }
 
         @Test
@@ -153,7 +153,9 @@ class AreaNamingTest {
 
         @Test
         void namesDifferingOnlyByCaseAreRejected() {
-            assertThatThrownBy(() -> StudyAreas.of(List.of("DEkf", "DEKF")))
+            List<String> names = List.of("DEkf", "DEKF");
+
+            assertThatThrownBy(() -> StudyAreas.of(names))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(e -> assertThat(((BusinessException) e).getErrorMessageArguments()).containsExactly("DEkf", "DEKF"));
         }
@@ -161,14 +163,19 @@ class AreaNamingTest {
         @Test
         void unknownAreaIsAnError() {
             StudyAreas areas = StudyAreas.of(List.of("FR"));
-            assertThat(areas.contains(AreaKey.of("DE"))).isFalse();
-            assertThatThrownBy(() -> areas.displayName(AreaKey.of("DE"))).isInstanceOf(IllegalArgumentException.class);
+            AreaKey unknown = AreaKey.of("DE");
+
+            assertThat(areas.contains(unknown)).isFalse();
+            assertThatThrownBy(() -> areas.displayName(unknown)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
         void rejectsNullAndBlankNames() {
-            assertThatThrownBy(() -> StudyAreas.of(Arrays.asList("FR", null))).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> StudyAreas.of(List.of(" "))).isInstanceOf(IllegalArgumentException.class);
+            List<String> withNull = Arrays.asList("FR", null);
+            List<String> withBlank = List.of(" ");
+
+            assertThatThrownBy(() -> StudyAreas.of(withNull)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> StudyAreas.of(withBlank)).isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -182,9 +189,11 @@ class AreaNamingTest {
         @Test
         void clusterDisplayNameRejectsBlankSuffixAndUnknownArea() {
             StudyAreas areas = StudyAreas.of(List.of("DEkf"));
+            AreaKey known = AreaKey.of("DEkf");
+            AreaKey unknown = AreaKey.of("FR");
 
-            assertThatThrownBy(() -> areas.clusterDisplayName(AreaKey.of("DEkf"), " ")).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> areas.clusterDisplayName(AreaKey.of("FR"), "gas")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> areas.clusterDisplayName(known, " ")).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> areas.clusterDisplayName(unknown, "gas")).isInstanceOf(IllegalArgumentException.class);
         }
     }
 }

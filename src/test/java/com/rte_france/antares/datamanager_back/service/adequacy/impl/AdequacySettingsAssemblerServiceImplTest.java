@@ -71,9 +71,9 @@ class AdequacySettingsAssemblerServiceImplTest {
 
         assertThat(result).hasSize(2)
                 .containsEntry(AreaKey.of("Area1"), "Mode1")
-                .containsEntry(AreaKey.of("Area2"), "Mode2");
-        assertThat(result.get(AreaKey.of("area1"))).isEqualTo("Mode1");
-        assertThat(result.get(AreaKey.of("AREA2"))).isEqualTo("Mode2");
+                .containsEntry(AreaKey.of("Area2"), "Mode2")
+                .containsEntry(AreaKey.of("area1"), "Mode1")
+                .containsEntry(AreaKey.of("AREA2"), "Mode2");
     }
 
     @Test
@@ -122,8 +122,8 @@ class AdequacySettingsAssemblerServiceImplTest {
 
         Map<AreaKey, String> result = adequacySettingsAssemblerService.assembleAdequacyModeByArea(study);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(AreaKey.of("dekf"))).isEqualTo("inside");
+        assertThat(result).hasSize(1)
+                .containsEntry(AreaKey.of("dekf"), "inside");
     }
 
     @Test
@@ -139,8 +139,9 @@ class AdequacySettingsAssemblerServiceImplTest {
     @Test
     void resolveMode_shouldThrowWithTheOriginalNameWhenTheAreaIsMissing() {
         TrajectoryEntity trajectory = TrajectoryEntity.builder().fileName("adequacy").build();
+        Map<AreaKey, String> modeByArea = Map.of(AreaKey.of("FR"), "inside");
 
-        assertThatThrownBy(() -> adequacySettingsAssemblerService.resolveMode("DEkf", trajectory, Map.of(AreaKey.of("FR"), "inside")))
+        assertThatThrownBy(() -> adequacySettingsAssemblerService.resolveMode("DEkf", trajectory, modeByArea))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorMessageArguments()).containsExactly("DEkf", "adequacy"));
     }
