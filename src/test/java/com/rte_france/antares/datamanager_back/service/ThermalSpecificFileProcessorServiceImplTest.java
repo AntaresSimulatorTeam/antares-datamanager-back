@@ -151,6 +151,25 @@ class ThermalSpecificFileProcessorServiceImplTest {
         assertEquals(0.1, result.get(0).getPoDuration());
     }
 
+    @Test
+    void shouldThrowWhenPoDurationIsNull() throws IOException {
+        when(areaRepository.findAllByStudyId(any(), any(String.class)))
+                .thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+
+        var workbook = createValidWorkbook(1);
+        workbook.getSheet(HORIZON).getRow(3).getCell(7).setBlank();
+        Path file = writeWorkbookToTemp(workbook);
+
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, "FR", 1)
+        );
+
+        assertEquals(
+                "PO duration for node FR / cluster Cluster1 must be greater than zero in THERMAL Specific Param trajectory " + TRAJECTORY_NAME,
+                exception.getMessage()
+        );
+    }
+
 
     @Test
     void shouldThrowForOthersAreaIfNoStudyAreaPresent() throws IOException {

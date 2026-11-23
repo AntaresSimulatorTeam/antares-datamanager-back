@@ -223,7 +223,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
     }
 
     private Double specificParamValueMustGreaterThanZero(String areaName, String clusterName, String trajectoryName, Double value) {
-        if (value != null && Double.compare(value, 0.0) <= 0) {
+        if (value == null || Double.compare(value, 0.0) <= 0) {
             throw BusinessException.builder().message(PO_DURATION_COLUMN_NAME + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName + MUST_BE_GREATER_THAN_ZERO_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY + trajectoryName).build();
         }
         return value;
