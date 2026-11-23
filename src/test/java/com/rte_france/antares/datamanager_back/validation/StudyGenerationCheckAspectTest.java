@@ -66,7 +66,7 @@ class StudyGenerationCheckAspectTest {
 
     @Test
     void checkStudyGenerationInProgress_whenStudyInGenerationProgress_throwsBusinessException() {
-        studyEntity.setStatus(StudyStatus.GENERATION_INPROGRESS);
+        studyEntity.setStatus(StudyStatus.GENERATION_IN_PROGRESS);
         studyEntity.setGenerationStartedBy("anotheruser");
         
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));
@@ -80,7 +80,7 @@ class StudyGenerationCheckAspectTest {
 
     @Test
     void checkStudyGenerationInProgress_whenStudyInGenerationProgress_withNullGeneratingUser_usesUnknown() {
-        studyEntity.setStatus(StudyStatus.GENERATION_INPROGRESS);
+        studyEntity.setStatus(StudyStatus.GENERATION_IN_PROGRESS);
         studyEntity.setGenerationStartedBy(null);
         
         when(studyRepository.findById(1)).thenReturn(Optional.of(studyEntity));

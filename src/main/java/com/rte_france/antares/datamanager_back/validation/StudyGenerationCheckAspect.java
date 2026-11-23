@@ -47,7 +47,7 @@ public class StudyGenerationCheckAspect {
         }
 
         studyRepository.findById(studyId).ifPresent(study -> {
-            if (study.getStatus() == StudyStatus.GENERATION_INPROGRESS) {
+            if (study.getStatus() == StudyStatus.GENERATION_IN_PROGRESS) {
                 String generatingUser = study.getGenerationStartedBy() != null ? study.getGenerationStartedBy() : "unknown";
                 throw BusinessException.builder()
                     .antaresErrorCode(AntaresErrorCode.STUDY_GENERATION_IN_PROGRESS)

@@ -409,7 +409,7 @@ class StudyServiceImplTest {
     void updateStudy_throwsBadRequest_whenStatusGenerationInProgress() {
         var study = StudyEntity.builder()
                 .id(1)
-                .status(StudyStatus.GENERATION_INPROGRESS)
+                .status(StudyStatus.GENERATION_IN_PROGRESS)
                 .build();
 
         when(studyRepository.findById(1)).thenReturn(Optional.of(study));
