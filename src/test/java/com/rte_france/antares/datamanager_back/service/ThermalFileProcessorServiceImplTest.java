@@ -20,6 +20,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -35,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1132,4 +1136,44 @@ class ThermalFileProcessorServiceImplTest {
         }
     }
 
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void buildThermalClusterCapacityValuesList_shouldParseToUseKeywords(
+            String keyword, boolean expectedToUse, @TempDir Path tempDir) throws Exception {
+
+        Path file = tempDir.resolve("thermal_capacity_to_use.xlsx");
+        try (var wb = new XSSFWorkbook(); var fos = new FileOutputStream(file.toFile())) {
+            var sheet = wb.createSheet("ThermalClusterCapacity");
+            String[] headers = {"ToUse", "Area", "Fuel", "Technology", "Cluster", "Category",
+                    "2025_01", "2025_02", "2025_03", "2025_04", "2025_05", "2025_06",
+                    "2025_07", "2025_08", "2025_09", "2025_10", "2025_11", "2025_12"};
+            var header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            int rowNum = 1;
+            for (String category : List.of("power", "number")) {
+                var row = sheet.createRow(rowNum++);
+                String[] base = {keyword, "FR", "fuel", "CCGT", "Cluster1", category};
+                for (int i = 0; i < base.length; i++) row.createCell(i).setCellValue(base[i]);
+                for (int c = 6; c < headers.length; c++) row.createCell(c).setCellValue(100.0);
+            }
+            wb.write(fos);
+        }
+
+        when(areaRepository.findAllByStudyId(any(), any(String.class)))
+                .thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(thermalClusterRefService.findOrCreateThermalClusterRef(any(), any(), any()))
+                .thenReturn(ThermalClusterRef.builder().name("Cluster1")
+                        .thermalTechnology(ThermalTechnology.builder().name("CCGT").build()).build());
+
+        var result = thermalFileProcessorService
+                .buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1)
+                .getThermalClusterCapacities();
+
+        assertEquals(expectedToUse ? 24 : 0, result.size(), "keyword: " + keyword);
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
+    }
 }
