@@ -461,7 +461,15 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         for (int i = 6; i < header.getLastCellNum(); i++) {
             if (header.getCell(i) != null && !header.getCell(i).getStringCellValue().isEmpty()) {
                 String monthYear = header.getCell(i).getStringCellValue();
-                boolean toUse = Utils.getBooleanCellOrDefault(row, 0, false);
+                var toUseValue = Utils.getBooleanCellOrDefault(row, 0, false);
+                if (toUseValue == null) {
+                    throw BusinessException.builder()
+                            .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
+                            .errorMessageArguments(List.of("to_use", "THERMAL Installed Power"))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+                boolean toUse = toUseValue;
                 if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
 
                 CategoryEnum category = categoryStr.equals(CategoryEnum.POWER.name().toLowerCase())
