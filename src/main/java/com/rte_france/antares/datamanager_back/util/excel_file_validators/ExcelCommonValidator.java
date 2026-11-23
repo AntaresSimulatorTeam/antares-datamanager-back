@@ -29,6 +29,8 @@ public class ExcelCommonValidator {
 
 
     public static final String AREAS = "areas";
+    private static final Set<String> TRUE_VALUES= Set.of("true", "vrai", "oui", "yes", "1");
+    private static final Set<String> FALSE_VALUES = Set.of("false", "faux", "non", "no", "0");
 
     /**
      * @param path     trajectory file
@@ -350,9 +352,9 @@ public class ExcelCommonValidator {
                 return Optional.of(cell.getBooleanCellValue());
 
             case STRING:
-                String value = cell.getStringCellValue().trim().toUpperCase();
-                if ("TRUE".equals(value)) return Optional.of(true);
-                if ("FALSE".equals(value)) return Optional.of(false);
+                String value = cell.getStringCellValue().trim().toLowerCase();
+                if (TRUE_VALUES.contains(value)) return Optional.of(true);
+                if (FALSE_VALUES.contains(value)) return Optional.of(false);
                 break;
 
             case NUMERIC:
