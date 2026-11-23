@@ -6,7 +6,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHou
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.service.sts.StStorageConstraintsFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
-import com.rte_france.antares.datamanager_back.util.ExecutionTime;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -196,7 +196,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
         param.setCluster(result.cluster());
         param.setVariable(getStringCellValue(row, 3));
         param.setOperator(getStringCellValue(row, 4));
-        param.setEnabled(getBooleanCellValue(row));
+        param.setEnabled(Utils.getBooleanCellOrDefault(row, 5, false));
 
 
         if (parameters.stream().anyMatch(p -> p.getCluster().equalsIgnoreCase(param.getCluster()) && p.getName().equalsIgnoreCase(param.getName()))) {
@@ -214,17 +214,6 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
                 .map(Object::toString)
                 .map(String::trim)
                 .orElse(null);
-    }
-
-    private boolean getBooleanCellValue(Row row) {
-        Cell cell = row.getCell(5);
-        if (cell == null) return false;
-        return switch (cell.getCellType()) {
-            case BOOLEAN -> cell.getBooleanCellValue();
-            case STRING -> Boolean.parseBoolean(cell.getStringCellValue().trim());
-            case NUMERIC -> cell.getNumericCellValue() != 0;
-            default -> false;
-        };
     }
 
     private int getIntegerCellValue(Row row, int index, StConstraintsParameterEntity param, String fieldName) {
