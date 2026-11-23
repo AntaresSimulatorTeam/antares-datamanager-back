@@ -69,3 +69,30 @@ The tests are in the src/test/java folder. You can run them with JUnit.
 
 Swagger documentation :
 * env local : [http://localhost:8093/swagger-ui/index.html](http://localhost:8093/swagger-ui/index.html)
+
+#### Controller endpoints
+
+The following endpoints are exposed by the REST controllers. Request and response schemas are available in Swagger.
+
+| Controller | Base path | Endpoints |
+|---|---|---|
+| StudyController | `/v1/study` | `GET /search`, `GET /keywords/search`, `POST /`, `DELETE /{id}`, `POST /generate`, `GET /{id}`, `POST /duplicate`, `PUT /{id}` |
+| ProjectController | `/v1/project` | `GET /pinned`, `PUT /unpin`, `POST /pin`, `GET /search`, `GET /{id}`, `DELETE /{id}`, `GET /autocomplete`, `POST /`, `PUT /` |
+| FileController | `/v1/files` | `GET /{filename}`, `POST /` (multipart upload) |
+| DefaultConfigController | `/v1/default_config` | `GET /load`, `GET /thermal-technology-display` |
+| WarningController | `/v1/warnings` | `GET /`, `PUT /{id}/ack` |
+| UserController | `/v1/user` | `GET /{nni}`, `POST /list` |
+| TrajectoryController | `/v1/trajectory` | `GET /db`, `GET /fs`, `POST /`, `POST /load`, `GET /`, `PUT /attach`, `DELETE /detach`, `POST /detach/batch`, `DELETE /detach/all`, `GET /trajectoryData`, `GET /count/warning/{id}` |
+| AdequacyController | `/v1/trajectory` | `POST /adequacy-patch` |
+| DsrController | `/v1/trajectory` | `POST /dsr-cluster`, `POST /dsr-capacity-modulation` |
+| FlowbasedController | `/v1/trajectory` | `POST /flowbased` |
+| HydroController | `/v1/trajectory` | `POST /hydro-series`, `POST /hydro-technical-parameters` |
+| MiscController | `/v1/trajectory` | `POST /installed-misc`, `POST /load-factor-misc` |
+| MultiEnergyController | `/v1/trajectory` | `POST /load-me`, `POST /constraint-me`, `POST /efficiency-me`, `POST /hydro-capacity-me`, `POST /hydro-parameters-me`, `POST /thermal-me`, `POST /hydro-ts-me`, `POST /hydro-water-values-me`, `POST /hydro-reservoir-levels-me` |
+| NuclearController | `/v1/trajectory` | `POST /nuclear-modulation`, `POST /nuclear-lt`, `POST /nuclear-ts-erp`, `POST /nuclear-ts-smr`, `POST /nuclear-talon` |
+| P2GController | `/v1/trajectory` | `POST /capacity-cost-p2g`, `POST /modulation-p2g` |
+| ResController | `/v1/trajectory` | `GET /res-types`, `POST /load-factor-res`, `POST /installed-power-res`, `POST /technology-distribution-res`, `POST /zonal-distribution-res` |
+| ScenarioBuilderController | `/v1/trajectory` | `POST /scenario-builder` |
+| SettingsController | `/v1/trajectory` | `POST /settings` |
+| StStorageController | `/v1/trajectory` | `POST /st-storage`, `POST /st-storage-me` |
+| ThermalController | `/v1/trajectory` | `POST /thermal-capacity`, `POST /thermal-common-parameter`, `POST /thermal-specific-parameter`, `POST /thermal-modulation-parameter`, `POST /thermal-economic-costs`, `POST /thermal-economic-parameter`, `POST /param-modulation/check` |
