@@ -161,6 +161,24 @@ class ParameterValueConverterTest {
     }
 
     @Test
+    void testGetBooleanValueWithStringOui() {
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("leap-year", "oui");
+
+        Boolean result = ParameterValueConverter.getBooleanValue(dataMap, "Leap Year");
+        assertTrue(result);
+    }
+
+    @Test
+    void testGetBooleanValueWithStringVrai() {
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("leap-year", "vrai");
+
+        Boolean result = ParameterValueConverter.getBooleanValue(dataMap, "Leap Year");
+        assertTrue(result);
+    }
+
+    @Test
     void testGetBooleanValueWithStringFalse() {
         Map<String, Object> dataMap = new HashMap<>();
         dataMap.put("leap-year", "false");
@@ -182,6 +200,24 @@ class ParameterValueConverterTest {
     void testGetBooleanValueWithString0() {
         Map<String, Object> dataMap = new HashMap<>();
         dataMap.put("leap-year", "0");
+
+        Boolean result = ParameterValueConverter.getBooleanValue(dataMap, "Leap Year");
+        assertFalse(result);
+    }
+
+    @Test
+    void testGetBooleanValueWithStringNon() {
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("leap-year", "non");
+
+        Boolean result = ParameterValueConverter.getBooleanValue(dataMap, "Leap Year");
+        assertFalse(result);
+    }
+
+    @Test
+    void testGetBooleanValueWithStringFaux() {
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("leap-year", "faux");
 
         Boolean result = ParameterValueConverter.getBooleanValue(dataMap, "Leap Year");
         assertFalse(result);
