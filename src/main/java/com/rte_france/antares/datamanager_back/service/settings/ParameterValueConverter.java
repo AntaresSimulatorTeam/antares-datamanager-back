@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.service.settings;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 public class ParameterValueConverter {
@@ -10,6 +11,7 @@ public class ParameterValueConverter {
     private static final String DEFAULT_STRING_VALUE = "";
     private static final Integer DEFAULT_INT_VALUE = 0;
     private static final Boolean DEFAULT_BOOLEAN_VALUE = false;
+    private static final Set<String> TRUE_VALUES= Set.of("true", "vrai", "oui", "yes", "1");
 
     private ParameterValueConverter() {
         // Utility class
@@ -58,7 +60,7 @@ public class ParameterValueConverter {
                 return (Boolean) value;
             }
             String strValue = value.toString().trim().toLowerCase();
-            return "true".equals(strValue) || "yes".equals(strValue) || "1".equals(strValue);
+            return TRUE_VALUES.contains(strValue);
         } catch (Exception e) {
             log.warn("Could not convert value to boolean for key '{}': {}. Using default value: {}", key, value, DEFAULT_BOOLEAN_VALUE);
             return DEFAULT_BOOLEAN_VALUE;
