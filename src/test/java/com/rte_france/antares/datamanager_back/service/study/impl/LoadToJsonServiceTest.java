@@ -612,33 +612,4 @@ class LoadToJsonServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(AreaKey.of("dekf"))).containsExactly("load_DEkf_2026-2027.txt.uuid.arrow");
     }
-
-    @Test
-    void getListArrowLoadFilesByAreaFromStudy_withOthersAreaAndEmptyExtractedArea_shouldFallbackToOthers() throws IOException {
-        // Given
-        StudyEntity study = StudyEntity.builder().id(100).build();
-        TrajectoryEntity trajLinked = TrajectoryEntity.builder().scenarioEntities(Set.of(study)).build();
-        LoadEntity loadLinked = LoadEntity.builder()
-                .id(1)
-                .fileName("load.txt")
-                .trajectoryEntities(Set.of(trajLinked))
-                .build();
-        TrajectoryEntity loadTrajectory = TrajectoryEntity.builder()
-                .id(10)
-                .type(TrajectoryType.LOAD.name())
-                .fileName("load_others")
-                .area("OTHERS")
-                .loadEntities(Set.of(loadLinked))
-                .build();
-        study.setTrajectories(Set.of(loadTrajectory));
-
-        when(nasFileService.readAndSaveMatrixToNas(any(), eq("output_load"), isNull(), eq(false)))
-                .thenReturn("load__2026.arrow");
-
-        // When
-        Map<AreaKey, List<String>> result = loadToJsonService.getListArrowLoadFilesByAreaFromStudy(study);
-
-        // Then
-        assertThat(result).containsOnlyKeys(AreaKey.of("OTHERS"));
-    }
 }

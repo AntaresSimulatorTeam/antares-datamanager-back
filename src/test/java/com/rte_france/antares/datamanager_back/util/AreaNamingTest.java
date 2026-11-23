@@ -1,6 +1,5 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaClusterKey;
 import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.AreaNaming.StudyAreas;
@@ -156,8 +155,9 @@ class AreaNamingTest {
             List<String> names = List.of("DEkf", "DEKF");
 
             assertThatThrownBy(() -> StudyAreas.of(names))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(e -> assertThat(((BusinessException) e).getErrorMessageArguments()).containsExactly("DEkf", "DEKF"));
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("DEkf")
+                    .hasMessageContaining("DEKF");
         }
 
         @Test

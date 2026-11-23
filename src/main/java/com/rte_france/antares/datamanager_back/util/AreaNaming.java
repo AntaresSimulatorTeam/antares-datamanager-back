@@ -1,12 +1,8 @@
 package com.rte_france.antares.datamanager_back.util;
 
-import com.rte_france.antares.datamanager_back.exception.BusinessException;
-import org.springframework.http.HttpStatus;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -18,7 +14,7 @@ import java.util.Objects;
  * To compare or look up areas, use the keys below: they ignore case and outer spaces.
  * Only {@link StudyAreas} turns a key back into a name.
  * <p>
- * Keep this class free of services, entities and DTOs.
+ * Backend only: an exception thrown here is a bug. Keep this class free of services, entities and DTOs.
  */
 public final class AreaNaming {
 
@@ -38,6 +34,16 @@ public final class AreaNaming {
     }
 
     /**
+     * Trims an area name for imports
+     *
+     * @param raw the raw name, can be null
+     * @return the name without outer spaces, or null if it is null or blank
+     */
+    public static String trimName(String raw) {
+        return raw == null || raw.isBlank() ? null : raw.trim();
+    }
+
+    /**
      * Trims and uppercases a name.
      *
      * @param raw the name to normalize
@@ -45,10 +51,11 @@ public final class AreaNaming {
      * @throws IllegalArgumentException if the name is null or blank
      */
     private static String normalize(String raw) {
-        if (raw == null || raw.isBlank()) {
+        String name = trimName(raw);
+        if (name == null) {
             throw new IllegalArgumentException("Name must not be null or blank");
         }
-        return raw.trim().toUpperCase(Locale.ROOT);
+        return name.toUpperCase(Locale.ROOT);
     }
 
     /**
@@ -129,20 +136,15 @@ public final class AreaNaming {
          *
          * @param displayNames the area names, as written in the AREA file
          * @return the areas of the study
-         * @throws IllegalArgumentException if a name is null or blank
-         * @throws BusinessException        if two names differ only by case
+         * @throws IllegalArgumentException if a name is null or blank, or if two names differ only by case
          */
         public static StudyAreas of(Collection<String> displayNames) {
             Map<AreaKey, String> byKey = new LinkedHashMap<>();
             for (String raw : displayNames) {
-                String name = raw == null ? null : raw.trim();
+                String name = trimName(raw);
                 String existing = byKey.putIfAbsent(AreaKey.of(name), name);
                 if (existing != null && !existing.equals(name)) {
-                    throw BusinessException.builder()
-                            .message("Areas {0} and {1} are the same area in different cases. An area name must be written the same way everywhere.")
-                            .errorMessageArguments(List.of(existing, name))
-                            .httpStatus(HttpStatus.BAD_REQUEST)
-                            .build();
+                    throw new IllegalArgumentException("Areas " + existing + " and " + name + " are the same area in different cases. An area name must be written the same way everywhere.");
                 }
             }
             return new StudyAreas(Collections.unmodifiableMap(byKey));
