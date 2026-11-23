@@ -13,6 +13,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlSer
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalEconomicCostAndRateService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalCommonParamColumns;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalClusterColumns;
 import lombok.RequiredArgsConstructor;
@@ -460,7 +461,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         for (int i = 6; i < header.getLastCellNum(); i++) {
             if (header.getCell(i) != null && !header.getCell(i).getStringCellValue().isEmpty()) {
                 String monthYear = header.getCell(i).getStringCellValue();
-                boolean toUse = row.getCell(0).getNumericCellValue() == 1;
+                boolean toUse = Utils.getBooleanCellOrDefault(row, 0, false);
                 if (!isCellInHorizon(monthYear, horizon, isCivilYear) || !toUse) continue;
 
                 CategoryEnum category = categoryStr.equals(CategoryEnum.POWER.name().toLowerCase())

@@ -7,6 +7,8 @@ import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalControlService;
 import com.rte_france.antares.datamanager_back.service.thermal.ThermalSpecificFileProcessorService;
+import com.rte_france.antares.datamanager_back.util.Utils;
+import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -180,8 +182,8 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
                     .poWinter(specificParamValueMustBePositive(areaName, clusterName, trajectoryName, castDouble(getCellValue(row, 8), getHeaderText(header, 8), row.getRowNum())))
                     .marginalCost(specificParamValueMustBePositiveBigDecimal(areaName, clusterName, trajectoryName, castBigDecimal(getCellValue(row, 9), getHeaderText(header, 9), row.getRowNum())))
                     .marketBid(specificParamValueMustBePositiveBigDecimal(areaName, clusterName, trajectoryName, castBigDecimal(getCellValue(row, 10), getHeaderText(header, 10), row.getRowNum())))
-                    .mrSpecific(castInt(getCellValue(row, 11)))
-                    .cmSpecific(castInt(getCellValue(row, 12)))
+                    .mrSpecific(castBooleanToInt(Utils.getBooleanCellOrNull(row, 11)))
+                    .cmSpecific(castBooleanToInt(Utils.getBooleanCellOrNull(row, 12)))
                     .npoMaxWinter(castInt(getCellValue(row, 13)))
                     .npoMaxSummer(castInt(getCellValue(row, 14)))
                     .nbUnit(castInt(getCellValue(row, 15)))
@@ -322,46 +324,44 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         return s.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
-private void checkNumericColumns(
-        Row row,
-        String areaName,
-        String clusterName,
-        String trajectoryName) {
+    private void checkNumericColumns(Row row, String areaName, String clusterName, String trajectoryName) {
+        for (int i = 2; i <= 39; i++) {
+            if (i == 11 || i == 12) {
+                checkBooleanColumn(row, i, areaName, clusterName, trajectoryName);
+                continue;
+            }
 
-    for (int i = 2; i <= 39; i++) {
-        Double value;
+            Double value;
+            try {
+                value = getNumericCellValue(row, i);
+            } catch (IllegalArgumentException e) {
+                throw BusinessException.builder()
+                        .message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName
+                                + " are not numeric in THERMAL Specific Param trajectory " + trajectoryName)
+                        .build();
+            }
 
-        try {
-            value = getNumericCellValue(row, i);
-        } catch (IllegalArgumentException e) {
-            throw BusinessException.builder()
-                    .message(
-                            VALUES_FOR_NODE_MESSAGE_PREFIX
-                                    + areaName
-                                    + CLUSTER_MESSAGE_SEPARATOR
-                                    + clusterName
-                                    + " are not numeric in THERMAL Specific Param trajectory "
-                                    + trajectoryName)
-                    .build();
+            if (value != null && value < 0) {
+                throw BusinessException.builder()
+                        .message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName
+                                + MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY + trajectoryName)
+                        .build();
+            }
         }
+    }
 
-        if (value == null) {
-            continue;
+    private void checkBooleanColumn(Row row, int index, String areaName, String clusterName, String trajectoryName) {
+        Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null || ExcelCommonValidator.isCellEmpty(cell)) {
+            return;
         }
-
-        if (value < 0) {
+        if (Utils.getBooleanCellOrNull(row, index) == null) {
             throw BusinessException.builder()
-                    .message(
-                            VALUES_FOR_NODE_MESSAGE_PREFIX
-                                    + areaName
-                                    + CLUSTER_MESSAGE_SEPARATOR
-                                    + clusterName
-                                    + MUST_BE_POSITIVE_IN_THERMAL_SPECIFIC_PARAM_TRAJECTORY
-                                    + trajectoryName)
+                    .message(VALUES_FOR_NODE_MESSAGE_PREFIX + areaName + CLUSTER_MESSAGE_SEPARATOR + clusterName
+                            + " are not boolean in THERMAL Specific Param trajectory " + trajectoryName)
                     .build();
         }
     }
-}
 
     private static String toExcelColumn(int index0Based) {
         int n = index0Based + 1; // convert to 1-based
