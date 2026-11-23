@@ -14,6 +14,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -26,6 +29,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
@@ -230,6 +234,37 @@ class ThermalSpecificFileProcessorServiceImplTest {
         );
         assertTrue(ex.getMessage().contains("Horizon " + horizon + " does not exist in the THERMAL Specific Param trajectory"));
     }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void shouldParseAndSetCorrectBooleanForMrAndCmSpecific(String keyword, boolean expectedBoolean) throws IOException {
+        String trajectoryName = "test_trajectory";
+
+        var workbook = createValidWorkbook(1);
+        var dataRow = workbook.getSheet(HORIZON).getRow(3);
+        dataRow.getCell(11).setCellValue(keyword); // MR_specific, keyword under test
+        dataRow.getCell(12).setCellValue(keyword); // CM_specific, keyword under test
+        Path file = writeWorkbookToTemp(workbook);
+
+        when(areaRepository.findAllByStudyId(any(), any(String.class)))
+                .thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
+        when(thermalClusterRefServiceImpl.findOrCreateThermalClusterRef(any(), any(String.class), any(String.class)))
+                .thenReturn(ThermalClusterRef.builder().id(1).name("Cluster1").namePemmdb("PEM1").build());
+
+        List<ThermalSpecificParametersEntity> result =
+                service.buildThermalSpecificParameterValueList(trajectoryName, file, HORIZON, "FR", 1);
+
+        Integer expected = expectedBoolean ? 1 : 0;
+        assertEquals(1, result.size());
+        assertEquals(expected, result.get(0).getMrSpecific(),
+                "mrSpecific should be " + expected + " for keyword '" + keyword + "'");
+        assertEquals(expected, result.get(0).getCmSpecific(),
+                "cmSpecific should be " + expected + " for keyword '" + keyword + "'");
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
+    }
     // ===================== Helpers =====================
 
     private static XSSFWorkbook createWorkbookWithNoMatchingSheet() {
@@ -264,6 +299,8 @@ class ThermalSpecificFileProcessorServiceImplTest {
             for (int c = 2; c <= 40; c++) {
                 row.createCell(c).setCellValue(v++);
             }
+            row.getCell(11).setCellValue(1);
+            row.getCell(12).setCellValue(0);
         }
         return wb;
     }
