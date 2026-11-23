@@ -156,10 +156,10 @@ public class StudyServiceImpl implements StudyService {
                 .build());
         
         String currentUser = userService.getCurrentUserDetails().getNni();
-        study.setStatus(StudyStatus.GENERATION_INPROGRESS);
+        study.setStatus(StudyStatus.GENERATION_IN_PROGRESS);
         study.setGenerationStartedBy(currentUser);
         studyRepository.save(study);
-        log.info("Study {} marked as GENERATION_INPROGRESS by {}", studyId, currentUser);
+        log.info("Study {} marked as GENERATION_IN_PROGRESS by {}", studyId, currentUser);
     }
 
     protected void markStudyAsError(Integer studyId) {
@@ -499,7 +499,7 @@ public class StudyServiceImpl implements StudyService {
 
     private void ensureNotGenerated(StudyEntity study) {
         if (StudyStatus.GENERATED.equals(study.getStatus())
-                || StudyStatus.GENERATION_INPROGRESS.equals(study.getStatus())) {
+                || StudyStatus.GENERATION_IN_PROGRESS.equals(study.getStatus())) {
             throw BusinessException.builder()
                     .message("Only studies with status IN_PROGRESS can be updated.")
                     .httpStatus(HttpStatus.BAD_REQUEST)
