@@ -612,7 +612,7 @@ class LinkFileProcessorServiceImplTest {
     }
 
     @Test
-    void testCheckIfHorizonExist_IOException_ThrowsTechnicalException() throws IOException {
+    void testCheckIfHorizonExist_IOException_ThrowsTechnicalException(){
         Path invalidPath = Path.of("non_existent_file_path_67890");
 
         TechnicalException exception = assertThrows(TechnicalException.class, () -> {
