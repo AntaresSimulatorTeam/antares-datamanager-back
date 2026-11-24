@@ -42,15 +42,15 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     private static final String SHEET_SETTINGS = "settings";
     private static final String SHEET_PERIMETER = "perimetre";
 
-    private static final Map<String, BiConsumer<AdequacySettingsEntity, Boolean>> BOOLEAN_SETTERS = new HashMap<>();
+    private static final Map<String, BiConsumer<AdequacySettingsEntity, Boolean>> booleanSetters = new HashMap<>();
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
 
     static {
-        BOOLEAN_SETTERS.put("include_adq_patch", AdequacySettingsEntity::setIncludeAdqPatch);
-        BOOLEAN_SETTERS.put("include_hurdle_cost_csr", AdequacySettingsEntity::setIncludeHurdleCostCsr);
-        BOOLEAN_SETTERS.put("check_csr_cost_function", AdequacySettingsEntity::setCheckCsrCostFunction);
-        BOOLEAN_SETTERS.put("redispatch", AdequacySettingsEntity::setRedispatch);
-        BOOLEAN_SETTERS.put("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step",
+        booleanSetters.put("include_adq_patch", AdequacySettingsEntity::setIncludeAdqPatch);
+        booleanSetters.put("include_hurdle_cost_csr", AdequacySettingsEntity::setIncludeHurdleCostCsr);
+        booleanSetters.put("check_csr_cost_function", AdequacySettingsEntity::setCheckCsrCostFunction);
+        booleanSetters.put("redispatch", AdequacySettingsEntity::setRedispatch);
+        booleanSetters.put("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step",
                 AdequacySettingsEntity::setSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep);
 
         settingsSetters.put("price_taking_order", (e, v) -> e.setPriceTakingOrder(v.toString()));
@@ -166,7 +166,7 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
             if (isRowEmpty(row)) continue;
             String key = Objects.toString(getCellValue(row, 0), "").toLowerCase().replace("-", "_");
             Object value = getCellValue(row, 1);
-            BiConsumer<AdequacySettingsEntity, Boolean> booleanSetter = BOOLEAN_SETTERS.get(key);
+            BiConsumer<AdequacySettingsEntity, Boolean> booleanSetter = booleanSetters.get(key);
             BiConsumer<AdequacySettingsEntity, Object> setter = settingsSetters.get(key);
             if (value != null && booleanSetter != null) {
                 var parsed = parseBooleanOrThrow(row, key);
