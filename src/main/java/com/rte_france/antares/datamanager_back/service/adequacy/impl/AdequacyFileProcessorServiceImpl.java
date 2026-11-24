@@ -42,14 +42,11 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     private static final String SHEET_SETTINGS = "settings";
     private static final String SHEET_PERIMETER = "perimetre";
 
-<<<<<<< Updated upstream
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Boolean>> booleanSetters = new HashMap<>();
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
-=======
     private static final String ERROR_MISSING_TAB_IN_TRAJECTORY = "Missing tab {0} in AdequacyPatch trajectory {1}";
     private static final String ERROR_NO_DATA_IN_TAB = "No data in {0} tab in AdequacyPatch trajectory {1}";
     private static final String ERROR_COULD_NOT_PROCESS_FILE = "Could not process adequacy file: ";
->>>>>>> Stashed changes
 
     static {
         booleanSetters.put("include_adq_patch", AdequacySettingsEntity::setIncludeAdqPatch);
