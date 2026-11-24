@@ -301,7 +301,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         // Series/TS files handling
         Boolean stsSeriesFilesFlag = getBooleanCell(row, SERIES_INDEX);
-        if (stsSeriesFilesFlag) {
+        if (Boolean.TRUE.equals(stsSeriesFilesFlag)) {
             Path stsTsPath = buildStsOptionalFilesPath(trajectoryFilePath, rowAreaName, technology, clusterName, SERIES_FILES);
             List<String> missingFiles = isOptionalStsFileMissing(stsTsPath, SERIES_FILES, null);
             if (!missingFiles.isEmpty()) {
@@ -313,7 +313,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             stStorageEntity.setTsPath(stsTsPath.toString());
         }
         Boolean stsConstraintsFlag = getBooleanCell(row, CONSTRAINTS_INDEX);
-        if (stsConstraintsFlag) {
+        if (Boolean.TRUE.equals(stsConstraintsFlag)) {
             log.info("STS constraints enabled for trajectory={}, area={}, cluster={}", trajectoryFileName, rowAreaName, clusterName);
             handleStsConstraints(
                     trajectoryFilePath,
