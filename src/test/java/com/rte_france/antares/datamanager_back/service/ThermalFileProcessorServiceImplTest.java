@@ -15,6 +15,7 @@ import com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileP
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.Utils;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.ThermalCommonParamColumns;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +39,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
@@ -1175,5 +1177,59 @@ class ThermalFileProcessorServiceImplTest {
 
     static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
         return TestConstants.booleanKeywords();
+    }
+
+    private Path capacityFileWithCell(Path tempDir, String category, Consumer<Cell> cellSetter) throws IOException {
+        Path file = tempDir.resolve("thermal_capacity_value.xlsx");
+        try (var wb = new XSSFWorkbook(); var fos = new FileOutputStream(file.toFile())) {
+            var sheet = wb.createSheet("ThermalClusterCapacity");
+            String[] headers = {"ToUse", "Area", "Fuel", "Technology", "Cluster", "Category",
+                    "2025_01", "2025_02", "2025_03", "2025_04", "2025_05", "2025_06",
+                    "2025_07", "2025_08", "2025_09", "2025_10", "2025_11", "2025_12"};
+            var header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+
+            var row = sheet.createRow(1);
+            row.createCell(0).setCellValue(true);
+            row.createCell(1).setCellValue("FR");
+            row.createCell(2).setCellValue("fuel");
+            row.createCell(3).setCellValue("CCGT");
+            row.createCell(4).setCellValue("Cluster1");
+            row.createCell(5).setCellValue(category);
+            for (int c = 6; c < headers.length; c++) row.createCell(c).setCellValue(100.0);
+            cellSetter.accept(row.getCell(6));
+            wb.write(fos);
+        }
+        return file;
+    }
+
+    @Test
+    void capacityValue_shouldThrowWhenCellIsBlank(@TempDir Path tempDir) throws Exception {
+        Path file = capacityFileWithCell(tempDir, "power", Cell::setBlank);
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("Null value not allowed for column 6"));
+    }
+
+    @Test
+    void capacityValue_shouldThrowWhenStringIsNotNumeric(@TempDir Path tempDir) throws Exception {
+        Path file = capacityFileWithCell(tempDir, "power", cell -> cell.setCellValue("abc"));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("must be numeric"));
+    }
+
+    @Test
+    void capacityValue_shouldThrowWhenNumberCategoryIsNegative(@TempDir Path tempDir) throws Exception {
+        Path file = capacityFileWithCell(tempDir, "number", cell -> cell.setCellValue(-1.0));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("NUMBER values do not be < 0"));
     }
 }
