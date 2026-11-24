@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class StStorageMapperTest {
 
@@ -62,6 +63,7 @@ class StStorageMapperTest {
                 .efficiencyWithdrawal(new java.math.BigDecimal("0.8"))
                 .initialLevel(new java.math.BigDecimal("0.5"))
                 .initialLevelOptim(true)
+                .allowOverflow(true)
                 .build();
 
         // When
@@ -78,6 +80,21 @@ class StStorageMapperTest {
         assertEquals(0.8, dto.getEfficiencyWithdrawal());
         assertEquals(0.5, dto.getInitialLevel());
         assertEquals(true, dto.getInitialLevelOptim());
+        assertEquals(true, dto.getAllowOverflow());
+    }
+
+    @Test
+    void mapToStsGenerationDTO_ShouldPreserveFalseAllowOverflow() {
+        var entity = StStorageEntity.builder().allowOverflow(false).build();
+
+        assertEquals(false, StStorageMapper.mapToStsGenerationDTO(entity).getAllowOverflow());
+    }
+
+    @Test
+    void mapToStsGenerationDTOForMe_ShouldNotMapAllowOverflow() {
+        var entity = StStorageEntity.builder().allowOverflow(true).build();
+
+        assertNull(StStorageMapper.mapToStsGenerationDTOForMe(entity).getAllowOverflow());
     }
 
     @Test

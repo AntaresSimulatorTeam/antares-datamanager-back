@@ -189,6 +189,7 @@ class StsToJsonServiceTest {
                 .efficiencyWithdrawal(0.95)
                 .initialLevel(0.5)
                 .initialLevelOptim(false)
+                .allowOverflow(true)
                 .stsTsList(List.of(
                         "inflows.xlsx.ee6bc9e2-5e4e-4ddb-9bd9-e139f1494465.arrow",
                         "lower_curve.xlsx.97d9f8f0-a5d9-48ff-a5a4-663cd5fb1be6.arrow",
@@ -226,7 +227,8 @@ class StsToJsonServiceTest {
                       "efficiency" : 0.95,
                       "efficiency_withdrawal" : 0.95,
                       "initial_level" : 0.5,
-                      "initial_level_optim" : false
+                      "initial_level_optim" : false,
+                      "allow_overflow" : true
                     },
                     "series" : {
                       "series" : [ "inflows.xlsx.ee6bc9e2-5e4e-4ddb-9bd9-e139f1494465.arrow", "lower_curve.xlsx.97d9f8f0-a5d9-48ff-a5a4-663cd5fb1be6.arrow", "Pmax_injection.xlsx.196da505-c346-4f51-a185-2b4db5b3e205.arrow", "Pmax_soutirage.xlsx.68331b9a-3ed1-4a0a-b309-05395385867f.arrow", "upper_curve.xlsx.d93e504a-078d-41ea-af50-a78c3996f9c0.arrow" ]

@@ -60,6 +60,10 @@ public class StsGenerationDTO {
     @JsonProperty("initial_level_optim")
     private Boolean initialLevelOptim;
 
+    @JsonView(StsGenerationDTO.StsClustersViews.Properties.class)
+    @JsonProperty("allow_overflow")
+    private Boolean allowOverflow;
+
     @JsonView(StsGenerationDTO.StsClustersViews.Series.class)
     @JsonProperty("series")
     private List<String> stsTsList;
