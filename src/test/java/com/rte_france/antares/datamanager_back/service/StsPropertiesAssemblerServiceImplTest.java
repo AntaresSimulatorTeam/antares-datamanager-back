@@ -17,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.WarningMessageEn
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.sts.impl.StsPropertiesAssemblerServiceImpl;
 import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
+import com.rte_france.antares.datamanager_back.service.study.impl.StsToJsonService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
@@ -91,6 +92,7 @@ class StsPropertiesAssemblerServiceImplTest {
     void assembleStsProperties_ShouldReturnMappedProperties() {
         // Given
         StStorageEntity stStorage1 = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR")
                 .name("Storage1")
                 .groupe("Group1")
@@ -141,9 +143,62 @@ class StsPropertiesAssemblerServiceImplTest {
     }
 
     @Test
+    void assembleStsProperties_ShouldIncludeStoredOverflowValuesInJson() {
+        StStorageEntity allowed = StStorageEntity.builder()
+                .area("FR").name("allowed").storage(BigDecimal.ONE).allowOverflow(true).build();
+        StStorageEntity disallowed = StStorageEntity.builder()
+                .area("FR").name("disallowed").storage(BigDecimal.ONE).allowOverflow(false).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().type(TrajectoryType.STS.name())
+                .stStorageEntities(List.of(allowed, disallowed)).build();
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(trajectory)).build();
+
+        Map<String, StsGenerationDTO> assembled = stsPropertiesAssemblerService.assembleStsProperties(study);
+        Map<String, Object> json = new StsToJsonService().stsMapGenerator("FR", assembled);
+
+        assertThat(((Map<?, ?>) ((Map<?, ?>) json.get("FR_allowed")).get("properties")).get("allow_overflow"))
+                .isEqualTo(true);
+        assertThat(((Map<?, ?>) ((Map<?, ?>) json.get("FR_disallowed")).get("properties")).get("allow_overflow"))
+                .isEqualTo(false);
+    }
+
+    @Test
+    void assembleStsProperties_ShouldRejectNullOverflowBeforeGeneratingFiles() {
+        StStorageEntity storage = StStorageEntity.builder()
+                .area("FR").name("battery").storage(BigDecimal.ONE)
+                .constraintsFlag(true).tsPath("missing").build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().type(TrajectoryType.STS.name())
+                .stStorageEntities(List.of(storage)).build();
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(trajectory)).build();
+
+        assertThatThrownBy(() -> stsPropertiesAssemblerService.assembleStsProperties(study))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getMessage()).contains("Allow_overflow");
+                    assertThat(exception.getErrorMessageArguments()).containsExactly("FR", "battery");
+                    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @Test
+    void assembleStsMeProperties_ShouldIgnoreOverflowAndOmitItFromJson() {
+        StStorageEntity storage = StStorageEntity.builder()
+                .area("FR").name("battery").storage(BigDecimal.ONE).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder().type(TrajectoryType.STS_ME.name())
+                .stStorageEntities(List.of(storage)).build();
+        StudyEntity study = StudyEntity.builder().trajectories(Set.of(trajectory)).build();
+
+        Map<String, StsGenerationDTO> assembled = stsPropertiesAssemblerService.assembleStsMeProperties(study, trajectory);
+        Map<String, Object> json = new StsToJsonService().stsMeMapGenerator("FR", assembled);
+
+        assertFalse(((Map<?, ?>) ((Map<?, ?>) json.get("FR_battery")).get("properties"))
+                .containsKey("allow_overflow"));
+    }
+
+    @Test
     void assembleStsProperties_ShouldHandleMultipleTrajectoriesAndAreas() {
         // Given
         StStorageEntity stStorage1 = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("fr")
                 .name("S1")
                 .enabled(true)
@@ -156,6 +211,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity stStorage2 = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("be")
                 .name("S2")
                 .enabled(false)
@@ -205,6 +261,7 @@ class StsPropertiesAssemblerServiceImplTest {
     void assembleStsProperties_ShouldHandleNullFields() {
         // Given
         StStorageEntity stStorage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR")
                 .name("S1")
                 .storage(BigDecimal.TEN)
@@ -242,6 +299,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity stStoragePartial = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR")
                 .name("PartialCapacity")
                 .injection(BigDecimal.ZERO)
@@ -416,6 +474,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity storage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(1)
                 .area("FR")
                 .name("ev_FR")
@@ -472,6 +531,7 @@ class StsPropertiesAssemblerServiceImplTest {
     void assembleStsProperties_ShouldHaveNullConstraintParametersWhenConstraintsFlagFalse() {
         // Given — constraintsFlag not set: entity is eligible (non-zero capacity) but has no constraints
         StStorageEntity storage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(1)
                 .area("FR")
                 .name("S1")
@@ -514,6 +574,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity storage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(1)
                 .area("FR")
                 .name("ev_FR")
@@ -585,6 +646,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity storage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(2)
                 .area("BE")
                 .name("bat")
@@ -649,12 +711,14 @@ class StsPropertiesAssemblerServiceImplTest {
         when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("/output"))).thenReturn("saved.arrow");
 
         StStorageEntity first = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR")
                 .name("S1")
                 .injection(BigDecimal.ONE)
                 .tsPath(sharedTsDir.toString())
                 .build();
         StStorageEntity second = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR")
                 .name("S2")
                 .injection(BigDecimal.ONE)
@@ -794,8 +858,10 @@ class StsPropertiesAssemblerServiceImplTest {
         StsPropertiesAssemblerServiceImpl assembler = new StsPropertiesAssemblerServiceImpl(
                 antaresDataManagerProperties, realNas, timeSeriesReader);
         StStorageEntity first = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR").name("S1").injection(BigDecimal.ONE).tsPath(seriesDir.toString()).build();
         StStorageEntity second = StStorageEntity.builder()
+                .allowOverflow(false)
                 .area("FR").name("S2").injection(BigDecimal.ONE).tsPath(seriesDir.toString()).build();
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
                 .type("STS").stStorageEntities(List.of(first, second)).build();
@@ -826,6 +892,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity storage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(11)
                 .area("FR")
                 .name("S1")
@@ -968,6 +1035,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity frStorage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(21)
                 .area("FR")
                 .name("S_FR")
@@ -978,6 +1046,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity beStorage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(22)
                 .area("BE")
                 .name("S_BE")
@@ -1045,6 +1114,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity firstStorage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(101)
                 .area("FR")
                 .name("ve_lourds")
@@ -1055,6 +1125,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity secondStorage = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(102)
                 .area("FR")
                 .name("v1g")
@@ -1117,6 +1188,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity storage1 = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(201)
                 .area("FR")
                 .name("cluster_1")
@@ -1127,6 +1199,7 @@ class StsPropertiesAssemblerServiceImplTest {
                 .build();
 
         StStorageEntity storage2 = StStorageEntity.builder()
+                .allowOverflow(false)
                 .id(202)
                 .area("FR")
                 .name("cluster_2")

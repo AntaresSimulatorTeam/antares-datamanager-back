@@ -20,6 +20,7 @@ public class StStorageMapper {
     public static StsGenerationDTO mapToStsGenerationDTO(StStorageEntity entity) {
         return commonFields(entity)
                 .efficiencyWithdrawal(Optional.ofNullable(entity.getEfficiencyWithdrawal()).map(Number::doubleValue).orElse(0.0))
+                .allowOverflow(entity.getAllowOverflow())
                 .build();
     }
 

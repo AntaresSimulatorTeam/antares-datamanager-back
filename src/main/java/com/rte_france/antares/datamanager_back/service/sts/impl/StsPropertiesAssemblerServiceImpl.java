@@ -90,25 +90,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     ) {
         associateStStorageEntities(trajectories);
 
-        List<StorageConstraintsContext> contexts = isMe ? List.of() : buildStorageConstraintsContext(studyEntity);
-
-        Set<String> allAreas = trajectories.stream()
-                .map(TrajectoryEntity::getStStorageEntities)
-                .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .filter(Objects::nonNull)
-                .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
-                .map(StStorageEntity::getArea)
-                .filter(Objects::nonNull)
-                .map(String::toUpperCase)
-                .collect(Collectors.toSet());
-
-        String studyHorizon = studyEntity != null ? studyEntity.getHorizon() : null;
-
-        String horizon = isMe ? getMeHorizon(studyHorizon) : studyHorizon;
-
-        Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(contexts, allAreas, horizon);
-
         List<StStorageEntity> eligibleEntities = trajectories.stream()
                 .map(TrajectoryEntity::getStStorageEntities)
                 .filter(Objects::nonNull)
@@ -128,6 +109,35 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     return (injection + withdrawal + storage) > 0;
                 })
                 .toList();
+
+        if (!isMe) {
+            for (StStorageEntity sts : eligibleEntities) {
+                if (sts.getAllowOverflow() == null) {
+                    throw BusinessException.builder()
+                            .message("Allow_overflow is missing for STS area {0}, cluster {1}")
+                            .errorMessageArguments(Arrays.asList(sts.getArea(), sts.getName()))
+                            .httpStatus(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+            }
+        }
+
+        List<StorageConstraintsContext> contexts = isMe ? List.of() : buildStorageConstraintsContext(studyEntity);
+
+        Set<String> allAreas = trajectories.stream()
+                .map(TrajectoryEntity::getStStorageEntities)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .filter(Objects::nonNull)
+                .filter(s -> Boolean.TRUE.equals(s.getConstraintsFlag()))
+                .map(StStorageEntity::getArea)
+                .filter(Objects::nonNull)
+                .map(String::toUpperCase)
+                .collect(Collectors.toSet());
+
+        String studyHorizon = studyEntity != null ? studyEntity.getHorizon() : null;
+        String horizon = isMe ? getMeHorizon(studyHorizon) : studyHorizon;
+        Map<String, List<String>> constraintsByArea = createConstraintsTsFiles(contexts, allAreas, horizon);
 
         // Pre-compute constraint parameters on the main thread while the Hibernate session is active,
         Map<Integer, Map<String, StsConstraintParameterDTO>> constraintParamsById =
