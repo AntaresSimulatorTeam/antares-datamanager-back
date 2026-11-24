@@ -1232,4 +1232,75 @@ class ThermalFileProcessorServiceImplTest {
 
         assertTrue(ex.getMessage().contains("NUMBER values do not be < 0"));
     }
+
+    @Test
+    void buildThermalCommonParameterValuesList_shouldThrowWhenHeaderColumnIsMisplaced(@TempDir Path tempDir) throws Exception {
+        Path file = mockExcelFile(tempDir, THERMAL_PARAMETERS_FILE_NAME, () -> {
+            try (var out = new ByteArrayOutputStream(); var wb = new XSSFWorkbook()) {
+                wb.createSheet(HORIZON_SHEET).createRow(4).createCell(0).setCellValue("wrong_column");
+                wb.write(out);
+                return out.toByteArray();
+            }
+        });
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalCommonParameterValuesList(file, HORIZON_SHEET, 1));
+
+        assertTrue(ex.getMessage().contains("is missing or misplaced in the Common Parameters file"));
+    }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowWhenHeaderColumnIsMisplaced(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("thermal_capacity_bad_header.xlsx");
+        try (var wb = new XSSFWorkbook(); var fos = new FileOutputStream(file.toFile())) {
+            var header = wb.createSheet("ThermalClusterCapacity").createRow(0);
+            String[] headers = {"Wrong", "Area", "Fuel", "Technology", "Cluster", "Category"};
+            for (int i = 0; i < headers.length; i++) header.createCell(i).setCellValue(headers[i]);
+            wb.write(fos);
+        }
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("is missing or misplaced in the file"));
+    }
+
+    @Test
+    void buildThermalClusterCapacityValuesList_shouldThrowWhenHorizonColumnIsMissing(@TempDir Path tempDir) throws Exception {
+        Path file = tempDir.resolve("thermal_capacity_missing_month.xlsx");
+        try (var wb = new XSSFWorkbook(); var fos = new FileOutputStream(file.toFile())) {
+            var header = wb.createSheet("ThermalClusterCapacity").createRow(0);
+            String[] baseHeaders = {"ToUse", "Area", "Fuel", "Technology", "Cluster", "Category"};
+            for (int i = 0; i < baseHeaders.length; i++) header.createCell(i).setCellValue(baseHeaders[i]);
+            for (int m = 1; m <= 11; m++) {
+                header.createCell(baseHeaders.length + m - 1).setCellValue(String.format("2025_%02d", m));
+            }
+            wb.write(fos);
+        }
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("The columns representing the horizon"));
+    }
+
+    @Test
+    void capacityValue_shouldThrowWhenStringIsNaN(@TempDir Path tempDir) throws Exception {
+        Path file = capacityFileWithCell(tempDir, "power", cell -> cell.setCellValue("NaN"));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("must be numeric"));
+    }
+
+    @Test
+    void readToUse_shouldThrowWhenToUseIsNotBoolean(@TempDir Path tempDir) throws Exception {
+        Path file = capacityFileWithCell(tempDir, "power", cell -> cell.getRow().getCell(0).setCellValue("abc"));
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                thermalFileProcessorService.buildThermalClusterCapacityValuesList(file, "2025-2026", true, "FR", "CCGT", 1));
+
+        assertTrue(ex.getMessage().contains("Waiting for boolean value(s)"));
+    }
 }
