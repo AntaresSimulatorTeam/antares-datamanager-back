@@ -143,12 +143,12 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String ERROR_NO_VALID_THERMAL_CLUSTER_CAPACITY = "No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}";
     private static final String ERROR_NO_VALID_THERMAL_COMMON_PARAMETER = "No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}";
     private static final String ERROR_NO_VALID_THERMAL_SPECIFIC_PARAMETER = "No valid thermal specific parameter found in the trajectory {0} for area: {1} and horizon: {2}";
-    private static final String ERROR_SELECTED_AREA_NOT_IN_NODE_COLUMN = "Selected area {0} is not present in the 'node' column of THERMAL Specific Param trajectory {1}";
+    private static final String ERROR_SELECTED_AREA_NOT_IN_NODE_COLUMN = "Selected area %s is not present in the 'node' column of THERMAL Specific Param trajectory %s";
     private static final String ERROR_STUDY_NOT_FOUND_WITH_ID = "Study not found with id: {0}";
     private static final String ERROR_NO_CM_AND_MR_TRAJECTORIES = "No CM and MR trajectories found in trajectory {0} for horizon {1}";
     private static final String ERROR_MISSING_COST_MODULATION_FILE = "Missing Cost Modulation file in trajectory {0} for horizon {1}";
     private static final String ERROR_MISSING_MUST_RUN_FILE = "Missing Must Run file in trajectory {0} for horizon {1}";
-    private static final String ERROR_NO_DATA_IN_ENER_CONTENT_TAB = "No data in THERMAL Economic trajectory {0} in ener_content tab";
+    private static final String ERROR_NO_DATA_IN_ENER_CONTENT_TAB = "No data in THERMAL Economic trajectory {0} in ener_content tab ";
     private static final String ERROR_MISSING_CO2_AND_ENER_CONTENT = "Missing CO2_emissions /ener_content data in trajectory {0}";
     private static final String ERROR_MISSING_CO2 = "Missing CO2_emissions data in trajectory {0}";
     private static final String ERROR_MISSING_ENER_CONTENT = "Missing ener_content data in trajectory {0}";
@@ -165,7 +165,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String ERROR_NO_VALID_LOAD_FILES_FOR_HORIZON = "No valid load files found in the trajectory path for horizon: {0}";
     private static final String ERROR_NO_AREA_LOAD_ME_IN_AREA_ME = "No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}";
     private static final String ERROR_NO_AREA_ME_TRAJECTORY_LINKED = "No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.";
-    private static final String ERROR_NO_AREAS_IN_AREA_ME_TRAJECTORY = "No areas found in AREA_ME trajectory for study ID: {}";
+    private static final String ERROR_NO_AREAS_IN_AREA_ME_TRAJECTORY = "No areas found in AREA_ME trajectory for study ID: {}\"";
     private static final String ERROR_AREA_NOT_FOUND_FOR_STUDY = "Area not found for studyId: {0}";
     private static final String ERROR_CANNOT_READ_TRAJECTORY_FILE = "Can't read trajectory file";
     private static final String ERROR_INVALID_TRAJECTORY_TYPE = "Invalid TrajectoryType: {0}";
@@ -383,8 +383,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // The selected area must be present in the file's 'node' column, except when area equals OTHERS
         if (area != null && !area.isBlank() && !OTHER_AREA.equals(area) && !fileAreas.contains(area.toUpperCase())) {
             throw BusinessException.builder()
-                    .message(ERROR_SELECTED_AREA_NOT_IN_NODE_COLUMN)
-                    .errorMessageArguments(List.of(area, trajectoryName))
+                    .message(ERROR_SELECTED_AREA_NOT_IN_NODE_COLUMN.formatted(area, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
