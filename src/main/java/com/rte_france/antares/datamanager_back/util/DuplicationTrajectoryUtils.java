@@ -37,6 +37,9 @@ public class DuplicationTrajectoryUtils {
             TrajectoryType.THERMAL_TECHNICAL_MODULATION_PARAMETER
     );
 
+    private static final String AREA_DOES_NOT_EXIST_FOR_HORIZON = "AREA trajectory {0} does not exist for horizon {1}";
+    private static final String AREA_ME_DOES_NOT_EXIST_FOR_HORIZON = "AREA_ME trajectory {0} does not exist for horizon {1}";
+
     public record TrajectoryKey(String fileName, String type, String area) {}
 
 
@@ -62,7 +65,7 @@ public class DuplicationTrajectoryUtils {
 
         if (availableAreaTrajectory == null) {
             throw BusinessException.builder()
-                    .message("AREA trajectory {0} does not exist for horizon {1}")
+                    .message(AREA_DOES_NOT_EXIST_FOR_HORIZON)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .errorMessageArguments(List.of(existingAreaTrajectory !=null ? existingAreaTrajectory.getFileName() : "", horizon))
                     .build();
@@ -78,7 +81,7 @@ public class DuplicationTrajectoryUtils {
 
         if (areaMeTrajectory != null && availableAreaMeTrajectory == null) {
             throw BusinessException.builder()
-                    .message("AREA_ME trajectory {0} does not exist for horizon {1}")
+                    .message(AREA_ME_DOES_NOT_EXIST_FOR_HORIZON)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .errorMessageArguments(List.of(areaMeTrajectory.getFileName(), horizon))
                     .build();
