@@ -38,22 +38,25 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
     private final AdequacySettingsRepository adequacySettingsRepository;
     private final StudyRepository studyRepository;
 
-    private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
     private static final String FILE_NAME_DEFAULT = "default.xlsx";
     private static final String SHEET_SETTINGS = "settings";
     private static final String SHEET_PERIMETER = "perimetre";
 
+    private static final Map<String, BiConsumer<AdequacySettingsEntity, Boolean>> BOOLEAN_SETTERS = new HashMap<>();
+    private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
+
     static {
-        settingsSetters.put("include_adq_patch", (e, v) -> e.setIncludeAdqPatch((Boolean) v));
+        BOOLEAN_SETTERS.put("include_adq_patch", AdequacySettingsEntity::setIncludeAdqPatch);
+        BOOLEAN_SETTERS.put("include_hurdle_cost_csr", AdequacySettingsEntity::setIncludeHurdleCostCsr);
+        BOOLEAN_SETTERS.put("check_csr_cost_function", AdequacySettingsEntity::setCheckCsrCostFunction);
+        BOOLEAN_SETTERS.put("redispatch", AdequacySettingsEntity::setRedispatch);
+        BOOLEAN_SETTERS.put("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step",
+                AdequacySettingsEntity::setSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep);
+
         settingsSetters.put("price_taking_order", (e, v) -> e.setPriceTakingOrder(v.toString()));
-        settingsSetters.put("include_hurdle_cost_csr", (e, v) -> e.setIncludeHurdleCostCsr((Boolean) v));
-        settingsSetters.put("check_csr_cost_function", (e, v) -> e.setCheckCsrCostFunction((Boolean) v));
         settingsSetters.put("threshold_initiate_curtailment_sharing_rule", (e, v) -> e.setThresholdInitiateCurtailmentSharingRule(castToInteger(v)));
         settingsSetters.put("threshold_display_local_matching_rule_violations", (e, v) -> e.setThresholdDisplayLocalMatchingRuleViolations(castToInteger(v)));
         settingsSetters.put("threshold_csr_variable_bounds_relaxation", (e, v) -> e.setThresholdCsrVariableBoundsRelaxation(castToInteger(v)));
-        settingsSetters.put("redispatch", (e, v) -> e.setRedispatch((Boolean) v));
-        settingsSetters.put("set_to_null_ntc_from_physical_out_to_physical_in_for_first_step",
-                (e, v) -> e.setSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep((Boolean) v));
     }
 
     private static Integer castToInteger(Object v) {
@@ -163,9 +166,13 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
             if (isRowEmpty(row)) continue;
             String key = Objects.toString(getCellValue(row, 0), "").toLowerCase().replace("-", "_");
             Object value = getCellValue(row, 1);
-
+            BiConsumer<AdequacySettingsEntity, Boolean> booleanSetter = BOOLEAN_SETTERS.get(key);
             BiConsumer<AdequacySettingsEntity, Object> setter = settingsSetters.get(key);
-            if (setter != null && value != null) {
+            if (value != null && booleanSetter != null) {
+                var parsed = parseBooleanOrThrow(row, key);
+                booleanSetter.accept(settingsEntity, parsed);
+                isSettingEmpty = false;
+            } else if (value != null && setter != null) {
                 try {
                     isSettingEmpty = false;
                     setter.accept(settingsEntity, value);
@@ -179,6 +186,18 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
         } else {
             return Collections.singletonList(settingsEntity);
         }
+    }
+
+    private Boolean parseBooleanOrThrow(Row row, String key) {
+        Boolean parsed = getBooleanCellOrNull(row, 1);
+        if (parsed == null) {
+            throw BusinessException.builder()
+                    .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
+                    .errorMessageArguments(List.of(key, "AdequacyPatch"))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+        return parsed;
     }
 
     private Path findDefaultFile(Path trajectoryFilePath, String trajectoryToUse) throws BusinessException, IOException {
