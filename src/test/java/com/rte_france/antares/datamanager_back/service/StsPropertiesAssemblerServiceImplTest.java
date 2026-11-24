@@ -353,7 +353,7 @@ class StsPropertiesAssemblerServiceImplTest {
         when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
         when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1, 2, 3});
 
-        for (StsTsFile file : StsTsFile.values()) {
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
             Files.createFile(file.resolve(tempDir));
         }
         when(nasFileService.readMatrix(any(Path.class), eq(horizon), any(), any())).thenReturn(mock(TimeSeriesMatrix.class));
@@ -364,6 +364,57 @@ class StsPropertiesAssemblerServiceImplTest {
 
         // then
         assertEquals(5, result.size());
+    }
+
+    @Test
+    void shouldGeneratePresentOptionalSeriesFiles() throws Exception {
+        for (StsTsFile file : StsTsFile.requiredFiles()) {
+            Files.createFile(file.resolve(tempDir));
+        }
+        Files.createFile(tempDir.resolve("COST.xlsx"));
+        Files.createFile(tempDir.resolve("variation_cost.xlsx"));
+        StStorageEntity entity = StStorageEntity.builder()
+                .tsPath(tempDir.toString()).build();
+        when(antaresDataManagerProperties.getStsTsOutputDirectory()).thenReturn("output");
+        when(nasFileService.getWriter()).thenReturn(timeSeriesWriter);
+        when(timeSeriesWriter.writeToByteArray(any())).thenReturn(new byte[]{1});
+        when(nasFileService.readMatrix(any(Path.class), eq("2030"), any(), any()))
+                .thenReturn(mock(TimeSeriesMatrix.class));
+        when(nasFileService.saveMatrixBytesToNas(any(), any(), eq("output")))
+                .thenAnswer(invocation -> invocation.getArgument(1) + ".arrow");
+
+        assertThat(stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030"))
+                .containsExactly("inflows.xlsx.arrow", "lower_curve.xlsx.arrow", "Pmax_injection.xlsx.arrow",
+                        "Pmax_soutirage.xlsx.arrow", "upper_curve.xlsx.arrow", "COST.xlsx.arrow",
+                        "variation_cost.xlsx.arrow");
+    }
+
+    @Test
+    void shouldRejectAmbiguousOptionalSeriesNamesBeforeReadingFiles() throws Exception {
+        Files.createFile(tempDir.resolve("cost.xlsx"));
+        Files.createFile(tempDir.resolve("COST.xlsx"));
+        StStorageEntity entity = StStorageEntity.builder()
+                .tsPath(tempDir.toString()).build();
+
+        assertThatThrownBy(() -> stsPropertiesAssemblerService.createMatrixStsTsFiles(entity, "2030"))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getMessage()).isEqualTo("Invalid or ambiguous optional STS series file {0} in {1}");
+                    assertThat(exception.getErrorMessageArguments()).containsExactly("cost.xlsx", tempDir.toString());
+                    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                });
+        verifyNoInteractions(timeSeriesReader, nasFileService);
+    }
+
+    @Test
+    void shouldFindMeTrajectoryInStudyWhenNotExplicitlyProvided() {
+        StStorageEntity storage = StStorageEntity.builder()
+                .area("fr").name("battery").storage(BigDecimal.ONE).build();
+        TrajectoryEntity trajectory = TrajectoryEntity.builder()
+                .type(TrajectoryType.STS_ME.name()).stStorageEntities(List.of(storage)).build();
+        StudyEntity study = StudyEntity.builder().horizon("2029-2030").trajectories(Set.of(trajectory)).build();
+
+        assertThat(stsPropertiesAssemblerService.assembleStsMeProperties(study, null)).containsKey("FR_battery");
+        assertThat(storage.getTrajectory()).isSameAs(trajectory);
     }
 
     @Test

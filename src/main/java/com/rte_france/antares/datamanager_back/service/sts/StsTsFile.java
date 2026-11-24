@@ -3,7 +3,6 @@ package com.rte_france.antares.datamanager_back.service.sts;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
@@ -15,13 +14,17 @@ public enum StsTsFile {
     MAX_POWER_INJECTION("Pmax_injection.xlsx"),
     MAX_POWER_WITHDRAWAL("Pmax_soutirage.xlsx"),
     UPPER_CURVE("upper_curve.xlsx"),
+    COSTS("cost.xlsx"),
+    VARIATION_COST("variation_cost.xlsx"),
+    LEVEL_COST("level_cost.xlsx"),
     ADDITIONAL_CONSTRAINTS("Additional-constraints.xlsx");
 
-    /** All STS time-series files except {@link #ADDITIONAL_CONSTRAINTS}. */
     protected static final Set<StsTsFile> REQUIRED =
-            Collections.unmodifiableSet(
-                    EnumSet.complementOf(
-                            EnumSet.of(ADDITIONAL_CONSTRAINTS)));
+            Collections.unmodifiableSet(EnumSet.of(INFLOWS, LOWER_CURVE, MAX_POWER_INJECTION,
+                    MAX_POWER_WITHDRAWAL, UPPER_CURVE));
+
+    private static final Set<StsTsFile> OPTIONAL =
+            Collections.unmodifiableSet(EnumSet.of(COSTS, VARIATION_COST, LEVEL_COST));
 
     /** STS_ME time-series files. */
     protected static final Set<StsTsFile> REQUIRED_ME =
@@ -56,9 +59,12 @@ public enum StsTsFile {
                 : REQUIRED;
     }
 
+    public static Set<StsTsFile> optionalFiles() {
+        return OPTIONAL;
+    }
+
     public static String[] allFileNames() {
-        return Arrays.stream(values())
-                .filter(e -> e != ADDITIONAL_CONSTRAINTS)
+        return REQUIRED.stream()
                 .map(StsTsFile::fileName)
                 .toArray(String[]::new);
     }

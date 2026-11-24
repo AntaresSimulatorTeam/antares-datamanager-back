@@ -73,19 +73,30 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
 
-        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1], trajectoryFilePath, areaParam, technology, studyAreas, studyId);
-        if (stStorageEntityList.isEmpty()) {
-            throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
+        Path root = Path.of(antaresDataManagerProperties.getNasDirectory())
+                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
+                .resolve(antaresDataManagerProperties.getStsDirectory());
+        try (StsFileSnapshot snapshot = new StsFileSnapshot(root)) {
+            Path clusterCopy = snapshot.capture(trajectoryFilePath, true);
+            List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1],
+                    trajectoryFilePath, clusterCopy, areaParam, technology, studyAreas, studyId, snapshot);
+            if (stStorageEntityList.isEmpty()) {
+                throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
+            }
+            for (StStorageEntity storage : stStorageEntityList) {
+                snapshot.captureSeries(storage);
+                if (storage.getConstraintsPath() != null) {
+                    snapshot.capture(Path.of(storage.getConstraintsPath()), true);
+                }
+            }
+            boolean isSeriesTrue = stStorageEntityList.stream()
+                    .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
+            TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(clusterCopy, horizon, areaParam,
+                    technology, isSeriesTrue, snapshot.checksum());
+            stStorageEntityList.forEach(storage -> storage.setTrajectory(trajectoryEntity));
+            trajectoryEntity.setStStorageEntities(stStorageEntityList);
+            return trajectoryRepository.save(trajectoryEntity);
         }
-
-        boolean isSeriesTrue = stStorageEntityList.stream()
-                .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
-
-        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam, technology, isSeriesTrue);
-
-        stStorageEntityList.forEach(thermalEntity -> thermalEntity.setTrajectory(trajectoryEntity));
-        trajectoryEntity.setStStorageEntities(stStorageEntityList);
-        return trajectoryRepository.save(trajectoryEntity);
     }
 
     public Path findTrajectoryFileCaseInsensitive(String trajectoryFileName, String technology) throws IOException {
@@ -100,52 +111,60 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("clusters");
 
         try (Stream<Path> s = Files.list(techDir)) {
-            java.util.Optional<Path> file = s.filter(Files::isRegularFile).filter(p -> {
+            List<Path> files = s.filter(Files::isRegularFile).filter(p -> {
                 String fn = p.getFileName().toString();
                 return fn.equalsIgnoreCase(trajectoryFileName + EXCEL_EXTENSION) || fn.equalsIgnoreCase(trajectoryFileName + ".xls");
-            }).findFirst();
+            }).toList();
 
-            if (file.isPresent()) {
-                return file.get();
-            } else {
+            if (files.isEmpty()) {
                 throw new NoSuchFileException("Trajectory file not found in " + techDir + " for '" + trajectoryFileName + "'");
             }
+            if (files.size() > 1) {
+                throw BusinessException.builder()
+                        .message("STS cluster file is ambiguous for trajectory {0}")
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .httpStatus(HttpStatus.BAD_REQUEST).build();
+            }
+            return files.getFirst();
         }
     }
 
 
-    private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology, Boolean hasSeries) throws IOException {
+    private TrajectoryEntity buildStStorageTrajectory(Path trajectoryFilePath, String horizon, String areaParam, String technology,
+                                                      Boolean hasSeries, String checksum) throws IOException {
 
         String createdBy = userService.getCurrentUserDetails() != null ? userService.getCurrentUserDetails().getNni() : UNKNOWN_USER;
         Optional<TrajectoryEntity> existingOpt = trajectoryRepository.findFirstByFileNameAndTypeAndHorizonAndAreaAndTechnologyIgnoreCaseOrderByVersionDesc(getFileNameWithoutExtensionAndWithoutPrefix(trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name()), TrajectoryType.STS.name(), horizon, areaParam, technology);
 
-        TrajectoryEntity trajectory;
-        if (existingOpt.isPresent() && checkTrajectoryVersion(trajectoryFilePath, existingOpt.get())) {
-            // Same identifiers but different checksum -> version +1
-            trajectory = buildTrajectory(trajectoryFilePath, existingOpt.get().getVersion(), horizon.split("-")[1], createdBy, TrajectoryType.STS, areaParam, technology, hasSeries);
-        } else {
-            // No existing or not same file -> new trajectory with version 1
-            trajectory = buildTrajectory(trajectoryFilePath, 0, horizon.split("-")[1], createdBy, TrajectoryType.STS, areaParam, technology, hasSeries);
+        if (existingOpt.isPresent() && checksum.equals(existingOpt.get().getChecksum())) {
+            throw BusinessException.builder()
+                    .message("File already processed  with same content : {0}")
+                    .errorMessageArguments(List.of(trajectoryFilePath.getFileName().toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
         }
-
+        int previousVersion = existingOpt.map(TrajectoryEntity::getVersion).orElse(0);
+        TrajectoryEntity trajectory = buildTrajectory(trajectoryFilePath, previousVersion, horizon.split("-")[1],
+                createdBy, TrajectoryType.STS, areaParam, technology, hasSeries);
+        trajectory.setChecksum(checksum);
         return trajectory;
     }
 
-
-    private List<StStorageEntity> buildStStorageLines(String horizon, Path trajectoryFilePath, String areaParam, String technology,
-                                                      List<String> studyAreas, Integer studyId)throws IOException {
+    private List<StStorageEntity> buildStStorageLines(String horizon, Path trajectoryFilePath, Path clusterCopy,
+                                                      String areaParam, String technology, List<String> studyAreas,
+                                                      Integer studyId, StsFileSnapshot snapshot)throws IOException {
         List<StStorageEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         // Parse additional constraints once and cache by area
         Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache = new HashMap<>();
 
-        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
+        try (InputStream inputStream = Files.newInputStream(clusterCopy); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name());
 
             String[] expectedColumns = StStorageColumns.getAllColumnNames();
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
 
-            buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache);
+            buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache, snapshot);
 
             var foundStudyArea = processSheetRows(sheet, trajectoryFilePath, areaParam, technology, studyAreas, studyId, horizon, constraintsParamsCache, results, trajectoryFileName);
 
@@ -243,18 +262,18 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
     }
 
-    private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
+    private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache, StsFileSnapshot snapshot) throws IOException {
         // Read constraints file once before processing storages
         Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, "", CONSTRAINTS_FILES);
         Path additionalConstraintsPath = pathSecurityUtil.resolveSafePath(constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()));
 
-        if (Files.exists(additionalConstraintsPath)) {
-            try {
+        Path additionalConstraintsCopy = snapshot.capture(additionalConstraintsPath, false);
+        if (additionalConstraintsCopy != null) {
                 log.info("Reading STS additional constraints file={} for trajectory={}, area={}",
                         additionalConstraintsPath, trajectoryFileName, areaParam);
                 List<StConstraintsParameterEntity> allParams =
                         stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
-                                additionalConstraintsPath,
+                                additionalConstraintsCopy,
                                 areaParam,
                                 studyAreas,
                                 technology,
@@ -263,9 +282,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                 null
                         );
                 constraintsParamsCache.put(areaParam, allParams);
-            } catch (IOException e) {
-                log.warn("Failed to read additional constraints file: {}", additionalConstraintsPath, e);
-            }
         }
     }
 
