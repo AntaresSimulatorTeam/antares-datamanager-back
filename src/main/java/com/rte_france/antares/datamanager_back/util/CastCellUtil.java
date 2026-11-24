@@ -20,7 +20,10 @@ public class CastCellUtil {
     }
 
     public static Integer castBooleanToInt(Object cellValue) {
-        return cellValue instanceof Boolean b ? (b ? 1 : 0) : null;
+        if (!(cellValue instanceof Boolean)) {
+            return null;
+        }
+        return Boolean.TRUE.equals(cellValue) ? 1 : 0;
     }
 
     public static String castString(Object o) {
