@@ -6,6 +6,7 @@ import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.repository.*;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import com.rte_france.antares.datamanager_back.service.TestConstants;
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -13,6 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -215,5 +220,51 @@ class AdequacyFileProcessorServiceImplTest {
         );
 
         assertTrue(ex.getMessage().contains("No data in {0} tab in AdequacyPatch trajectory {1}"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideBooleanKeywordsWithExpectedResult")
+    void processAdequacyFile_shouldParseBooleanKeywords(String keyword, boolean expectedBoolean) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fileOut = new FileOutputStream(excelFilePath.toFile())) {
+            Sheet perimetre = workbook.createSheet("perimetre");
+            perimetre.createRow(0).createCell(0).setCellValue("Area");
+            Row perimetreRow = perimetre.createRow(1);
+            perimetreRow.createCell(0).setCellValue("FR");
+            perimetreRow.createCell(1).setCellValue("Adequacy");
+
+            Sheet settings = workbook.createSheet("settings");
+            String[] booleanKeys = {"include-adq-patch", "include-hurdle-cost-csr", "check-csr-cost-function",
+                    "redispatch", "set-to-null-ntc-from-physical-out-to-physical-in-for-first-step"};
+            for (int i = 0; i < booleanKeys.length; i++) {
+                Row row = settings.createRow(i);
+                row.createCell(0).setCellValue(booleanKeys[i]);
+                row.createCell(1).setCellValue(keyword);
+            }
+            workbook.write(fileOut);
+        }
+
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        StudyEntity study = new StudyEntity();
+        study.setTrajectories(new java.util.HashSet<>());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TrajectoryEntity result = adequacyFileProcessorService.processAdequacyFile(trajectoryToUse, horizon, studyId, true);
+
+        assertThat(result.getAdequacySettingsEntities()).hasSize(1);
+        var settings = result.getAdequacySettingsEntities().get(0);
+        assertThat(settings.getIncludeAdqPatch()).as("includeAdqPatch for '%s'", keyword).isEqualTo(expectedBoolean);
+        assertThat(settings.getIncludeHurdleCostCsr()).as("includeHurdleCostCsr for '%s'", keyword).isEqualTo(expectedBoolean);
+        assertThat(settings.getCheckCsrCostFunction()).as("checkCsrCostFunction for '%s'", keyword).isEqualTo(expectedBoolean);
+        assertThat(settings.getRedispatch()).as("redispatch for '%s'", keyword).isEqualTo(expectedBoolean);
+        assertThat(settings.getSetToNullNtcFromPhysicalOutToPhysicalInForFirstStep())
+                .as("setToNullNtc... for '%s'", keyword).isEqualTo(expectedBoolean);
+    }
+
+    static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
+        return TestConstants.booleanKeywords();
     }
 }
