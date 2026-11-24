@@ -20,11 +20,7 @@ public class CastCellUtil {
     }
 
     public static Integer castBooleanToInt(Object cellValue) {
-        if (cellValue == null) return null;
-        else if (cellValue instanceof Boolean b) {
-            return b ? 1 : 0;
-        }
-        return null; // couvrir les autres types
+        return cellValue instanceof Boolean b ? (b ? 1 : 0) : null;
     }
 
     public static String castString(Object o) {
