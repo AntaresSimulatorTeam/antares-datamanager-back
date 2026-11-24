@@ -38,6 +38,13 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
     private final UserService userService;
     private final AreaRepository areaRepository;
 
+    private static final String ERROR_FILE_NAME_MUST_START_WITH = "The trajectory file name must start with {0}";
+    private static final String ERROR_AREA_IS_MISSING = "Area is missing in DSR trajectory {0} for row: {1}";
+    private static final String ERROR_VALUE_TOO_LONG_IN_CLUSTER = "Value {0} too long in DSR Cluster trajectory {1} for area {2} and horizon {3}";
+    private static final String ERROR_MODULATION_ARE_NOT_BOOLEAN = "Modulation for node {0} / cluster {1} are not boolean in DSR trajectory {2}";
+    private static final String ERROR_WRONG_COLUMNS_NUMERIC = " for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}";
+    private static final String ERROR_WRONG_COLUMNS_INTEGER = " for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}";
+
     private static final String DSR_PREFIX = "cluster_DSR_";
 
     @Transactional(rollbackFor = {IOException.class})
@@ -48,7 +55,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         if (!prefixMatch) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(DSR_PREFIX))
-                    .message("The trajectory file name must start with {0}")
+                    .message(ERROR_FILE_NAME_MUST_START_WITH)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -108,7 +115,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         if (rowArea == null || rowArea.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryFileName, String.valueOf(r)))
-                    .message("Area is missing in DSR trajectory {0} for row: {1}")
+                    .message(ERROR_AREA_IS_MISSING)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -118,7 +125,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         if (clusterName != null && clusterName.length() > 40) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(clusterName, trajectoryFileName, rowArea, horizon))
-                    .message("Value {0} too long in DSR Cluster trajectory {1} for area {2} and horizon {3}")
+                    .message(ERROR_VALUE_TOO_LONG_IN_CLUSTER)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -142,7 +149,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         if (!wrongColumns.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                    .message("Values "+ String.join(", ", wrongColumns) + " for node {0} / cluster {1} must be numeric in DSR Cluster trajectory {2}")
+                    .message("Values "+ String.join(", ", wrongColumns) + ERROR_WRONG_COLUMNS_NUMERIC)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -175,7 +182,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         if (!wrongColumns.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                    .message("Values " + String.join(", ", wrongColumns) + " for node {0} / cluster {1} must be integer in DSR Cluster trajectory {2}")
+                    .message("Values " + String.join(", ", wrongColumns) + ERROR_WRONG_COLUMNS_INTEGER)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -185,7 +192,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
         if (getBooleanCellOrDefault(row, idx, false) == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(rowArea, clusterName, trajectoryFileName))
-                    .message("Modulation for node {0} / cluster {1} are not boolean in DSR trajectory {2}")
+                    .message(ERROR_MODULATION_ARE_NOT_BOOLEAN)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
