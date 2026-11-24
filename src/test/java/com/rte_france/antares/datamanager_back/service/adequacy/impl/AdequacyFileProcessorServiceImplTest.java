@@ -267,4 +267,62 @@ class AdequacyFileProcessorServiceImplTest {
     static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
         return TestConstants.booleanKeywords();
     }
+
+    private void writeDefaultFileWithSettings(Object[][] settingsRows) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fileOut = new FileOutputStream(excelFilePath.toFile())) {
+            Sheet perimetre = workbook.createSheet("perimetre");
+            perimetre.createRow(0).createCell(0).setCellValue("Area");
+            Row perimetreRow = perimetre.createRow(1);
+            perimetreRow.createCell(0).setCellValue("FR");
+            perimetreRow.createCell(1).setCellValue("Adequacy");
+
+            Sheet settings = workbook.createSheet("settings");
+            for (int i = 0; i < settingsRows.length; i++) {
+                Row row = settings.createRow(i);
+                row.createCell(0).setCellValue((String) settingsRows[i][0]);
+                Object value = settingsRows[i][1];
+                if (value instanceof Number n) row.createCell(1).setCellValue(n.doubleValue());
+                else row.createCell(1).setCellValue(value.toString());
+            }
+            workbook.write(fileOut);
+        }
+    }
+
+    @Test
+    void processAdequacyFile_shouldThrowException_whenBooleanSettingIsInvalid() throws IOException {
+        writeDefaultFileWithSettings(new Object[][]{{"include-adq-patch", "abc"}});
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> adequacyFileProcessorService.processAdequacyFile(trajectoryToUse, horizon, studyId, true));
+
+        assertTrue(ex.getMessage().contains("Waiting for boolean value(s)"));
+        assertThat(ex.getErrorMessageArguments()).containsExactly("include_adq_patch", "AdequacyPatch");
+    }
+
+    @Test
+    void processAdequacyFile_shouldCastIntegerSettings_andIgnoreNonNumericValue() throws IOException {
+        writeDefaultFileWithSettings(new Object[][]{
+                {"include-adq-patch", true},
+                {"threshold-initiate-curtailment-sharing-rule", 5},
+                {"threshold-display-local-matching-rule-violations", "abc"}
+        });
+        when(trajectoryService.normalizeAndValidateDirectory(eq(TrajectoryType.ADEQUACY_PATCH), any(), any())).thenReturn(base);
+        when(trajectoryService.buildDirectoryTrajectory(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TrajectoryEntity());
+        StudyEntity study = new StudyEntity();
+        study.setTrajectories(new java.util.HashSet<>());
+        when(studyRepository.findById(studyId)).thenReturn(Optional.of(study));
+        when(trajectoryRepository.save(any(TrajectoryEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var settings = adequacyFileProcessorService
+                .processAdequacyFile(trajectoryToUse, horizon, studyId, true)
+                .getAdequacySettingsEntities().get(0);
+
+        assertThat(settings.getThresholdInitiateCurtailmentSharingRule()).isEqualTo(5);
+        assertThat(settings.getThresholdDisplayLocalMatchingRuleViolations()).isNull();
+    }
 }
