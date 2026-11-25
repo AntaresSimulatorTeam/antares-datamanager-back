@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
@@ -16,7 +17,7 @@ public class HydroToJsonService {
     private static final String ALLOCATION = "allocation";
     private static final String PSP = "psp";
 
-    public Map<String, Object> buildHydroDataMap(String areaName, Map<String, HydroAreaGenerationDTO> hydroPropsByArea) {
+    public Map<String, Object> buildHydroDataMap(String areaName, Map<AreaKey, HydroAreaGenerationDTO> hydroPropsByArea) {
         if (hydroPropsByArea == null || hydroPropsByArea.isEmpty()) {
             log.info("hydroMapGenerator: missing Hydro data for area={}", areaName);
             return Collections.emptyMap();
@@ -27,7 +28,7 @@ public class HydroToJsonService {
             return Collections.emptyMap();
         }
 
-        HydroAreaGenerationDTO areaHydro = hydroPropsByArea.get(areaName.toUpperCase());
+        HydroAreaGenerationDTO areaHydro = hydroPropsByArea.get(AreaKey.of(areaName));
         if (areaHydro == null || (areaHydro.hydro() == null && areaHydro.psp() == null)) {
             log.info("hydroMapGenerator: no Hydro found for area={}", areaName);
             return Collections.emptyMap();

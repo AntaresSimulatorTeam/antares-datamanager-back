@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
 import com.rte_france.antares.datamanager_back.repository.model.MiscGroupEnum;
 import lombok.extern.slf4j.Slf4j;
@@ -18,13 +19,13 @@ public class MiscToJsonService {
 
     private static final String PROPERTIES = "properties";
 
-    public Map<String, Object> buildMiscDataMap(String areaName, Map<String, List<MiscGenerationDTO>> miscProps) {
+    public Map<String, Object> buildMiscDataMap(String areaName, Map<AreaKey, List<MiscGenerationDTO>> miscProps) {
         if (miscProps == null || miscProps.isEmpty()) {
             log.info("miscMapGenerator: missing misc for area={}", areaName);
             return Collections.emptyMap();
         }
 
-        List<MiscGenerationDTO> areaDtos = miscProps.get(areaName.toUpperCase());
+        List<MiscGenerationDTO> areaDtos = miscProps.get(AreaKey.of(areaName));
         if (areaDtos == null || areaDtos.isEmpty()) {
             log.info("miscMapGenerator: no MISC found for area={}", areaName);
             return Collections.emptyMap();

@@ -113,7 +113,7 @@ class P2gGenerationAssemblerServiceImplTest {
                 P2GParametersEntity.builder().fcElectrolyseur(0.5).facteurSurdimensionEnr(1.2).partPvMix(0.9).build()
         ));
         when(resGenerationAssemblerService.assembleResProperties(study)).thenReturn(Map.of(
-                "AT", Map.of(
+                AreaKey.of("AT"), Map.of(
                         "solar", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "solar_pv"), List.of(), null),
                         "wind", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "wind_onshore"), List.of(), null)
                 )
@@ -195,7 +195,7 @@ class P2gGenerationAssemblerServiceImplTest {
                 capacity("AT", 2.0, 100.0, 90.0, 50.0, 30.0, 20.0)
         ));
         when(resGenerationAssemblerService.assembleResProperties(study)).thenReturn(Map.of(
-                "DEKF", Map.of(
+                AreaKey.of("DEKF"), Map.of(
                         "solar", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "solar_pv"), List.of(), null),
                         "wind", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "wind_onshore"), List.of(), null)
                 )
@@ -360,7 +360,7 @@ class P2gGenerationAssemblerServiceImplTest {
     @Test
     void assembleP2g_shouldThrowBusinessException_whenAsserviAreaMissingResCoverage() {
         when(resGenerationAssemblerService.assembleResProperties(study)).thenReturn(Map.of(
-                "AT", Map.of("solar", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "solar_pv"), List.of(), null))
+                AreaKey.of("AT"), Map.of("solar", new ResClusterGenerationDto(new ResClusterPropertiesDto(10.0, "solar_pv"), List.of(), null))
         ));
 
         assertThatThrownBy(() -> assembler.assembleP2g(study, capacityCostTrajectory, marketModulationTrajectory))

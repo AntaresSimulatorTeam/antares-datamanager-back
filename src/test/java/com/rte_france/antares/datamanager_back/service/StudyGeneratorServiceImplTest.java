@@ -1095,6 +1095,42 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
     }
 
     @Test
+    void buildJsonForStudyGeneration_shouldIncludeThermalsWhateverTheAreaCase() throws Exception {
+        // Given: the thermal data spells the area "fr", the study area is "FR"
+        var areaEntity = AreaEntity.builder().name("FR").build();
+        var areaConfig = AreaConfigEntity.builder()
+                .area(areaEntity)
+                .unsuppliedEnergyCost(3000.0)
+                .spilledEnergyCost(0.0)
+                .build();
+        var areaTrajectory = TrajectoryEntity.builder().type("AREA").areaConfigEntities(List.of(areaConfig)).area("FR").build();
+        var study = StudyEntity.builder().id(1).name("studyTest").trajectories(Set.of(areaTrajectory)).build();
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+
+        var dto = ThermalClusterGenerationDto.builder().efficiency(100.0).build();
+        var ref = ThermalClusterRef.builder().name("Gas1").build();
+        when(thermalPropertiesAssemblerService.assembleThermalForTrajectories(study)).thenReturn(Map.of(new AreaClusterRefKey("fr", ref), dto));
+        when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
+
+        // When
+        studyGeneratorService.buildJsonForStudyGeneration(1);
+
+        // Then
+        var objectMapper = new ObjectMapper();
+        Map<String, Object> jsonMap = objectMapper.readValue(captureGeneratedJson(1), new TypeReference<>() {
+        });
+        Map<String, Object> studyMap = objectMapper.convertValue(jsonMap.get("studyTest"), new TypeReference<>() {
+        });
+        Map<String, Object> areasMap = objectMapper.convertValue(studyMap.get("areas"), new TypeReference<>() {
+        });
+        Map<String, Object> frArea = objectMapper.convertValue(areasMap.get("FR"), new TypeReference<>() {
+        });
+        Map<String, Object> thermals = objectMapper.convertValue(frArea.get("thermals"), new TypeReference<>() {
+        });
+        assertThat(thermals).containsKey("FR_Gas1");
+    }
+
+    @Test
     void buildJsonForStudyGeneration_shouldIncludeThermalsDataCorrectly() throws Exception {
         // Given
         var areaEntity = AreaEntity.builder().name("FR").build();
@@ -1227,7 +1263,7 @@ return new MultiEnergyServiceImpl(adequacySettingsAssemblerService, stsPropertie
         when(antaresDataManagerProperties.getStudyJsonOutputDirectory()).thenReturn("output");
 
         var cluster = new ResClusterGenerationDto(new ResClusterPropertiesDto(1200.0, "wind_offshore"), List.of("fr_wind.arrow"), null);
-        when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Map.of("DE", Map.of("wind_offshore", cluster)));
+        when(resGenerationAssemblerService.assembleResProperties(any())).thenReturn(Map.of(AreaKey.of("DE"), Map.of("wind_offshore", cluster)));
 
         studyGeneratorService.buildJsonForStudyGeneration(1);
 

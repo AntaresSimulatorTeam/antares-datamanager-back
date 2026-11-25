@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroGenerationDTO;
 import com.rte_france.antares.datamanager_back.dto.HydroPropertiesGenerationDTO;
@@ -46,7 +47,7 @@ class HydroToJsonServiceTest {
     @ValueSource(strings = {"   ", "NON_EXISTENT"})
     void buildHydroDataMap_returnsEmptyMapForInvalidArea(String areaName) {
         HydroGenerationDTO dto = HydroGenerationDTO.builder().build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(dto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(dto, null));
 
         Map<String, Object> result = service.buildHydroDataMap(areaName, hydroProps);
 
@@ -56,7 +57,7 @@ class HydroToJsonServiceTest {
 
     @Test
     void buildHydroDataMap_returnsEmptyMapWhenBothHydroAndPspAreNull() {
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(null, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(null, null));
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
@@ -77,7 +78,7 @@ class HydroToJsonServiceTest {
                 .series(series)
                 .allocation(allocation)
                 .build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(hydroDto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(hydroDto, null));
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
@@ -110,7 +111,7 @@ class HydroToJsonServiceTest {
                 .series(pspSeries)
                 .allocation(pspAllocation)
                 .build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("AT", new HydroAreaGenerationDTO(null, pspDto));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("AT"), new HydroAreaGenerationDTO(null, pspDto));
 
         Map<String, Object> result = service.buildHydroDataMap("AT", hydroProps);
 
@@ -139,7 +140,7 @@ class HydroToJsonServiceTest {
                 .series(new String[]{"AT_psp_mingen.arrow"})
                 .allocation(Map.of("FR", 1.0))
                 .build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("AT", new HydroAreaGenerationDTO(hydroDto, pspDto));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("AT"), new HydroAreaGenerationDTO(hydroDto, pspDto));
 
         Map<String, Object> result = service.buildHydroDataMap("AT", hydroProps);
 
@@ -158,7 +159,7 @@ class HydroToJsonServiceTest {
         HydroGenerationDTO dto = HydroGenerationDTO.builder()
                 .properties(HydroPropertiesGenerationDTO.builder().followLoadModulation(false).build())
                 .build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(dto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(dto, null));
 
         Map<String, Object> result = service.buildHydroDataMap("fr", hydroProps);
 
@@ -176,9 +177,9 @@ class HydroToJsonServiceTest {
         HydroGenerationDTO dtoBE = HydroGenerationDTO.builder()
                 .properties(HydroPropertiesGenerationDTO.builder().interDailyBreakdown(new BigDecimal("2")).build())
                 .build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of(
-                "FR", new HydroAreaGenerationDTO(dtoFR, null),
-                "BE", new HydroAreaGenerationDTO(dtoBE, null)
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(
+                AreaKey.of("FR"), new HydroAreaGenerationDTO(dtoFR, null),
+                AreaKey.of("BE"), new HydroAreaGenerationDTO(dtoBE, null)
         );
 
         Map<String, Object> result = service.buildHydroDataMap("BE", hydroProps);
@@ -192,7 +193,7 @@ class HydroToJsonServiceTest {
     @Test
     void buildHydroDataMap_seriesIsNullInDto_returnsEmptyArray() {
         HydroGenerationDTO dto = HydroGenerationDTO.builder().series(null).build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(dto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(dto, null));
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
@@ -202,7 +203,7 @@ class HydroToJsonServiceTest {
     @Test
     void buildHydroDataMap_seriesIsEmptyInDto_returnsEmptyArray() {
         HydroGenerationDTO dto = HydroGenerationDTO.builder().series(new String[0]).build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(dto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(dto, null));
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
@@ -212,7 +213,7 @@ class HydroToJsonServiceTest {
     @Test
     void buildHydroDataMap_allocationIsNullInDto_returnsEmptyMap() {
         HydroGenerationDTO dto = HydroGenerationDTO.builder().allocation(null).build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(dto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(dto, null));
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 
@@ -222,7 +223,7 @@ class HydroToJsonServiceTest {
     @Test
     void buildHydroDataMap_allocationIsEmptyInDto_returnsEmptyMap() {
         HydroGenerationDTO dto = HydroGenerationDTO.builder().allocation(Collections.emptyMap()).build();
-        Map<String, HydroAreaGenerationDTO> hydroProps = Map.of("FR", new HydroAreaGenerationDTO(dto, null));
+        Map<AreaKey, HydroAreaGenerationDTO> hydroProps = Map.of(AreaKey.of("FR"), new HydroAreaGenerationDTO(dto, null));
 
         Map<String, Object> result = service.buildHydroDataMap("FR", hydroProps);
 

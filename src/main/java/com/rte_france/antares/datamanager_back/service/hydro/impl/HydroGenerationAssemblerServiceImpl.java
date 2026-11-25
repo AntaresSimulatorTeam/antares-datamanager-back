@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.HydroAreaGenerationDTO;
@@ -25,7 +27,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.OTHER_AREA;
 import static com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.*;
 
 
@@ -40,6 +41,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     private static final String PSP_PUMPING_SUFFIX = "_pumping";
     private static final String W_HYDRO_OPEN_PREFIX = "w_hydro_open_";
 
+    private static final AreaKey OTHERS_KEY = AreaKey.of(AreaNaming.OTHERS);
+
     private record TrajectoryFileContext(Path path, TrajectoryType type) {}
 
     public HydroGenerationAssemblerServiceImpl(
@@ -53,9 +56,9 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
     @ExecutionTime("HYDRO")
     @Override
-    public Map<String, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
-        Map<String, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();
-        Map<String, HydroGenerationDTO> pspDtoByArea = new HashMap<>();
+    public Map<AreaKey, HydroAreaGenerationDTO> assembleHydroProperties(StudyEntity studyEntity) throws BusinessException {
+        Map<AreaKey, HydroGenerationDTO> hydroDtoByArea = new HashMap<>();
+        Map<AreaKey, HydroGenerationDTO> pspDtoByArea = new HashMap<>();
 
         assembleParametersAndAllocation(getTechTrajectories(studyEntity, false), hydroDtoByArea);
         assembleParametersAndAllocation(getTechTrajectories(studyEntity, true), pspDtoByArea);
@@ -63,10 +66,10 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         setSeriesOnDtos(createArrowSeriesForType(studyEntity, false), hydroDtoByArea);
         setSeriesOnDtos(createArrowSeriesForType(studyEntity, true), pspDtoByArea);
 
-        Set<String> allAreas = new HashSet<>(hydroDtoByArea.keySet());
+        Set<AreaKey> allAreas = new HashSet<>(hydroDtoByArea.keySet());
         allAreas.addAll(pspDtoByArea.keySet());
 
-        Map<String, HydroAreaGenerationDTO> result = new HashMap<>();
+        Map<AreaKey, HydroAreaGenerationDTO> result = new HashMap<>();
         allAreas.forEach(area -> result.put(area, new HydroAreaGenerationDTO(hydroDtoByArea.get(area), pspDtoByArea.get(area))));
         return result;
     }
@@ -81,24 +84,23 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 .toList();
     }
 
-    private void assembleParametersAndAllocation(List<TrajectoryEntity> techTrajectories, Map<String, HydroGenerationDTO> dtoByArea) {
+    private void assembleParametersAndAllocation(List<TrajectoryEntity> techTrajectories, Map<AreaKey, HydroGenerationDTO> dtoByArea) {
         if (techTrajectories.isEmpty()) return;
 
-        Set<String> areasWithSpecificParams = getAreasWithSpecificHydroProperties(techTrajectories);
+        Set<AreaKey> areasWithSpecificParams = getAreasWithSpecificHydroProperties(techTrajectories);
 
         techTrajectories.stream()
                 .flatMap(t -> filterHydroParametersEntities(t, areasWithSpecificParams))
-                .filter(hp -> hp.getNode() != null)
-                .forEach(hp -> {
-                    String node = hp.getNode().toUpperCase(Locale.ROOT);
-                    dtoByArea.computeIfAbsent(node, k -> HydroMapper.mapToHydroGenerationDTO(hp));
-                });
+                // A blank node can't be a study area: skip it before building the key
+                .filter(hp -> hp.getNode() != null && !hp.getNode().isBlank())
+                .forEach(hp -> dtoByArea.computeIfAbsent(AreaKey.of(hp.getNode()), k -> HydroMapper.mapToHydroGenerationDTO(hp)));
 
         techTrajectories.stream()
                 .flatMap(t -> filterHydroAllocationEntities(t, areasWithSpecificParams))
                 .filter(ha -> ha.getHydro() != null && ha.getLoad() != null)
+                .filter(ha -> !extractAllocationArea(ha.getHydro()).isBlank())
                 .forEach(ha -> {
-                    String area = extractCanonicalArea(ha.getHydro());
+                    AreaKey area = AreaKey.of(extractAllocationArea(ha.getHydro()));
                     String load = ha.getLoad().toUpperCase(Locale.ROOT);
                     Double allocation = ha.getAllocation() != null ? ha.getAllocation().doubleValue() : 0.0;
                     HydroGenerationDTO dto = dtoByArea.get(area);
@@ -109,24 +111,22 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                 });
     }
 
-    private void setSeriesOnDtos(Map<String, List<String>> seriesByArea, Map<String, HydroGenerationDTO> dtoByArea) {
-        seriesByArea.forEach((area, series) -> {
-            String normalizedArea = area.toUpperCase(Locale.ROOT);
-            dtoByArea.computeIfAbsent(normalizedArea, k -> HydroMapper.mapToHydroGenerationDTO(null))
-                     .setSeries(series.toArray(String[]::new));
-        });
+    private void setSeriesOnDtos(Map<AreaKey, List<String>> seriesByArea, Map<AreaKey, HydroGenerationDTO> dtoByArea) {
+        seriesByArea.forEach((area, series) ->
+                dtoByArea.computeIfAbsent(area, k -> HydroMapper.mapToHydroGenerationDTO(null))
+                         .setSeries(series.toArray(String[]::new)));
     }
 
-    private Set<String> getAreasWithSpecificHydroProperties(List<TrajectoryEntity> hydroTechnicalTrajectories) {
+    private Set<AreaKey> getAreasWithSpecificHydroProperties(List<TrajectoryEntity> hydroTechnicalTrajectories) {
         return hydroTechnicalTrajectories.stream()
-                .filter(t -> t.getArea() != null && !OTHER_AREA.equalsIgnoreCase(t.getArea()))
-                .map(t -> t.getArea().toUpperCase())
+                .filter(t -> t.getArea() != null && !t.getArea().isBlank() && !AreaNaming.isOthers(t.getArea()))
+                .map(t -> AreaKey.of(t.getArea()))
                 .collect(Collectors.toSet());
     }
 
     private Stream<HydroParametersEntity> filterHydroParametersEntities(
             TrajectoryEntity trajectory,
-            Set<String> areasWithSpecificParameters
+            Set<AreaKey> areasWithSpecificParameters
     ) {
         return filterEntities(
                 trajectory.getHydroParametersEntities(),
@@ -138,27 +138,26 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
 
     private Stream<HydroAllocationEntity> filterHydroAllocationEntities(
             TrajectoryEntity trajectory,
-            Set<String> areasWithSpecificParameters
+            Set<AreaKey> areasWithSpecificParameters
     ) {
         return filterEntities(
                 trajectory.getHydroAllocationEntities(),
                 trajectory,
                 areasWithSpecificParameters,
-                ha -> extractCanonicalArea(ha.getHydro())
+                ha -> extractAllocationArea(ha.getHydro())
         );
     }
 
     private <T> Stream<T> filterEntities(
             List<T> entities,
             TrajectoryEntity trajectory,
-            Set<String> areasWithSpecificParameters,
+            Set<AreaKey> areasWithSpecificParameters,
             Function<T, String> areaExtractor
     ) {
         if (entities == null || entities.isEmpty()) {
             return Stream.empty();
         }
-        String trajectoryArea = trajectory.getArea() != null ? trajectory.getArea().toUpperCase() : "";
-        boolean isOthersTrajectory = OTHER_AREA.equalsIgnoreCase(trajectoryArea);
+        boolean isOthersTrajectory = AreaNaming.isOthers(trajectory.getArea());
 
         return entities.stream()
                 .filter(entity -> shouldIncludeEntity(entity, isOthersTrajectory, areasWithSpecificParameters, areaExtractor));
@@ -167,37 +166,31 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
     private <T> boolean shouldIncludeEntity(
             T entity,
             boolean isOthersTrajectory,
-            Set<String> areasWithSpecificCapacity,
+            Set<AreaKey> areasWithSpecificCapacity,
             Function<T, String> areaExtractor
     ) {
         if (!isOthersTrajectory) {
             return true;
         }
-        String entityArea = Optional.ofNullable(areaExtractor.apply(entity))
-                .map(String::toUpperCase)
-                .orElse("");
-
-        return !areasWithSpecificCapacity.contains(entityArea);
+        String entityArea = areaExtractor.apply(entity);
+        return entityArea == null || entityArea.isBlank() || !areasWithSpecificCapacity.contains(AreaKey.of(entityArea));
     }
 
-    private String extractCanonicalArea(String hydroColumnValue) {
+    // The area of an allocation row, as written: "w_hydro_open_FR" gives "FR"
+    private String extractAllocationArea(String hydroColumnValue) {
         if (hydroColumnValue == null) return "";
-        String lower = hydroColumnValue.toLowerCase(Locale.ROOT);
-        if (lower.startsWith(W_HYDRO_OPEN_PREFIX)) {
-            return lower.substring(W_HYDRO_OPEN_PREFIX.length()).toUpperCase(Locale.ROOT);
-        }
-        return hydroColumnValue.toUpperCase(Locale.ROOT);
+        boolean hasPrefix = hydroColumnValue.regionMatches(true, 0, W_HYDRO_OPEN_PREFIX, 0, W_HYDRO_OPEN_PREFIX.length());
+        return hasPrefix ? hydroColumnValue.substring(W_HYDRO_OPEN_PREFIX.length()) : hydroColumnValue;
     }
 
-    private Map<String, List<String>> createArrowSeriesForType(StudyEntity studyEntity, boolean isPsp) throws BusinessException {
-        Map<String, List<TrajectoryFileContext>> seriesPathByArea = mapTsPathByArea(studyEntity, isPsp);
-        Map<String, List<String>> generatedFilesByArea = new HashMap<>();
+    private Map<AreaKey, List<String>> createArrowSeriesForType(StudyEntity studyEntity, boolean isPsp) throws BusinessException {
+        Map<AreaKey, List<TrajectoryFileContext>> seriesPathByArea = mapTsPathByArea(studyEntity, isPsp);
+        Map<AreaKey, List<String>> generatedFilesByArea = new HashMap<>();
 
-        Set<String> processedAreas = new HashSet<>();
-        String otherArea = OTHER_AREA.toUpperCase(Locale.ROOT);
+        Set<AreaKey> processedAreas = new HashSet<>();
 
         // 1. Specific areas treatment
-        for (String area : nonOtherAreas(seriesPathByArea.keySet(), processedAreas)) {
+        for (AreaKey area : nonOtherAreas(seriesPathByArea.keySet(), processedAreas)) {
             List<TrajectoryFileContext> contexts = seriesPathByArea.get(area);
             if (contexts != null && !contexts.isEmpty()) {
                 List<String> generatedFilesArrow = new ArrayList<>();
@@ -207,24 +200,20 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         }
 
         // 2. OTHER case
-        List<TrajectoryFileContext> othersTsPath = seriesPathByArea.get(otherArea);
-        if (processedAreas.contains(otherArea) && othersTsPath != null && !othersTsPath.isEmpty()) {
-            Set<String> alreadyProcessedAreas = generatedFilesByArea.keySet().stream()
-                    .filter(Objects::nonNull)
-                    .map(area -> area.toUpperCase(Locale.ROOT))
-                    .collect(Collectors.toSet());
+        List<TrajectoryFileContext> othersTsPath = seriesPathByArea.get(OTHERS_KEY);
+        if (processedAreas.contains(OTHERS_KEY) && othersTsPath != null && !othersTsPath.isEmpty()) {
+            Set<AreaKey> alreadyProcessedAreas = Set.copyOf(generatedFilesByArea.keySet());
 
-            Set<String> remainingOtherAreas = othersTsPath.stream()
+            Set<AreaKey> remainingOtherAreas = othersTsPath.stream()
                     .filter(Objects::nonNull)
                     .filter(context -> context.path().getFileName() != null)
                     .filter(context -> !isMaxpowerFile(context.path().getFileName().toString()))
                     .map(context -> extractAreaFromFileName(context.path()))
                     .flatMap(Optional::stream)
-                    .map(area -> area.toUpperCase(Locale.ROOT))
                     .filter(area -> !alreadyProcessedAreas.contains(area))
                     .collect(Collectors.toSet());
 
-            for (String area : remainingOtherAreas) {
+            for (AreaKey area : remainingOtherAreas) {
                 List<TrajectoryFileContext> pathsForArea = othersTsPath.stream()
                         .filter(context -> belongsToAreaOrIsMaxpower(context.path(), area))
                         .toList();
@@ -240,7 +229,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return generatedFilesByArea;
     }
 
-    private boolean belongsToAreaOrIsMaxpower(Path path, String area) {
+    private boolean belongsToAreaOrIsMaxpower(Path path, AreaKey area) {
         if (path == null || path.getFileName() == null) {
             return false;
         }
@@ -250,7 +239,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         }
 
         return extractAreaFromFileName(path)
-                .map(extractedArea -> area.equals(extractedArea.toUpperCase(Locale.ROOT)))
+                .map(area::equals)
                 .orElse(false);
     }
 
@@ -258,7 +247,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return fileName != null && fileName.toLowerCase(Locale.ROOT).startsWith("maxpower_");
     }
 
-    private Optional<String> extractAreaFromFileName(Path path) {
+    // The area in a series file name: "mingen_FR_2030.csv" gives FR
+    private Optional<AreaKey> extractAreaFromFileName(Path path) {
         if (path == null || path.getFileName() == null) {
             return Optional.empty();
         }
@@ -271,10 +261,11 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             return Optional.empty();
         }
 
-        return Optional.of(parts[parts.length - 2].toUpperCase(Locale.ROOT));
+        String area = parts[parts.length - 2];
+        return area.isBlank() ? Optional.empty() : Optional.of(AreaKey.of(area));
     }
 
-    private void processSeriesByArea(StudyEntity studyEntity, String area, List<TrajectoryFileContext> hydroSeriesContexts, List<String> generatedFilesArrow) throws BusinessException {
+    private void processSeriesByArea(StudyEntity studyEntity, AreaKey area, List<TrajectoryFileContext> hydroSeriesContexts, List<String> generatedFilesArrow) throws BusinessException {
         boolean skipRorMaxpower = isRorOnlyArea(hydroSeriesContexts);
         String outputDir = antaresDataManagerProperties.getHydroTsOutputDirectory();
         String horizon = studyEntity.getHorizon();
@@ -293,16 +284,16 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         });
     }
 
-    private String generateMaxpowerArrow(Path path, String area, boolean isPsp, String pspMarker, String outputDir, String horizon) {
+    private String generateMaxpowerArrow(Path path, AreaKey area, boolean isPsp, String pspMarker, String outputDir, String horizon) {
         try {
             Set<String> columnsToRead = isPsp
-                    ? Set.of(area + PSP_GENERATING_SUFFIX, area + PSP_PUMPING_SUFFIX)
-                    : Collections.singleton(area);
+                    ? Set.of(area.value() + PSP_GENERATING_SUFFIX, area.value() + PSP_PUMPING_SUFFIX)
+                    : Collections.singleton(area.value());
             TimeSeriesMatrix matrix = timeSeriesReader.readSelectedColumnsFromXlsx(path, horizon, columnsToRead);
             if (isPsp) {
                 validatePspMaxpowerColumns(matrix, area);
             }
-            return nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_maxpower", outputDir);
+            return nasFileService.saveMatrixToNas(matrix, area.value() + pspMarker + "_maxpower", outputDir);
         } catch (IOException e) {
             throw BusinessException.builder()
                     .message("Could not generate matrix for maxpower")
@@ -311,22 +302,24 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         }
     }
 
-    private void validatePspMaxpowerColumns(TimeSeriesMatrix matrix, String area) {
-        boolean hasGenerating = matrix.columns().stream().anyMatch(c -> c.name().equalsIgnoreCase(area + PSP_GENERATING_SUFFIX));
-        boolean hasPumping    = matrix.columns().stream().anyMatch(c -> c.name().equalsIgnoreCase(area + PSP_PUMPING_SUFFIX));
+    private void validatePspMaxpowerColumns(TimeSeriesMatrix matrix, AreaKey area) {
+        String generatingColumn = area.value() + PSP_GENERATING_SUFFIX;
+        String pumpingColumn = area.value() + PSP_PUMPING_SUFFIX;
+        boolean hasGenerating = matrix.columns().stream().anyMatch(c -> c.name().equalsIgnoreCase(generatingColumn));
+        boolean hasPumping    = matrix.columns().stream().anyMatch(c -> c.name().equalsIgnoreCase(pumpingColumn));
         if (!hasGenerating || !hasPumping) {
             throw BusinessException.builder()
-                    .errorMessageArguments(List.of(area + PSP_GENERATING_SUFFIX, area + PSP_PUMPING_SUFFIX, area))
+                    .errorMessageArguments(List.of(generatingColumn, pumpingColumn, area.value()))
                     .message("PSP maxpower file must contain columns {0} and {1} for area {2}")
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
     }
 
-    private String generateSeriesArrow(Path path, String area, boolean isPsp, String pspMarker, String outputDir, String horizon, String fileName) {
+    private String generateSeriesArrow(Path path, AreaKey area, boolean isPsp, String pspMarker, String outputDir, String horizon, String fileName) {
         try {
             TimeSeriesMatrix matrix = nasFileService.readMatrix(path, horizon, false, "", "");
-            return nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + pspMarker + "_" + getHydroSeriesType(fileName), outputDir);
+            return nasFileService.saveMatrixToNas(matrix, area.value() + pspMarker + "_" + getHydroSeriesType(fileName), outputDir);
         } catch (IOException e) {
             throw BusinessException.builder()
                     .message("Could not generate matrix for " + HydroTypeHelper.getSeriesLabel(isPsp))
@@ -335,14 +328,14 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         }
     }
 
-    private Set<String> nonOtherAreas(Set<String> areas, Set<String> listAreas) {
-        Set<String> result = new HashSet<>(areas);
+    private Set<AreaKey> nonOtherAreas(Set<AreaKey> areas, Set<AreaKey> listAreas) {
+        Set<AreaKey> result = new HashSet<>(areas);
         listAreas.addAll(areas);
-        result.remove(OTHER_AREA.toUpperCase());
+        result.remove(OTHERS_KEY);
         return result;
     }
 
-    private Map<String, List<TrajectoryFileContext>> mapTsPathByArea(StudyEntity study, boolean isPsp) {
+    private Map<AreaKey, List<TrajectoryFileContext>> mapTsPathByArea(StudyEntity study, boolean isPsp) {
         Path trajectoryFilePath = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath());
         String targetType = isPsp ? TrajectoryType.HYDRO_PSP_SERIES.name() : TrajectoryType.HYDRO_SERIES.name();
@@ -353,7 +346,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(trajectory -> targetType.equals(trajectory.getType()))
-                .filter(trajectory -> trajectory.getArea() != null)
+                .filter(trajectory -> trajectory.getArea() != null && !trajectory.getArea().isBlank())
                 .flatMap(trajectory -> Optional.ofNullable(trajectory.getHydroSeriesEntities())
                         .orElseGet(Collections::emptyList)
                         .stream()
@@ -361,7 +354,7 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                         .filter(hydroSeries -> hydroSeries.getTsName() != null)
                         .filter(hydroSeries -> shouldKeepHydroSeries(study, trajectory, hydroSeries))
                         .map(hydroSeries -> Map.entry(
-                                trajectory.getArea().toUpperCase(Locale.ROOT),
+                                AreaKey.of(trajectory.getArea()),
                                 new TrajectoryFileContext(
                                         resolveHydroSeriesPath(seriesDir, trajectory, hydroSeries),
                                         TrajectoryType.valueOf(trajectory.getType())
@@ -381,15 +374,13 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
             return true;
         }
 
-        String area = OTHER_AREA.equalsIgnoreCase(trajectory.getArea())
+        AreaKey area = AreaNaming.isOthers(trajectory.getArea())
                 ? extractAreaFromFileName(Path.of(tsName)).orElse(null)
-                : trajectory.getArea();
+                : AreaKey.of(trajectory.getArea());
 
         if (area == null) {
             return false;
         }
-
-        String normalizedArea = area.toUpperCase(Locale.ROOT);
 
         String targetTechType = TrajectoryType.HYDRO_PSP_SERIES.name().equals(trajectory.getType())
                 ? TrajectoryType.HYDRO_PSP_TECHNICAL_PARAMETERS.name()
@@ -402,8 +393,8 @@ public class HydroGenerationAssemblerServiceImpl implements HydroGenerationAssem
                         .orElseGet(Collections::emptyList)
                         .stream())
                 .filter(Objects::nonNull)
-                .filter(hydroParameter -> hydroParameter.getNode() != null)
-                .filter(hydroParameter -> normalizedArea.equals(hydroParameter.getNode().toUpperCase(Locale.ROOT)))
+                .filter(hydroParameter -> hydroParameter.getNode() != null && !hydroParameter.getNode().isBlank())
+                .filter(hydroParameter -> area.equals(AreaKey.of(hydroParameter.getNode())))
                 .anyMatch(hydroParameter -> Boolean.TRUE.equals(hydroParameter.getReservoir()));
     }
 

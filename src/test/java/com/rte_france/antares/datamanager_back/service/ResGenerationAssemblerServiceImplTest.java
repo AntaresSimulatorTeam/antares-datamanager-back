@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
 import com.rte_france.antares.datamanager_back.dto.ResClusterPropertiesDto;
@@ -153,7 +154,7 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             var res = service.assembleResProperties(study);
-            assertNotNull(res.get("DE").get("solar_pv"));
+            assertNotNull(res.get(AreaKey.of("DE")).get("solar_pv"));
         }
 
         @Test
@@ -346,7 +347,7 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             var result = service.assembleResProperties(study);
-            assertNotNull(result.get("FR").get("solar_pv"));
+            assertNotNull(result.get(AreaKey.of("FR")).get("solar_pv"));
         }
 
         @Test
@@ -480,7 +481,7 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(300.0, "wind_onshore"), List.of("de_wind.arrow"), null);
-            assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
+            assertEquals(expected, service.assembleResProperties(study).get(AreaKey.of("DE")).get("wind_onshore"),
                     "Area techno capacity should replace area capacity, not sum");
         }
 
@@ -504,7 +505,7 @@ class ResGenerationAssemblerServiceImplTest {
                     createTechnoTrajectory(TrajectoryType.RES_CAPACITY, "wind_onshore", createCapacity("DE", "wind onshore", 300))
             );
 
-            var result = service.assembleResProperties(study).get("DE");
+            var result = service.assembleResProperties(study).get(AreaKey.of("DE"));
             assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(300.0, "wind_onshore"), List.of("de.arrow"), null),
                     result.get("wind_onshore"), "Area techno should have priority");
             assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(200.0, "wind_offshore"), List.of("de.arrow"), null),
@@ -530,7 +531,7 @@ class ResGenerationAssemblerServiceImplTest {
                     areaCapTraj
             );
 
-            var result = service.assembleResProperties(study).get("DE");
+            var result = service.assembleResProperties(study).get(AreaKey.of("DE"));
 
             assertEquals(2, result.size(), "Same cluster name in two different groups must make two different entrsies");
             assertEquals(new ResClusterGenerationDto(new ResClusterPropertiesDto(100.0, "wind_onshore"), List.of("de.arrow"), null),
@@ -565,9 +566,9 @@ class ResGenerationAssemblerServiceImplTest {
             var result = service.assembleResProperties(study);
             assertDoesNotThrow(() -> service.assembleResProperties(study),
                     "Same file linked to multiple areas must not throw duplicate error");
-            assertEquals(List.of("be_wind.arrow"), result.get("BE").get("wind_onshore").series(),
+            assertEquals(List.of("be_wind.arrow"), result.get(AreaKey.of("BE")).get("wind_onshore").series(),
                     "BE should get only its own series");
-            assertEquals(List.of("es_wind.arrow"), result.get("ES").get("wind_onshore").series(),
+            assertEquals(List.of("es_wind.arrow"), result.get(AreaKey.of("ES")).get("wind_onshore").series(),
                     "ES should get only its own series");
         }
 
@@ -589,7 +590,7 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             var result = service.assembleResProperties(study);
-            assertEquals(List.of("be_onshore.arrow"), result.get("BE").get("wind_onshore").series(),
+            assertEquals(List.of("be_onshore.arrow"), result.get(AreaKey.of("BE")).get("wind_onshore").series(),
                     "Area-techno link scoped to wind_onshore should resolve its series");
             verify(nasFileService, times(1)).readAndSaveMatrixToNas(any(), eq(OUTPUT_DIR), any(), anyBoolean());
         }
@@ -625,9 +626,9 @@ class ResGenerationAssemblerServiceImplTest {
 
             var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
                     "Area-level file linked to multiple areas + area-techno file must not throw a duplicate error");
-            assertEquals(List.of("wind_offshore_AT_AT2_2030_2031.arrow"), result.get("AT").get("wind_offshore").series(),
+            assertEquals(List.of("wind_offshore_AT_AT2_2030_2031.arrow"), result.get(AreaKey.of("AT")).get("wind_offshore").series(),
                     "AT should use the area-techno series");
-            assertEquals(List.of("wind_offshore_BE_AT2_2030_2031.arrow"), result.get("BE").get("wind_offshore").series(),
+            assertEquals(List.of("wind_offshore_BE_AT2_2030_2031.arrow"), result.get(AreaKey.of("BE")).get("wind_offshore").series(),
                     "BE should use the area-techno series");
         }
 
@@ -650,8 +651,8 @@ class ResGenerationAssemblerServiceImplTest {
 
             var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
                     "OTHERS should provide series for areas with no specific trajectory linked");
-            assertEquals(List.of("wind_offshore_DE_off_2030_2031.arrow"), result.get("DE").get("wind_offshore").series());
-            assertEquals(List.of("wind_offshore_BE_off_2030_2031.arrow"), result.get("BE").get("wind_offshore").series());
+            assertEquals(List.of("wind_offshore_DE_off_2030_2031.arrow"), result.get(AreaKey.of("DE")).get("wind_offshore").series());
+            assertEquals(List.of("wind_offshore_BE_off_2030_2031.arrow"), result.get(AreaKey.of("BE")).get("wind_offshore").series());
         }
 
         @Test
@@ -676,7 +677,7 @@ class ResGenerationAssemblerServiceImplTest {
             var result = assertDoesNotThrow(() -> service.assembleResProperties(study),
                     "Specific area link should have priority over OTHERS");
             assertEquals(List.of("wind_offshore_DE_specific_2030_2031.arrow"),
-                    result.get("DE").get("wind_offshore").series(), "Specific area series must take priority over OTHERS");
+                    result.get(AreaKey.of("DE")).get("wind_offshore").series(), "Specific area series must take priority over OTHERS");
         }
 
         @Test
@@ -702,7 +703,7 @@ class ResGenerationAssemblerServiceImplTest {
             );
 
             var expected = new ResClusterGenerationDto(new ResClusterPropertiesDto(100.0, "wind_onshore"), List.of("techno_series.arrow"), null);
-            assertEquals(expected, service.assembleResProperties(study).get("DE").get("wind_onshore"),
+            assertEquals(expected, service.assembleResProperties(study).get(AreaKey.of("DE")).get("wind_onshore"),
                     "Area techno LF series should take priority over only area LF series");
         }
 
@@ -722,7 +723,7 @@ class ResGenerationAssemblerServiceImplTest {
 
             StudyEntity study = createStudy(createTrajectory(TrajectoryType.RES_LOAD, DEFAULT_TRAJECTORY), capTraj);
 
-            var deResult = service.assembleResProperties(study).get("DE");
+            var deResult = service.assembleResProperties(study).get(AreaKey.of("DE"));
 
             assertNotNull(deResult.get("cluster_A"), "cluster_A must be a separate JSON entry");
             assertNotNull(deResult.get("cluster_B"), "cluster_B must be a separate JSON entry");
@@ -742,7 +743,7 @@ class ResGenerationAssemblerServiceImplTest {
         return t;
     }
 
-    private ResClusterGenerationDto getGroupPayload(Map<String, Map<String, ResClusterGenerationDto>> res, String a, String g) {
-        return res.get(a.toUpperCase()).get(g.replace(" ", "_"));
+    private ResClusterGenerationDto getGroupPayload(Map<AreaKey, Map<String, ResClusterGenerationDto>> res, String a, String g) {
+        return res.get(AreaKey.of(a)).get(g.replace(" ", "_"));
     }
 }

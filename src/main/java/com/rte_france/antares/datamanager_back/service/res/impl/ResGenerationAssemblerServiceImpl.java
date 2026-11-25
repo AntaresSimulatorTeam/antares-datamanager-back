@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.ResClusterGenerationDto;
@@ -16,6 +17,7 @@ import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
 import com.rte_france.antares.datamanager_back.service.common.impl.NasFileService;
 import com.rte_france.antares.datamanager_back.service.res.ResGenerationAssemblerService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.PathSecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +33,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomainRules.ZONAL_AREAS;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomainRules.extractBaseArea;
 
 @Slf4j
@@ -48,9 +51,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     private final PathSecurityUtil pathSecurityUtil;
 
     private record TrajectoryCollections(
-            Map<String, List<ResClusterCapacityEntity>> capacities,
-            Map<String, List<ResTechnologyDistributionEntity>> technologies,
-            Map<String, List<ResZonalDistributionEntity>> zonals
+            Map<AreaKey, List<ResClusterCapacityEntity>> capacities,
+            Map<AreaKey, List<ResTechnologyDistributionEntity>> technologies,
+            Map<AreaKey, List<ResZonalDistributionEntity>> zonals
     ) {}
 
     private record SeriesLookup(Map<String, ResSeriesRef> index, Map<Path, String> arrowCache) {}
@@ -79,7 +82,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     @ExecutionTime("RES")
     @Override
-    public Map<String, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
+    public Map<AreaKey, Map<String, ResClusterGenerationDto>> assembleResProperties(StudyEntity studyEntity) {
         var trajectories = studyEntity.getTrajectories();
         if (trajectories == null || trajectories.isEmpty()) {
             return Collections.emptyMap();
@@ -129,8 +132,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         });
     }
 
-    private Map<String, Map<String, ResClusterGenerationDto>> processAreaClusters(
-            Map<String, List<ResClusterCapacityEntity>> capacities,
+    private Map<AreaKey, Map<String, ResClusterGenerationDto>> processAreaClusters(
+            Map<AreaKey, List<ResClusterCapacityEntity>> capacities,
             TrajectoryCollections collections,
             SeriesLookup frLookup,
             SeriesLookup nonFrLookup
@@ -141,7 +144,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                     var area = entry.getKey();
                     var techs = collections.technologies().getOrDefault(area, Collections.emptyList());
                     var zonals = collections.zonals().getOrDefault(area, Collections.emptyList());
-                    var context = new ClusterAggregationContext(area, techs, zonals, frLookup, nonFrLookup);
+                    var context = new ClusterAggregationContext(area.value(), techs, zonals, frLookup, nonFrLookup);
                     return buildClustersForArea(entry.getValue(), context);
                 },
                 (a, b) -> a,
@@ -183,7 +186,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         var groupKey = normalizeGroup(entities.getFirst().getGroupe());
         var clusterProperties = new ResClusterPropertiesDto(installedPower, groupKey);
 
-        if (ResDomainRules.FR_AREA.equalsIgnoreCase(context.area())) {
+        if (AreaNaming.sameArea(ResDomainRules.FR_AREA, context.area())) {
             var frAggregation = buildFrAggregation(
                     groupKey, clusterName, installedPower, context.techDistributions(), context.zonalDistributions(), context.frLookup()
             );
@@ -433,13 +436,13 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         String normalizedTech = toKey(trajectory.getTechnology());
         String linkKey = fileName + "|" + normalizedArea + "|" + normalizedTech + "|" + trajectory.getHorizon();
 
-        boolean fromOthersArea = ResDomainRules.OTHERS_AREA.equalsIgnoreCase(normalizedArea);
+        boolean fromOthersArea = isOthers(normalizedArea);
         boolean isNewLink = processedLinks.add(linkKey);
         log.debug("RES load link: file='{}' area=[{}] tech=[{}] linkKey='{}' new={}",
                 fileName, trajectory.getArea(), trajectory.getTechnology(), linkKey, isNewLink);
         if (isNewLink) {
             var scanContext = new SeriesScanContext(fileName, !normalizedTech.isBlank(), fromOthersArea,
-                    normalizedArea.toUpperCase(Locale.ROOT), normalizedTech.toUpperCase(Locale.ROOT), trajectory.getHorizon());
+                    normalizedArea, normalizedTech.toUpperCase(Locale.ROOT), trajectory.getHorizon());
             resolveSeriesInTrajectory(scanContext, base, result);
         }
     }
@@ -501,7 +504,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         }
         String rel = trajectoryRoot.relativize(file).toString();
         parseSeriesKeyFromRelativePath(rel).ifPresent(parsedKey -> {
-            if (!scanContext.fromOthersArea() && scanContext.linkedArea() != null && !scanContext.linkedArea().isBlank() && !scanContext.linkedArea().equalsIgnoreCase(parsedKey.area())) {
+            if (!scanContext.fromOthersArea() && scanContext.linkedArea() != null && !scanContext.linkedArea().isBlank() && !AreaNaming.sameArea(scanContext.linkedArea(), parsedKey.area())) {
                 return;
             }
             if (scanContext.linkedTech() != null && !scanContext.linkedTech().isBlank() && !toKey(scanContext.linkedTech()).equalsIgnoreCase(parsedKey.group())) {
@@ -556,7 +559,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
         String areaOrZone = remaining.get(0).toUpperCase(Locale.ROOT);
         String baseArea = extractBaseArea(areaOrZone);
 
-        if (ZONAL_AREAS.contains(baseArea)) {
+        if (ResDomainRules.isZonalArea(baseArea)) {
             if (areaOrZone.equals(baseArea)) {
                 log.warn("Malformed zonal series skipped. Expected zone (like: {}01), but found global zone: {}", baseArea, relativePath);
                 return Optional.empty();
@@ -643,7 +646,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private Map<String, ResSeriesRef> indexNonFrSeries(List<ResSeriesRef> series) {
         return series.stream()
-                .filter(ref -> !ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
+                .filter(ref -> !AreaNaming.sameArea(ResDomainRules.FR_AREA, ref.area()))
                 .collect(Collectors.toMap(
                         ref -> toKey(ref.area()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.group()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.cluster()).toUpperCase(Locale.ROOT),
                         ref -> ref,
@@ -678,7 +681,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private Map<String, ResSeriesRef> indexFrSeries(List<ResSeriesRef> series) {
         return series.stream()
-                .filter(ref -> ResDomainRules.FR_AREA.equalsIgnoreCase(ref.area()))
+                .filter(ref -> AreaNaming.sameArea(ResDomainRules.FR_AREA, ref.area()))
                 .collect(Collectors.toMap(
                         ref -> toKey(ref.zone()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.group()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.cluster()).toUpperCase(Locale.ROOT) + "_" + toKey(ref.technology()).toUpperCase(Locale.ROOT),
                         ref -> ref,
@@ -687,10 +690,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
     }
 
     private TrajectoryCollections collectTrajectoriesSinglePass(StudyEntity studyEntity) {
-        var areaCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
-        var technoCapacities = new LinkedHashMap<String, List<ResClusterCapacityEntity>>();
-        var technologies = new LinkedHashMap<String, List<ResTechnologyDistributionEntity>>();
-        var zonals = new LinkedHashMap<String, List<ResZonalDistributionEntity>>();
+        var areaCapacities = new LinkedHashMap<AreaKey, List<ResClusterCapacityEntity>>();
+        var technoCapacities = new LinkedHashMap<AreaKey, List<ResClusterCapacityEntity>>();
+        var technologies = new LinkedHashMap<AreaKey, List<ResTechnologyDistributionEntity>>();
+        var zonals = new LinkedHashMap<AreaKey, List<ResZonalDistributionEntity>>();
 
         studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
@@ -701,10 +704,10 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void routeTrajectoryData(
             TrajectoryEntity trajectory,
-            Map<String, List<ResClusterCapacityEntity>> areaCapacities,
-            Map<String, List<ResClusterCapacityEntity>> technoCapacities,
-            Map<String, List<ResTechnologyDistributionEntity>> technologies,
-            Map<String, List<ResZonalDistributionEntity>> zonals
+            Map<AreaKey, List<ResClusterCapacityEntity>> areaCapacities,
+            Map<AreaKey, List<ResClusterCapacityEntity>> technoCapacities,
+            Map<AreaKey, List<ResTechnologyDistributionEntity>> technologies,
+            Map<AreaKey, List<ResZonalDistributionEntity>> zonals
     ) {
         var type = TrajectoryType.valueOf(trajectory.getType());
         boolean isTechno = trajectory.getTechnology() != null && !trajectory.getTechnology().isBlank();
@@ -725,9 +728,9 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
      * @param technoSpecific
      * @return the final capacity entities for each area
      */
-    private Map<String, List<ResClusterCapacityEntity>> mergeCapacities(
-            Map<String, List<ResClusterCapacityEntity>> areaOnly,
-            Map<String, List<ResClusterCapacityEntity>> technoSpecific
+    private Map<AreaKey, List<ResClusterCapacityEntity>> mergeCapacities(
+            Map<AreaKey, List<ResClusterCapacityEntity>> areaOnly,
+            Map<AreaKey, List<ResClusterCapacityEntity>> technoSpecific
     ) {
         if (technoSpecific.isEmpty()) return areaOnly;
         if (areaOnly.isEmpty()) return technoSpecific;
@@ -755,7 +758,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void extractCapacities(
             TrajectoryEntity trajectory,
-            Map<String, List<ResClusterCapacityEntity>> accumulator
+            Map<AreaKey, List<ResClusterCapacityEntity>> accumulator
     ) {
         var entities = trajectory.getResClusterCapacityEntities();
         if (entities == null) return;
@@ -767,7 +770,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void extractTechnologies(
             TrajectoryEntity trajectory,
-            Map<String, List<ResTechnologyDistributionEntity>> accumulator
+            Map<AreaKey, List<ResTechnologyDistributionEntity>> accumulator
     ) {
         var entities = trajectory.getResTechnologyDistributionCapacityEntities();
         if (entities == null) return;
@@ -784,7 +787,7 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
 
     private void extractZonals(
             TrajectoryEntity trajectory,
-            Map<String, List<ResZonalDistributionEntity>> accumulator
+            Map<AreaKey, List<ResZonalDistributionEntity>> accumulator
     ) {
         var entities = trajectory.getResZonalDistributionCapacityEntities();
         if (entities == null) return;
@@ -804,8 +807,8 @@ public class ResGenerationAssemblerServiceImpl implements ResGenerationAssembler
                 && e.getArea() != null && e.getGroupe() != null && e.getCluster() != null;
     }
 
-    private <T> void accumulateByArea(T entity, String rawArea, Map<String, List<T>> map) {
-        var normalizedArea = rawArea.toUpperCase(Locale.ROOT);
-        map.computeIfAbsent(normalizedArea, k -> new ArrayList<>()).add(entity);
+    private <T> void accumulateByArea(T entity, String rawArea, Map<AreaKey, List<T>> map) {
+        if (rawArea.isBlank()) return;
+        map.computeIfAbsent(AreaKey.of(rawArea), k -> new ArrayList<>()).add(entity);
     }
 }

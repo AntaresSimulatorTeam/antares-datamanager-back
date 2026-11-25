@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
 import com.rte_france.antares.datamanager_back.service.study.impl.MiscToJsonService;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,8 +35,8 @@ class MiscToJsonServiceTest {
 
     @Test
     void buildMiscDataMap_shouldReturnEmptyMapWhenNoDataForArea() {
-        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
-        miscProps.put("BE", List.of(MiscGenerationDTO.builder().groupe("biomass").build()));
+        Map<AreaKey, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put(AreaKey.of("BE"), List.of(MiscGenerationDTO.builder().groupe("biomass").build()));
 
         Map<String, Object> result = miscToJsonService.buildMiscDataMap("FR", miscProps);
         assertTrue(result.isEmpty());
@@ -44,8 +45,8 @@ class MiscToJsonServiceTest {
     @Test
     void buildMiscDataMap_shouldOrganizeByGroup() {
         // Given
-        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
-        miscProps.put("FR", List.of(
+        Map<AreaKey, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put(AreaKey.of("FR"), List.of(
                 MiscGenerationDTO.builder()
                         .capacity(100.0)
                         .groupe("biogas")
@@ -82,8 +83,8 @@ class MiscToJsonServiceTest {
     @Test
     void buildMiscDataMap_shouldFilterSeriesByGroupCaseInsensitive() {
         // Given
-        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
-        miscProps.put("FR", List.of(
+        Map<AreaKey, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put(AreaKey.of("FR"), List.of(
                 MiscGenerationDTO.builder()
                         .capacity(100.0)
                         .groupe("Biogas")
@@ -101,8 +102,8 @@ class MiscToJsonServiceTest {
 
     @Test
     void buildMiscDataMap_shouldMergeOtherWaveAndHydrokineticIntoOther() {
-        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
-        miscProps.put("FR", List.of(
+        Map<AreaKey, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put(AreaKey.of("FR"), List.of(
                 MiscGenerationDTO.builder()
                         .capacity(10.0)
                         .groupe("other")
@@ -134,8 +135,8 @@ class MiscToJsonServiceTest {
 
     @Test
     void buildMiscDataMap_shouldNotDuplicateSeriesForAggregatedOtherGroup() {
-        Map<String, List<MiscGenerationDTO>> miscProps = new HashMap<>();
-        miscProps.put("FR", List.of(
+        Map<AreaKey, List<MiscGenerationDTO>> miscProps = new HashMap<>();
+        miscProps.put(AreaKey.of("FR"), List.of(
                 MiscGenerationDTO.builder()
                         .capacity(5.0)
                         .groupe("other")

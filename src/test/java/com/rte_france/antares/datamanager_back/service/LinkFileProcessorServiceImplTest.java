@@ -839,4 +839,25 @@ class LinkFileProcessorServiceImplTest {
     static Stream<Arguments> provideBooleanKeywordsWithExpectedResult() {
         return TestConstants.booleanKeywords();
     }
+
+    @Test
+    void testCheckConsistencyTrajectoryLinkAndArea_IgnoresCaseAndKeepsOriginalNameInWarning() {
+        // Given: AREA spells "DEkf", LINK spells "Dekf". Only NOm is missing.
+        List<LinkEntity> linkEntities = List.of(LinkEntity.builder().name("DE-Dekf").build());
+        List<String> areaNames = Arrays.asList("DE", "DEkf", "NOm");
+        Set<WarningMessageEntity> warningMessages = new HashSet<>();
+        StudyEntity study = StudyEntity.builder().id(1).build();
+
+        when(studyRepository.findById(1)).thenReturn(Optional.of(study));
+        when(warningService.getMessage(any(String.class), any())).thenReturn("Warning Message");
+        when(warningRepository.existsByWarningContentAndTrajectoryIdAndStudyId(any(String.class), anyInt(), anyInt())).thenReturn(false);
+
+        // When
+        linkFileProcessorService.checkConsistencyTrajectoryLinkAndArea(
+                linkEntities, areaNames, warningMessages, 1, 2, null, "testUser");
+
+        // Then
+        assertEquals(1, warningMessages.size());
+        verify(warningService).getMessage(WarningCode.LINKS_AREA_NOT_PRESENT.value(), "NOm");
+    }
 }
