@@ -589,7 +589,8 @@ class StStorageFileProcessorServiceImplTest {
     void shouldRejectAmbiguousClusterFilesAtImport() throws IOException {
         Path xlsx = createValidWorkbook("2030", false);
         placeInClusters(xlsx, "battery", "cluster_battery_test.xlsx");
-        placeInClusters(xlsx, "battery", "CLUSTER_BATTERY_TEST.xls");
+        Path clusterDir = tempDir.resolve("trajectories/STS/battery/clusters");
+        Files.copy(clusterDir.resolve("cluster_battery_test.xlsx"), clusterDir.resolve("CLUSTER_BATTERY_TEST.xls"));
 
         assertThatThrownBy(() -> service.processStStorageFile(
                 "cluster_battery_test", "2029-2030", 1, false, "FR", "battery"))
