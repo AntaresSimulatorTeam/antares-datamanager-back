@@ -212,7 +212,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .httpStatus(HttpStatus.BAD_REQUEST).build();
             }
             try (var files = Files.list(clusterDir)) {
-                matches = files.filter(path -> {
+                matches = files.filter(Files::isRegularFile).filter(path -> {
                     String fileName = path.getFileName().toString();
                     return fileName.regionMatches(true, 0, prefix, 0, prefix.length())
                             && (fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")

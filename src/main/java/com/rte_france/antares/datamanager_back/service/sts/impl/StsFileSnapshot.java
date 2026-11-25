@@ -12,14 +12,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 
@@ -35,7 +36,8 @@ final class StsFileSnapshot implements AutoCloseable {
 
     StsFileSnapshot(Path root) throws IOException {
         this.root = root.toAbsolutePath().normalize();
-        this.temporaryDirectory = Files.createTempDirectory("sts-snapshot-");
+        this.temporaryDirectory = Files.createTempDirectory("sts-snapshot-",
+                PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
     }
 
     Path capture(Path source, boolean required) throws IOException {

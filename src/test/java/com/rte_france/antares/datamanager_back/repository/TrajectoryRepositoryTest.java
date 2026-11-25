@@ -2,6 +2,7 @@ package com.rte_france.antares.datamanager_back.repository;
 
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,6 +28,25 @@ class TrajectoryRepositoryTest {
 
     @Autowired
     private TrajectoryRepository trajectoryRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Test
+    @Transactional
+    void saveAndReadVersionedStsChecksumAfterClearingPersistenceContext() {
+        TrajectoryEntity trajectory = trajectoryRepository
+                .findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc("testFile.txt", "2023-2024", "AREA")
+                .orElseThrow();
+        String checksum = "sts-v1:" + "a".repeat(64);
+        trajectory.setChecksum(checksum);
+        trajectoryRepository.flush();
+        entityManager.clear();
+
+        assertThat(trajectoryRepository.findFirstByFileNameAndHorizonAndTypeOrderByVersionDesc(
+                "testFile.txt", "2023-2024", "AREA"))
+                .isPresent().get().extracting(TrajectoryEntity::getChecksum).isEqualTo(checksum);
+    }
 
     @ParameterizedTest
     @ValueSource(ints = {69, 255})

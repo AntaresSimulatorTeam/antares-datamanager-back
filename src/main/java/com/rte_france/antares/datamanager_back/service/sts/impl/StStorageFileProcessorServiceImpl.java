@@ -405,7 +405,8 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         Path root = Path.of(antaresDataManagerProperties.getNasDirectory())
                 .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaresDataManagerProperties.getStsDirectory());
+                .resolve(antaresDataManagerProperties.getStsDirectory())
+                .toAbsolutePath().normalize();
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve(optionalFilesType);
         if(SERIES_FILES.equals(optionalFilesType)) {
             // \\\'STS\\<tech>\\series\\<trajectoire>\\<nom du cluster>\\<area>\\*
