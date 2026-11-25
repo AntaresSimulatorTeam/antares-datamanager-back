@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Locale;
@@ -11,7 +12,6 @@ import java.util.Set;
 final class ResDomainRules {
 
     static final String FR_AREA = "FR";
-    static final String OTHERS_AREA = "OTHERS";
 
     // Areas that need zonal naming (FR01, FR02, ..). Only FR for now.
     static final Set<String> ZONAL_AREAS = Set.of(FR_AREA);
@@ -22,6 +22,11 @@ final class ResDomainRules {
     static final Set<String> SUPPORTED_TRAJECTORY_EXTENSIONS = Set.of(".csv", ".txt", ".xlsx");
 
     private ResDomainRules() {}
+
+    // True if the area is split into numbered zones (FR gives FR01, FR02, ...)
+    static boolean isZonalArea(String area) {
+        return AreaNaming.containsArea(ZONAL_AREAS, area);
+    }
 
     static String extractBaseArea(String token) {
         int i = token.length() - 1;
@@ -43,7 +48,7 @@ final class ResDomainRules {
             String normalizedToken = token.toUpperCase(Locale.ROOT);
             String baseArea = extractBaseArea(normalizedToken);
 
-            if (ZONAL_AREAS.contains(baseArea) && normalizedToken.equals(baseArea)) {
+            if (isZonalArea(baseArea) && normalizedToken.equals(baseArea)) {
                 return true;
             }
         }

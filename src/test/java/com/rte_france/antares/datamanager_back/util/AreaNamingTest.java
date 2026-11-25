@@ -43,6 +43,34 @@ class AreaNamingTest {
     }
 
     @Nested
+    class SameAreaTest {
+
+        @Test
+        void sameAreaIgnoresCaseAndOuterSpaces() {
+            assertThat(AreaNaming.sameArea("DEkf", " DEKF ")).isTrue();
+            assertThat(AreaNaming.sameArea("DEkf", "DE")).isFalse();
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {"  "})
+        void nullOrBlankIsNeverTheSameArea(String raw) {
+            assertThat(AreaNaming.sameArea(raw, "FR")).isFalse();
+            assertThat(AreaNaming.sameArea("FR", raw)).isFalse();
+            assertThat(AreaNaming.sameArea(raw, raw)).isFalse();
+        }
+
+        @Test
+        void containsAreaIgnoresCaseAndSkipsBlankNames() {
+            List<String> names = Arrays.asList("fr", null, " ", "DEkf");
+            assertThat(AreaNaming.containsArea(names, "DEKF")).isTrue();
+            assertThat(AreaNaming.containsArea(names, "BE")).isFalse();
+            assertThat(AreaNaming.containsArea(names, " ")).isFalse();
+            assertThat(AreaNaming.containsArea(names, null)).isFalse();
+        }
+    }
+
+    @Nested
     class AreaKeyTest {
 
         @Test

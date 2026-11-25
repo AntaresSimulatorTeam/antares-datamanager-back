@@ -1,5 +1,8 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.DefaultLoadDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
@@ -23,7 +26,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.service.res.impl.ResDomainRules.OTHERS_AREA;
 
 /**
  * Service de validation pour vérifier la cohérence entre InstalledPower (IP/RES_CAPACITY)
@@ -138,7 +140,7 @@ public class ResCoherenceCheckService {
 
         Set<String> defaultAreas = getDefaultAreas();
 
-        if (!defaultAreas.contains(area.toUpperCase()) && !area.equals(OTHERS_AREA)) {
+        if (!AreaNaming.containsArea(defaultAreas, area) && !isOthers(area)) {
             log.info("TD avec area {} non reconnu, validation skippée", area);
             return false;
         }
@@ -161,16 +163,16 @@ public class ResCoherenceCheckService {
       */
      private boolean hasCompletedTDCombinations(List<TrajectoryEntity> tdTrajectories, String area, String importedTechnology) {
          // Vérifier qu'il existe une trajectoire avec area sans technology
-         boolean hasWithoutTech = tdTrajectories.stream().anyMatch(trajectory -> (trajectory.getArea().equals(area) || (area.equals(OTHERS_AREA))) && isBlankOrEmpty(trajectory.getTechnology()));
+         boolean hasWithoutTech = tdTrajectories.stream().anyMatch(trajectory -> (trajectory.getArea().equals(area) || (isOthers(area))) && isBlankOrEmpty(trajectory.getTechnology()));
 
          // Si importedTechnology est null : vérifier qu'il existe au moins une avec n'importe quelle technology
          if (isBlankOrEmpty(importedTechnology)) {
-             boolean hasWithSomeTech = tdTrajectories.stream().anyMatch(trajectory -> (trajectory.getArea().equals(area) || (area.equals(OTHERS_AREA))) && !isBlankOrEmpty(trajectory.getTechnology()));
+             boolean hasWithSomeTech = tdTrajectories.stream().anyMatch(trajectory -> (trajectory.getArea().equals(area) || (isOthers(area))) && !isBlankOrEmpty(trajectory.getTechnology()));
              return hasWithoutTech && hasWithSomeTech;
          }
 
          // Si importedTechnology n'est pas null : vérifier qu'il existe une avec cette technology
-         boolean hasWithImportedTech = tdTrajectories.stream().anyMatch(trajectory -> (trajectory.getArea().equals(area) || (area.equals(OTHERS_AREA))) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equals(importedTechnology));
+         boolean hasWithImportedTech = tdTrajectories.stream().anyMatch(trajectory -> (trajectory.getArea().equals(area) || (isOthers(area))) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equals(importedTechnology));
 
          return hasWithoutTech && hasWithImportedTech;
      }
@@ -185,22 +187,22 @@ public class ResCoherenceCheckService {
       */
      private boolean hasCompletedFourCombinations(List<TrajectoryEntity> trajectories, String importedTechnology) {
          // Vérifications communes
-         boolean hasAreaWithoutTech = trajectories.stream().anyMatch(trajectory -> !trajectory.getArea().equals(OTHERS_AREA) && isBlankOrEmpty(trajectory.getTechnology()));
+         boolean hasAreaWithoutTech = trajectories.stream().anyMatch(trajectory -> !isOthers(trajectory.getArea()) && isBlankOrEmpty(trajectory.getTechnology()));
 
-         boolean hasOthersWithoutTech = trajectories.stream().anyMatch(trajectory -> trajectory.getArea().equalsIgnoreCase(OTHERS_AREA) && isBlankOrEmpty(trajectory.getTechnology()));
+         boolean hasOthersWithoutTech = trajectories.stream().anyMatch(trajectory -> isOthers(trajectory.getArea()) && isBlankOrEmpty(trajectory.getTechnology()));
 
          // Si importedTechnology est null : vérifier hasAreaWithoutTech, hasOthersWithoutTech 
          // et au moins deux trajectoires avec la même technology (une pour area, une pour OTHERS)
          if (isBlankOrEmpty(importedTechnology)) {
              // Obtenir les technologies disponibles pour l'area spécifique
              Set<String> areaWithTechList = trajectories.stream()
-                     .filter(trajectory -> !trajectory.getArea().equals(OTHERS_AREA) && !isBlankOrEmpty(trajectory.getTechnology()))
+                     .filter(trajectory -> !isOthers(trajectory.getArea()) && !isBlankOrEmpty(trajectory.getTechnology()))
                      .map(TrajectoryEntity::getTechnology)
                      .collect(Collectors.toSet());
 
              // Obtenir les technologies disponibles pour OTHERS
              Set<String> othersWithTechList = trajectories.stream()
-                     .filter(trajectory -> trajectory.getArea().equalsIgnoreCase(OTHERS_AREA) && !isBlankOrEmpty(trajectory.getTechnology()))
+                     .filter(trajectory -> isOthers(trajectory.getArea()) && !isBlankOrEmpty(trajectory.getTechnology()))
                      .map(TrajectoryEntity::getTechnology)
                      .collect(Collectors.toSet());
 
@@ -211,9 +213,9 @@ public class ResCoherenceCheckService {
          }
 
          // Si importedTechnology n'est pas null : vérifier les 4 combinaisons requises
-         boolean hasAreaWithTech = trajectories.stream().anyMatch(trajectory -> !trajectory.getArea().equals(OTHERS_AREA) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equalsIgnoreCase(importedTechnology));
+         boolean hasAreaWithTech = trajectories.stream().anyMatch(trajectory -> !isOthers(trajectory.getArea()) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equalsIgnoreCase(importedTechnology));
 
-         boolean hasOthersWithTech = trajectories.stream().anyMatch(trajectory -> trajectory.getArea().equalsIgnoreCase(OTHERS_AREA) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equalsIgnoreCase(importedTechnology));
+         boolean hasOthersWithTech = trajectories.stream().anyMatch(trajectory -> isOthers(trajectory.getArea()) && !isBlankOrEmpty(trajectory.getTechnology()) && trajectory.getTechnology().equalsIgnoreCase(importedTechnology));
 
          return hasAreaWithoutTech && hasAreaWithTech && hasOthersWithoutTech && hasOthersWithTech;
      }
@@ -223,7 +225,7 @@ public class ResCoherenceCheckService {
       * Récupère l'ensemble des areas spécifiques (définis dans DefaultConfig).
       */
      private Set<String> getDefaultAreas() {
-         return defaultConfigService.fetchAllDefaults().stream().map(DefaultLoadDTO::getName).map(String::toUpperCase).collect(Collectors.toSet());
+         return defaultConfigService.fetchAllDefaults().stream().map(DefaultLoadDTO::getName).collect(Collectors.toSet());
      }
 
 
@@ -261,7 +263,7 @@ public class ResCoherenceCheckService {
          // Extraire les technologies disponibles dans les trajectoires TD avec technologie
          // Les technologies doivent exister à la fois avec l'area spécifique ET avec area = OTHERS
          Set<String> technologiesWithSpecificArea = allTdTrajectories.stream()
-                 .filter(t -> !t.getArea().equals(OTHERS_AREA) && t.getTechnology() != null && !t.getTechnology().trim().isEmpty())
+                 .filter(t -> !isOthers(t.getArea()) && t.getTechnology() != null && !t.getTechnology().trim().isEmpty())
                  .flatMap(t -> t.getResTechnologyDistributionCapacityEntities() != null ? t.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
                  .map(ResTechnologyDistributionEntity::getGroupe)
                  .filter(groupe -> !isBlankOrEmpty(groupe))
@@ -309,7 +311,7 @@ public class ResCoherenceCheckService {
         return ipTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResClusterCapacityEntities() != null ? trajectory.getResClusterCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> {
-                    boolean areaMatches = entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA);
+                    boolean areaMatches = entity.getArea().equals(area) || isOthers(area);
                     if (!areaMatches) return false;
                     
                     // If importedTechnology is null, extract entities with groups in availableTechnologies
@@ -332,7 +334,7 @@ public class ResCoherenceCheckService {
         return tdTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null ? trajectory.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> {
-                    boolean areaMatches = entity.getArea().equals(area) || area.equals(OTHERS_AREA);
+                    boolean areaMatches = entity.getArea().equals(area) || isOthers(area);
                     if (!areaMatches) return false;
                     
                     // If importedTechnology is null, extract entities with groups in availableTechnologies
@@ -449,7 +451,7 @@ public class ResCoherenceCheckService {
 
          Set<String> defaultAreas = getDefaultAreas();
 
-         if (OTHERS_AREA.equalsIgnoreCase(areaParam) || defaultAreas.contains(areaParam.toUpperCase())) {
+         if (isOthers(areaParam) || AreaNaming.containsArea(defaultAreas, areaParam)) {
              List<TrajectoryEntity> allTrajectories = new ArrayList<>(bdTrajectories);
              if (trajectoryBeingImported.getType().equals(expectedType)) {
                  allTrajectories.add(trajectoryBeingImported);
@@ -501,13 +503,13 @@ public class ResCoherenceCheckService {
            // Extraire les technologies disponibles dans les trajectoires LF avec technologie
            // Les technologies doivent exister à la fois avec l'area spécifique ET avec area = OTHERS
           Set<String> technologiesWithSpecificArea = bdLfTrajectories.stream()
-                  .filter(t -> !t.getArea().equals(OTHERS_AREA))
+                  .filter(t -> !isOthers(t.getArea()))
                   .map(TrajectoryEntity::getTechnology)
                   .filter(trajectoryTechnology -> !isBlankOrEmpty(trajectoryTechnology))
                   .collect(Collectors.toSet());
 
           Set<String> technologiesWithOthersArea = bdLfTrajectories.stream()
-                  .filter(t -> t.getArea().equals(OTHERS_AREA))
+                  .filter(t -> isOthers(t.getArea()))
                   .map(TrajectoryEntity::getTechnology)
                   .filter(trajectoryTechnology -> !isBlankOrEmpty(trajectoryTechnology))
                   .collect(Collectors.toSet());
@@ -526,13 +528,13 @@ public class ResCoherenceCheckService {
           // avec la meme technology et présente dans area specific et OTHERS
           if (isBlankOrEmpty(importedTechnology)) {
               Set<String> ipTechnologiesWithSpecificArea = allIpTrajectories.stream()
-                      .filter(t -> !t.getArea().equals(OTHERS_AREA))
+                      .filter(t -> !isOthers(t.getArea()))
                       .filter(t -> !isBlankOrEmpty(t.getTechnology()))
                       .map(TrajectoryEntity::getTechnology)
                       .collect(Collectors.toSet());
               
               Set<String> ipTechnologiesWithOthersArea = allIpTrajectories.stream()
-                      .filter(t -> t.getArea().equals(OTHERS_AREA))
+                      .filter(t -> isOthers(t.getArea()))
                       .filter(t -> !isBlankOrEmpty(t.getTechnology()))
                       .map(TrajectoryEntity::getTechnology)
                       .collect(Collectors.toSet());
@@ -713,7 +715,7 @@ public class ResCoherenceCheckService {
           } else {
               // Extraire les technologies présentes dans les deux areas
               Set<String> technologiesWithSpecificArea = allDtTrajectories.stream()
-                      .filter(t -> !t.getArea().equals(OTHERS_AREA))
+                      .filter(t -> !isOthers(t.getArea()))
                       .map(TrajectoryEntity::getTechnology)
                       .filter(techno -> !isBlankOrEmpty(techno))
                       .collect(Collectors.toSet());
@@ -732,13 +734,13 @@ public class ResCoherenceCheckService {
           // avec la meme technology et présente dans area specific et OTHERS
           if (isBlankOrEmpty(importedTechnology)) {
               Set<String> lfTechnologiesWithSpecificArea = bdLfTrajectories.stream()
-                      .filter(t -> !t.getArea().equals(OTHERS_AREA))
+                      .filter(t -> !isOthers(t.getArea()))
                       .filter(t -> !isBlankOrEmpty(t.getTechnology()))
                       .map(TrajectoryEntity::getTechnology)
                       .collect(Collectors.toSet());
               
               Set<String> lfTechnologiesWithOthersArea = bdLfTrajectories.stream()
-                      .filter(t -> t.getArea().equals(OTHERS_AREA))
+                      .filter(t -> isOthers(t.getArea()))
                       .filter(t -> !isBlankOrEmpty(t.getTechnology()))
                       .map(TrajectoryEntity::getTechnology)
                       .collect(Collectors.toSet());
@@ -805,7 +807,7 @@ public class ResCoherenceCheckService {
         return dtTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null ? trajectory.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
                 .filter(entity -> {
-                    boolean areaMatches = entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA);
+                    boolean areaMatches = entity.getArea().equals(area) || isOthers(area);
                     if (!areaMatches) return false;
 
                     // If importedTechnology is null, extract entities with groups in availableTechnologies
@@ -1011,7 +1013,7 @@ public class ResCoherenceCheckService {
     private Set<String> extractDTKeysForDZComparison(List<TrajectoryEntity> dtTrajectories, String area, Set<String> availableTDTechnologies, String importedTechnology) {
         return dtTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResTechnologyDistributionCapacityEntities() != null ? trajectory.getResTechnologyDistributionCapacityEntities().stream() : Stream.empty())
-                .filter(entity -> (entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA)) && (importedTechnology == null || (importedTechnology != null && importedTechnology.equals(entity.getGroupe()) && availableTDTechnologies.contains(entity.getGroupe()))))
+                .filter(entity -> (entity.getArea().equals(area) || isOthers(area)) && (importedTechnology == null || (importedTechnology != null && importedTechnology.equals(entity.getGroupe()) && availableTDTechnologies.contains(entity.getGroupe()))))
                 .map(entity -> String.format(KEY_FORMAT, entity.getArea(), entity.getGroupe(), entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }
@@ -1023,7 +1025,7 @@ public class ResCoherenceCheckService {
     private Set<String> extractDZKeys(List<TrajectoryEntity> dzTrajectories, String area) {
         return dzTrajectories.stream()
                 .flatMap(trajectory -> trajectory.getResZonalDistributionCapacityEntities() != null ? trajectory.getResZonalDistributionCapacityEntities().stream() : Stream.empty())
-                .filter(entity -> entity.getArea().equals(area) || area.equals(ResDomainRules.OTHERS_AREA))
+                .filter(entity -> entity.getArea().equals(area) || isOthers(area))
                 .map(entity -> String.format(KEY_FORMAT, entity.getArea(), entity.getGroupe() != null ? entity.getGroupe() : "", entity.getPecdZone() != null ? entity.getPecdZone() : ""))
                 .collect(Collectors.toSet());
     }

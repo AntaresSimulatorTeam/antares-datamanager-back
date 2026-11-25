@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.res.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.*;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDecimal;
@@ -70,7 +72,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
 
         List<String> studyAreas = loadStudyAreas(studyId);
         String technologyParam = technology != null ? toSnakeCase(technology): null;
-        boolean isFR = "FR".equalsIgnoreCase(areaParam);
+        boolean isFR = AreaNaming.sameArea(ResDomainRules.FR_AREA, areaParam);
         List<Path> files = resolveFiles(isFR, trajectoryToUse, areaParam, technologyParam);
         ResRowProcessingResult aggregated = files.stream()
                 .map(file -> {
@@ -813,7 +815,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         if (pecdZone == null) return false;
         String normalized = pecdZone.trim().toUpperCase(Locale.ROOT);
         String baseArea = ResDomainRules.extractBaseArea(normalized);
-        if (!ResDomainRules.ZONAL_AREAS.contains(baseArea) || normalized.equals(baseArea)) return false;
+        if (!ResDomainRules.isZonalArea(baseArea) || normalized.equals(baseArea)) return false;
 
         try {
             int zoneIndex = Integer.parseInt(normalized.substring(baseArea.length()));
@@ -842,7 +844,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         // (null areas are checked below to prevent introducing them to the list (NPE))
         if (context.getAreaParam() != null && area != null) {
             result.addArea(area);
-            if (!area.equalsIgnoreCase(context.getAreaParam())) return;
+            if (!AreaNaming.sameArea(area, context.getAreaParam())) return;
         }
 
         // Check if groupe is equal to technology
@@ -917,7 +919,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
         // Check if groupe is equal to technology
         if (context.getAreaParam() != null && area != null) {
             result.addArea(area);
-            if (!area.equalsIgnoreCase(context.getAreaParam())) return;
+            if (!AreaNaming.sameArea(area, context.getAreaParam())) return;
         }
 
         validateEmptyRequiredColumns(context, requiredColumns, area, pecdZone, group);
@@ -947,7 +949,6 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private boolean shouldProcessArea(ResRowProcessingContext context, ResRowProcessingResult result, String area, String technology) {
 
         String areaParam = context.getAreaParam();
-        String areaStr = Objects.toString(area, "");
 
         String technologyParam = context.getTechnology();
         String technologyStr = Objects.toString(technology, "");
@@ -957,14 +958,14 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
             result.addArea(area);
 
             // Cas normal : areaParam != OTHERS
-            if (!OTHERS_AREA.equalsIgnoreCase(areaParam)
-                    && !areaParam.equalsIgnoreCase(areaStr)) {
+            if (!isOthers(areaParam)
+                    && !AreaNaming.sameArea(areaParam, area)) {
                 return false;
             }
 
             // Cas OTHERS : area doit être dans studyAreas
-            if (OTHERS_AREA.equalsIgnoreCase(areaParam)
-                    && !context.getStudyAreas().contains(areaStr.toUpperCase())) {
+            if (isOthers(areaParam)
+                    && !AreaNaming.containsArea(context.getStudyAreas(), area)) {
                 return false;
             }
         }
@@ -1129,7 +1130,7 @@ public class ResFileProcessorServiceImpl implements ResFileProcessorService {
     private List<String> loadStudyAreas(Integer studyId) {
         return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
-                .map(a -> a.getName().toUpperCase())
+                .map(AreaEntity::getName)
                 .toList();
     }
 

@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
@@ -101,7 +102,7 @@ public class DsrFileProcessorServiceImpl implements DsrFileProcessorService {
     }
 
     private boolean shouldIncludeRow(String rowArea, String areaParam) {
-        return rowArea.equalsIgnoreCase(areaParam) || areaParam.equals(OTHERS_AREA);
+        return rowArea.equalsIgnoreCase(areaParam) || isOthers(areaParam);
     }
 
     private void validateRow(String rowArea, String trajectoryFileName, int r) {

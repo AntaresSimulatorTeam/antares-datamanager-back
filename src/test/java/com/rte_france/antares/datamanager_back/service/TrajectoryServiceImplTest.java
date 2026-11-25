@@ -50,9 +50,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_ENR;
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -1044,7 +1044,7 @@ class TrajectoryServiceImplTest {
         Set<String> clusterRefs = Set.of("ClusterA/", "ClusterB/");
 
         TrajectoryEntity trajectory = TrajectoryEntity.builder()
-                .area(OTHERS_AREA)
+                .area(OTHERS)
                 .type(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name())
                 .horizon(horizon)
                 .thermalSpecificParameters(List.of(
@@ -1059,7 +1059,7 @@ class TrajectoryServiceImplTest {
 
         trajectoryService.checkTrajectoryCoherence(studyId, new HashSet<>(), trajectory, "user");
 
-        verify(thermalControlService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA);
+        verify(thermalControlService, times(1)).checkMissingClusters(studyId, horizon, clusterRefs, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS);
     }
 
     @Test
@@ -2524,7 +2524,7 @@ class TrajectoryServiceImplTest {
         var trajectory = TrajectoryEntity.builder()
                 .id(trajectoryId)
                 .type(TrajectoryType.LOAD.name())
-                .area(TrajectoryServiceImpl.OTHER_AREA)
+                .area(OTHERS)
                 .fileName(fileName)
                 .horizon(horizon)
                 .build();

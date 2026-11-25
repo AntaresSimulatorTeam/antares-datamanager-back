@@ -808,8 +808,9 @@ class MultiEnergyServiceImplTest {
         cluster1Dto.setEfficiency(60.0);
 
         Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps =
-                Map.of(new AreaClusterRefKey("node_right_area1", cluster1Ref), cluster1Dto);
+                Map.of(AreaClusterRefKey.of("node_right_area1", cluster1Ref), cluster1Dto);
 
+        when(thermalToJsonService.buildClusterKey("NODE_RIGHT_AREA1", "cluster1")).thenReturn("NODE_RIGHT_AREA1_cluster1");
         when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster1")).thenReturn("NODE_RIGHT_AREA1_cluster1");
         when(thermalToJsonService.buildClusterKey("node_right_area1", "cluster2")).thenReturn("NODE_RIGHT_AREA1_cluster2");
 

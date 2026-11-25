@@ -84,7 +84,7 @@ class NuclearAvailabilityAssemblerServiceImplTest {
     }
 
     private static AreaClusterRefKey key(String area, String clusterName) {
-        return new AreaClusterRefKey(area, ThermalClusterRef.builder().name(clusterName).build());
+        return AreaClusterRefKey.of(area, ThermalClusterRef.builder().name(clusterName).build());
     }
 
     private static StudyEntity studyWith(TrajectoryEntity trajectory) {

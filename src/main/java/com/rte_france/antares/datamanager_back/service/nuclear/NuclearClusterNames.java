@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.nuclear;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
+
 import java.util.Locale;
 
 public final class NuclearClusterNames {
@@ -10,6 +12,9 @@ public final class NuclearClusterNames {
     private static final String SMR_MARKER = "smr";
     private static final String N4_MARKER = "n4";
     private static final String P4_MARKER = "p4";
+
+    /** Nuclear clusters are only in this area. */
+    public static final AreaKey NUCLEAR_AREA = AreaKey.of("FR");
 
     private NuclearClusterNames() {
     }

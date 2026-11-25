@@ -1,6 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.mapper.ThermalMeMapper;
 import com.rte_france.antares.datamanager_back.repository.model.*;
@@ -117,7 +118,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
                         .flatMap(t -> Optional.ofNullable(t.getThermalSpecificParameters()).orElseGet(List::of).stream())
                         .filter(specific -> specific.getCluster() != null
                                && Objects.equals(specific.getCluster(), capacityClusterName)
-                               && (specific.getArea() == null || specific.getArea().isBlank() || specific.getArea().equalsIgnoreCase(areaClusterRefKey.area()))
+                               && (specific.getArea() == null || specific.getArea().isBlank() || areaClusterRefKey.area().equals(AreaKey.of(specific.getArea())))
                         )
                 .toList();
 
@@ -258,7 +259,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
         //example file name: MR_BP23_T2_2022_dsr_AFL_2026-2027_BE_Other Gas conventional old 2.csv.6401800f-8425-49d5-a42b-e89cb1e8a293.arrow
         //area : BE
         //cluster name: Other Gas conventional old 2
-        String targetSegment = "_" + areaClusterRefKey.area() + "_" + (areaClusterRefKey.thermalClusterRef() != null ? areaClusterRefKey.thermalClusterRef().getName() : "null") + ".csv";
+        String targetSegment = "_" + areaClusterRefKey.area().value() + "_" + (areaClusterRefKey.thermalClusterRef() != null ? areaClusterRefKey.thermalClusterRef().getName() : "null") + ".csv";
         String targetSegmentLower = targetSegment.toLowerCase();
 
         return splitedTsFileNameList.stream()
@@ -293,20 +294,20 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
         }
         log.info("Extracting thermal capacities by area and cluster ref from {} trajectories", capacityTrajs.size());
 
-        Map<String, Set<String>> specificTechnologiesByArea = extractSpecificTechnologiesByArea(capacityTrajs);
+        Map<AreaKey, Set<String>> specificTechnologiesByArea = extractSpecificTechnologiesByArea(capacityTrajs);
 
         return filterCapacityTrajectoriesByArea(capacityTrajs, specificTechnologiesByArea);
     }
 
-    private static Map<String, Set<String>> extractSpecificTechnologiesByArea(List<TrajectoryEntity> capacityTrajs) {
-        Map<String, Set<String>> specificTechnologiesByArea = new HashMap<>();
+    private static Map<AreaKey, Set<String>> extractSpecificTechnologiesByArea(List<TrajectoryEntity> capacityTrajs) {
+        Map<AreaKey, Set<String>> specificTechnologiesByArea = new HashMap<>();
         for (TrajectoryEntity traj : capacityTrajs) {
             registerSpecificTechnologies(traj, specificTechnologiesByArea);
         }
         return specificTechnologiesByArea;
     }
 
-    private static void registerSpecificTechnologies(TrajectoryEntity traj, Map<String, Set<String>> specificTechnologiesByArea) {
+    private static void registerSpecificTechnologies(TrajectoryEntity traj, Map<AreaKey, Set<String>> specificTechnologiesByArea) {
         if (traj == null || traj.getTechnology() == null || traj.getTechnology().isBlank()) {
             return;
         }
@@ -316,7 +317,7 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
         );
     }
 
-    private static Stream<String> extractAreas(TrajectoryEntity traj) {
+    private static Stream<AreaKey> extractAreas(TrajectoryEntity traj) {
         Stream<String> capacityAreas = Optional.ofNullable(traj.getThermalClusterCapacities())
                 .orElseGet(List::of)
                 .stream()
@@ -327,10 +328,10 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
 
         return Stream.concat(capacityAreas, trajArea)
                 .filter(area -> area != null && !area.isBlank())
-                .map(area -> area.trim().toUpperCase(Locale.ROOT));
+                .map(AreaKey::of);
     }
     
-    private static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> filterCapacityTrajectoriesByArea(List<TrajectoryEntity> capacityTrajectories, Map<String, Set<String>> specificTechnologiesByArea) {
+    private static LinkedHashMap<AreaClusterRefKey, List<ThermalClusterCapacityEntity>> filterCapacityTrajectoriesByArea(List<TrajectoryEntity> capacityTrajectories, Map<AreaKey, Set<String>> specificTechnologiesByArea) {
 
         return capacityTrajectories.stream()
                 .filter(Objects::nonNull)
@@ -342,19 +343,20 @@ public class ThermalPropertiesAssemblerServiceImpl implements ThermalPropertiesA
                     }
                     return caps.stream()
                             .filter(Objects::nonNull)
+                            // A blank area can't be a study area: skip it before building the key
+                            .filter(cap -> cap.getArea() != null && !cap.getArea().isBlank())
                             .filter(cap -> {
                                 if (!isGlobalTrajectory) {
                                     return true;
                                 }
-                                String capArea = cap.getArea() != null ? cap.getArea().trim().toUpperCase(Locale.ROOT) : "";
-                                Set<String> specificTechs = specificTechnologiesByArea.get(capArea);
+                                Set<String> specificTechs = specificTechnologiesByArea.get(AreaKey.of(cap.getArea()));
                                 if (specificTechs == null || specificTechs.isEmpty()) {
                                     return true;
                                 }
                                 String capTech = extractTechnology(cap);
                                 return capTech == null || !specificTechs.contains(capTech.trim().toUpperCase(Locale.ROOT));
                             })
-                            .map(cap -> Map.entry(new AreaClusterRefKey(cap.getArea(), cap.getThermalClusterRef()), cap));
+                            .map(cap -> Map.entry(AreaClusterRefKey.of(cap.getArea(), cap.getThermalClusterRef()), cap));
                 })
                 .collect(Collectors.groupingBy(
                         Map.Entry::getKey,

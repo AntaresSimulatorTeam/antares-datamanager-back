@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -108,7 +108,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
 
         Path file = writeWorkbookToTemp(createValidWorkbook(2));
 
-        List<ThermalSpecificParametersEntity> result = service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, OTHERS_AREA, 1);
+        List<ThermalSpecificParametersEntity> result = service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, OTHERS, 1);
 
         assertEquals(2, result.size());
         // Basic field checks
@@ -188,7 +188,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
         Path file = writeWorkbookToTemp(createValidWorkbook(2));
 
         BusinessException ex = assertThrows(BusinessException.class, () ->
-                service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, OTHERS_AREA, 42)
+                service.buildThermalSpecificParameterValueList(TRAJECTORY_NAME, file, HORIZON, OTHERS, 42)
         );
         assertTrue(ex.getMessage().contains("None of the areas of trajectory AREA are present"));
     }
@@ -262,7 +262,7 @@ class ThermalSpecificFileProcessorServiceImplTest {
                         .namePemmdb(inv.getArgument(2))
                         .build());
 
-        List<ThermalSpecificParametersEntity> list = service.buildThermalSpecificParameterValueList("specific_param_BD", file, horizon, OTHERS_AREA, 1);
+        List<ThermalSpecificParametersEntity> list = service.buildThermalSpecificParameterValueList("specific_param_BD", file, horizon, OTHERS, 1);
         assertEquals(1, list.size());
         ThermalSpecificParametersEntity e = list.get(0);
 

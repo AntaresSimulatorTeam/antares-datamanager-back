@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
@@ -22,6 +23,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.*;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -65,15 +67,13 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
             Row header = resolveSpecificHeader(sheet);
             validateHeaderColumns(header, trajectoryName);
 
-            Set<String> studyAreasSet = new HashSet<>(getStudyAreasForCurrentStudy(studyId));
-            boolean isOthers = OTHERS_AREA.equalsIgnoreCase(area);
-            String selectedAreaUpper = normalizeArea(area);
+            List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
+            boolean isOthers = isOthers(area);
 
             for (Row row : sheet) {
                 if (row.getRowNum() > 2) {
                     String rowArea = castString(getCellValue(row, 0));
-                    String rowAreaUpper = normalizeArea(rowArea);
-                    if (shouldSkipSpecificRow(rowAreaUpper, isOthers, selectedAreaUpper, studyAreasSet)) continue;
+                    if (shouldSkipSpecificRow(rowArea, isOthers, area, studyAreas)) continue;
 
                     String clusterName = castString(getCellValue(row, 1));
 
@@ -112,23 +112,19 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         return header;
     }
 
-    private boolean shouldSkipSpecificRow(String rowAreaUpper, boolean isOthers, String selectedAreaUpper, Set<String> studyAreasSet) {
-        if (rowAreaUpper == null || rowAreaUpper.isBlank()) {
+    private boolean shouldSkipSpecificRow(String rowArea, boolean isOthers, String selectedArea, List<String> studyAreas) {
+        if (rowArea == null || rowArea.isBlank()) {
             return true;
         }
-        if (!isOthers && !rowAreaUpper.equals(selectedAreaUpper)) {
+        if (!isOthers && !AreaNaming.sameArea(rowArea, selectedArea)) {
             return true;
         }
-        return !studyAreasSet.contains(rowAreaUpper);
-    }
-
-    private String normalizeArea(String area) {
-        return area == null ? null : area.trim().toUpperCase(Locale.ROOT);
+        return !AreaNaming.containsArea(studyAreas, rowArea);
     }
 
  private Set<String> buildSpecificClusters(List<ThermalSpecificParametersEntity> specificParams) {
        return specificParams.stream().filter(Objects::nonNull)
-               .map(e -> e.getCluster() + "/" + (e.getArea() != null ? e.getArea().toUpperCase(Locale.ROOT) : "")).collect(Collectors.toSet());}
+               .map(e -> ThermalControlsServiceImpl.clusterAreaKey(e.getCluster(), e.getArea())).collect(Collectors.toSet());}
 
     @Override
     public TrajectoryEntity saveThermalSpecificTrajectory(TrajectoryEntity trajectory, List<ThermalSpecificParametersEntity> thermalSpecificParameters, TrajectoryType type) {
@@ -160,7 +156,7 @@ public class ThermalSpecificFileProcessorServiceImpl implements ThermalSpecificF
         if (areas == null) {
             return Collections.emptyList();
         }
-        return areas.stream().map(a -> a.getName().toUpperCase()).toList();
+        return areas.stream().map(AreaEntity::getName).toList();
     }
 
     private void processThermalSpecificRow(Row row, Row header, List<ThermalSpecificParametersEntity> result, String trajectoryName) {

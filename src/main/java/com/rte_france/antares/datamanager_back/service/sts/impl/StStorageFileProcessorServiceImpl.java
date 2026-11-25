@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.sts.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -35,6 +36,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -57,7 +59,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     private static final String CONSTRAINTS_FILES = "constraints";
     private static final String EXCEL_EXTENSION = ".xlsx";
     private static final String STS_TRAJECTORY_PREFIX = "cluster_";
-    public static final String OTHERS_AREA = "OTHERS";
     private final PathSecurityUtil pathSecurityUtil;
 
 
@@ -74,7 +75,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream()
                 .map(area -> area.getName().toUpperCase(Locale.ROOT))
                 .toList();
-        Set<String> existingStsAreas = OTHERS_AREA.equalsIgnoreCase(areaParam)
+        Set<String> existingStsAreas = isOthers(areaParam)
                 ? trajectoryRepository.findStStorageAreasByStudyIdAndType(studyId, TrajectoryType.STS.name()).stream()
                 .filter(Objects::nonNull)
                 .map(area -> area.toUpperCase(Locale.ROOT))
@@ -198,7 +199,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                         .message("None of the areas of trajectory AREA are present in STS trajectory " + trajectoryFileName)
                         .build();
             }
-            if (OTHERS_AREA.equalsIgnoreCase(areaParam) && results.isEmpty()) {
+            if (isOthers(areaParam) && results.isEmpty()) {
                 throw BusinessException.builder()
                         .message("No new STS areas to import for trajectory {0}; all study areas are already covered")
                         .errorMessageArguments(List.of(trajectoryFileName))
@@ -230,7 +231,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 continue;
             }
             foundStudyArea = true;
-            if (OTHERS_AREA.equalsIgnoreCase(areaParam)
+            if (isOthers(areaParam)
                     && existingStsAreas.contains(rowArea.toUpperCase(Locale.ROOT))) {
                 continue;
             }
@@ -322,7 +323,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
     private boolean shouldIncludeRow(String rowArea, String areaParam) {
-        return rowArea.equalsIgnoreCase(areaParam) || OTHERS_AREA.equalsIgnoreCase(areaParam);
+        return rowArea.equalsIgnoreCase(areaParam) || isOthers(areaParam);
     }
 
     private String getStringCellValue(Row row, int idx) {
@@ -423,11 +424,10 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
     }
 
     private void validateSelectedAreaPresence(String areaParam, List<StStorageEntity> results, String trajectoryFileName) {
-        Set<String> fileAreas = results.stream()
+        List<String> fileAreas = results.stream()
                 .map(StStorageEntity::getArea)
-                .map(String::toUpperCase)
-                .collect(Collectors.toSet());
-        if (!areaParam.isBlank() && !OTHERS_AREA.equalsIgnoreCase(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
+                .toList();
+        if (!areaParam.isBlank() && !isOthers(areaParam) && !AreaNaming.containsArea(fileAreas, areaParam)) {
             throw BusinessException.builder()
                     .message("Selected area {0} is not present in the 'node' column of STS trajectory {1}")
                     .errorMessageArguments(List.of(areaParam, trajectoryFileName))

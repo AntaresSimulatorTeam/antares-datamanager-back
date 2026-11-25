@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.hydro.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.dto.HydroSeriesType;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -29,6 +30,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.util.DecimalUtils.parseDecimal;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
@@ -102,7 +104,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         List<String> filesNameFinal = new ArrayList<>();
 
         boolean isPsp = HydroTypeHelper.isPsp(trajectoryType);
-        var areaList = Objects.equals(areaParam, OTHERS_AREA) ? studyAreas : List.of(areaParam);
+        var areaList = isOthers(areaParam) ? studyAreas : List.of(areaParam);
         var hasOnlyRorFile = true;
         List<String> missingModFiles = new ArrayList<>();
 
@@ -124,7 +126,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
             validateModFiles(missingModFiles, trajectoryToUse, isPsp);
             List<String> areasInHydroSeriesModFiles = filesNameFinal.stream()
                     .filter(file -> startsWithIgnoreCase(file, HYDRO_SERIES_INFLOWS_MOD))
-                    .map(s -> s.split("_")[1].toUpperCase(Locale.ROOT))
+                    .map(s -> s.split("_")[1])
                     .toList();
             maxPowerFileName = processMaxPowerFile(trajectoryType, trajectoryFilePath, trajectoryToUse, horizon, areaParam, areasInHydroSeriesModFiles, studyAreas);
             if (studyId != null) {
@@ -381,9 +383,9 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
         String area = parts[parts.length - 2];
         String prefix = String.join("_", Arrays.copyOf(parts, parts.length - 2));
 
-        boolean areaMatches = (areaParam != null && areaParam.equals(OTHERS_AREA))
-                ? studyAreas.stream().anyMatch(sa -> sa.equalsIgnoreCase(area))
-                : areaParam != null && areaParam.equalsIgnoreCase(area);
+        boolean areaMatches = (areaParam != null && isOthers(areaParam))
+                ? AreaNaming.containsArea(studyAreas, area)
+                : AreaNaming.sameArea(areaParam, area);
 
         return prefixes.stream().anyMatch(p -> p.equalsIgnoreCase(prefix))
                 && areaMatches
@@ -456,7 +458,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
             validateTrajectoryAreasPresence(studyAreas, headerAreas, trajectoryType, trajectoryToUse);
             if (areaParam != null) {
-                if (areaParam.equals(OTHERS_AREA)) {
+                if (isOthers(areaParam)) {
                     validateSelectedOthersAreaPresence(areasInHydroSeriesModFiles, headerAreas, trajectoryType, trajectoryToUse);
                 } else {
                     validateSelectedAreaPresence(areaParam, headerAreas, trajectoryType, trajectoryToUse);
@@ -469,7 +471,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
 
     private String extractAreaFromMaxPowerColumn(String value, boolean isPsp, String trajectoryToUse) {
         if (!isPsp) {
-            return value.toUpperCase(Locale.ROOT);
+            return value;
         }
 
         String upper = value.toUpperCase(Locale.ROOT);
@@ -485,7 +487,7 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
                     .build();
         }
 
-        return upper.substring(0, upper.length() - suffix.length());
+        return value.substring(0, value.length() - suffix.length());
     }
 
     public HydroTechnicalParametersRowProcessingResult processTechnicalParametersFile(
@@ -794,27 +796,26 @@ public class HydroFileProcessorServiceImpl implements HydroFileProcessorService 
     public List<String> loadStudyAreas(Integer studyId) {
         return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
-                .map(a -> a.getName().toUpperCase())
+                .map(AreaEntity::getName)
                 .toList();
     }
 
     private boolean shouldProcessArea(ResRowProcessingContext context, String area) {
 
         String areaParam = context.getAreaParam();
-        String areaStr = Objects.toString(area, "");
 
         // 1. Filtre par area
         if (areaParam != null) {
 
             // Cas normal : areaParam != OTHERS
-            if (!OTHERS_AREA.equalsIgnoreCase(areaParam)
-                    && !areaParam.equalsIgnoreCase(areaStr)) {
+            if (!isOthers(areaParam)
+                    && !AreaNaming.sameArea(areaParam, area)) {
                 return false;
             }
 
             // Cas OTHERS : area doit être dans studyAreas
-            if (OTHERS_AREA.equalsIgnoreCase(areaParam)
-                    && !context.getStudyAreas().contains(areaStr.toUpperCase())) {
+            if (isOthers(areaParam)
+                    && !AreaNaming.containsArea(context.getStudyAreas(), area)) {
                 return false;
             }
         }

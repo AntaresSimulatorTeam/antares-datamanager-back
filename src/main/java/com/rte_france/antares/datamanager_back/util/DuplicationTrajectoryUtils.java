@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.util;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import com.rte_france.antares.datamanager_back.dto.StudyDTO;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -24,7 +25,6 @@ import java.util.stream.Collectors;
 @UtilityClass
 public class DuplicationTrajectoryUtils {
 
-    public static final String OTHER_AREA = "OTHERS";
 
     public static final List<TrajectoryType> SUPPORTED_TRAJECTORY_TYPES = List.of(
             TrajectoryType.LINK,
@@ -260,7 +260,7 @@ public class DuplicationTrajectoryUtils {
         if (type == TrajectoryType.LOAD && trajectory.getArea() != null) {
             List<String> areasLoadWithoutTrajectorySelected = loadFileProcessorService.getAreasLoadWithoutTrajectorySelected(studyId);
 
-            if (OTHER_AREA.equals(trajectory.getArea())) {
+            if (isOthers(trajectory.getArea())) {
 
                 Set<String> loadAreas = trajectory.getLoadEntities().stream()
                         .map(LoadEntity::getArea)

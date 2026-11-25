@@ -44,6 +44,28 @@ public final class AreaNaming {
     }
 
     /**
+     * Checks if two names are the same area, ignoring case and outer spaces.
+     *
+     * @param first  an area name, can be null
+     * @param second another area name, can be null
+     * @return true if both name the same area; false if one of them is null or blank
+     */
+    public static boolean sameArea(String first, String second) {
+        return trimName(first) != null && trimName(second) != null && AreaKey.of(first).equals(AreaKey.of(second));
+    }
+
+    /**
+     * Checks if a list of names contains an area, ignoring case and outer spaces.
+     *
+     * @param names the area names; null or blank names never match
+     * @param name  the area name to find, can be null
+     * @return true if one of the names is the same area; false if the name is null or blank
+     */
+    public static boolean containsArea(Collection<String> names, String name) {
+        return names.stream().anyMatch(candidate -> sameArea(candidate, name));
+    }
+
+    /**
      * Trims and uppercases a name.
      *
      * @param raw the name to normalize

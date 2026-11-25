@@ -207,9 +207,9 @@ class TrajectoryServiceImplAdditionalTest {
             // Verify that the list of custom load files already chosen contains the expected values
             List<String> capturedList = listCustomLoadFilesCaptor.getValue();
             assertEquals(2, capturedList.size());
-            assertTrue(capturedList.contains("fr"));
-            assertTrue(capturedList.contains("de"));
-            assertFalse(capturedList.contains("others"));
+            assertTrue(capturedList.contains("FR"));
+            assertTrue(capturedList.contains("DE"));
+            assertFalse(capturedList.contains("OTHERS"));
 
             // Verify that trajectoryRepository.findByTypeAndStudyId was called with the correct parameters
             verify(trajectoryRepository).findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId);

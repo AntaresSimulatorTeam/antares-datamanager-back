@@ -1122,7 +1122,7 @@ class MiscFileProcessorServiceImplTest {
                     new MiscFileProcessorServiceImpl.GroupClusterKey("biomass", "Small biomass")
             );
 
-            assertThat(header).containsExactly("fr", "de", "it");
+            assertThat(header).containsExactly("FR", "DE", "IT");
         }
 
         @Test
