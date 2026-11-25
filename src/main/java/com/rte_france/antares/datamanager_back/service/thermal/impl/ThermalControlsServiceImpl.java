@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.StudyRepository;
@@ -22,6 +24,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 
 @Slf4j
@@ -125,7 +129,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
      */
     @Override
     public void verifyClustersInSpecificParamTrajectory(Integer studyId, String horizon, List<ThermalClusterCapacityEntity> capacities, String area) {
-        String effectiveArea = (area == null || area.isBlank()) ? OTHERS_AREA : area;
+        String effectiveArea = (area == null || area.isBlank()) ? OTHERS : area;
 
         List<TrajectoryEntity> specificParamTrajectories = trajectoryRepository
                 .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId);
@@ -159,18 +163,18 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
 
     private Set<String> extractSpecificParamAreaClusters(List<TrajectoryEntity> specificParamTrajectories, String effectiveArea){
         return specificParamTrajectories.stream()
-                .filter(t -> t.getArea() != null && (t.getArea().equalsIgnoreCase(effectiveArea) || t.getArea().equalsIgnoreCase(OTHERS_AREA)))
+                .filter(t -> AreaNaming.sameArea(t.getArea(), effectiveArea) || isOthers(t.getArea()))
                 .map(TrajectoryEntity::getThermalSpecificParameters)
                 .filter(Objects::nonNull)
                 .flatMap(List::stream)
                 .filter(e -> {
                     // If the trajectory area is OTHERS, check that NODE matches the area of the thermal capacity trajectory.
-                    if (e.getTrajectory() != null && OTHERS_AREA.equalsIgnoreCase(e.getTrajectory().getArea())) {
-                        return e.getNode() != null && effectiveArea.equalsIgnoreCase(e.getNode());
+                    if (e.getTrajectory() != null && isOthers(e.getTrajectory().getArea())) {
+                        return AreaNaming.sameArea(e.getNode(), effectiveArea);
                     }
                     return true;
                 })
-                .map(e -> (e.getCluster() != null ? e.getCluster() : "") + "/" + (e.getArea() != null ? e.getArea() : ""))
+                .map(e -> clusterAreaKey(e.getCluster() != null ? e.getCluster() : "", e.getArea()))
                 .collect(Collectors.toSet());
     }
 
@@ -257,23 +261,23 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
 
     private void mergeExistingSpecificClusters(Integer studyId, Set<String> paramClusters, TrajectoryType trajectoryType, String area) {
         if (trajectoryType.equals(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER)) {
-            String effectiveArea = (area == null || area.isBlank()) ? OTHERS_AREA : area;
+            String effectiveArea = (area == null || area.isBlank()) ? OTHERS : area;
 
             Stream<TrajectoryEntity> trajectoryStream = trajectoryRepository
                     .findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId)
                     .stream();
 
-            if (!effectiveArea.equalsIgnoreCase(OTHERS_AREA)) {
-                trajectoryStream = trajectoryStream.filter(t -> OTHERS_AREA.equalsIgnoreCase(t.getArea()));
+            if (!isOthers(effectiveArea)) {
+                trajectoryStream = trajectoryStream.filter(t -> isOthers(t.getArea()));
             }
 
             Set<String> existingSpecificsClustersAreaInBd = trajectoryStream
                     .map(TrajectoryEntity::getThermalSpecificParameters)
                     .filter(Objects::nonNull)
                     .flatMap(List::stream)
-                    .filter(e -> effectiveArea.equalsIgnoreCase(OTHERS_AREA) || effectiveArea.equalsIgnoreCase(e.getArea()))
+                    .filter(e -> isOthers(effectiveArea) || AreaNaming.sameArea(effectiveArea, e.getArea()))
                     .filter(e -> e.getCluster() != null)
-                    .map(e -> e.getCluster() + "/" + (e.getArea() != null ? e.getArea() : ""))
+                    .map(e -> clusterAreaKey(e.getCluster(), e.getArea()))
                     .collect(Collectors.toSet());
 
             // Ensure mutable before modification
@@ -283,6 +287,18 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
 
             paramClusters.addAll(existingSpecificsClustersAreaInBd);
         }
+    }
+
+    /**
+     * Builds the "cluster/AREA" key used to match clusters between the installed power and the specific parameters.
+     *
+     * @param cluster the cluster name, kept as is
+     * @param area    the area name, can be null or blank
+     * @return the cluster, "/", then the area key (empty if the area is null or blank)
+     */
+    public static String clusterAreaKey(String cluster, String area) {
+        String areaPart = area == null || area.isBlank() ? "" : AreaKey.of(area).value();
+        return cluster + "/" + areaPart;
     }
 
     public Set<String> getInstalledPowerClustersByStudyId(Integer studyId, String horizon) {
@@ -348,7 +364,7 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
      * Méthode générique utilisée par les deux précédentes.
      */
     private Set<String> getInstalledPowerClusters(Integer studyId, String horizon, String area) {
-        String effectiveArea = (area == null || area.isBlank()) ? OTHERS_AREA : area;
+        String effectiveArea = (area == null || area.isBlank()) ? OTHERS : area;
         List<TrajectoryEntity> installedTrajectories = trajectoryRepository
                 .findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name());
 
@@ -365,8 +381,8 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
         } else {
             // Cas getInstalledPowerClusterAreaByStudyId
             return capacityStream
-                    .filter(e -> effectiveArea.equalsIgnoreCase(e.getArea()) || effectiveArea.equalsIgnoreCase(OTHERS_AREA))
-                    .map(e -> e.getThermalClusterRef().getName() + "/" + (e.getArea() != null ? e.getArea() : "")).collect(Collectors.toSet());
+                    .filter(e -> AreaNaming.sameArea(effectiveArea, e.getArea()) || isOthers(effectiveArea))
+                    .map(e -> clusterAreaKey(e.getThermalClusterRef().getName(), e.getArea())).collect(Collectors.toSet());
         }
     }
 

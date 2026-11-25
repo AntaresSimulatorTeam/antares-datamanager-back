@@ -7,6 +7,7 @@ import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.GroupAreaMiscCapacity;
 import com.rte_france.antares.datamanager_back.repository.MiscClusterCapacityRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
+import com.rte_france.antares.datamanager_back.repository.model.AreaEntity;
 import com.rte_france.antares.datamanager_back.repository.model.CategoryEnum;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.MiscGroupEnum;
@@ -14,6 +15,8 @@ import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity
 import com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl;
 import com.rte_france.antares.datamanager_back.service.misc.MiscFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.MiscClusterColumns;
 import lombok.Getter;
@@ -91,7 +94,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                     .build();
         }
 
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(AreaEntity::getName).toList();
 
         Path filePath = trajectoryService.getTrajectoryFilePath(TrajectoryType.MISC_CAPACITY, trajectoryToUse, null);
 
@@ -199,8 +202,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     private void verifyLoadFactorTsFilesWithInstalledPower(String horizon, Integer studyId, Map<GroupClusterKey, List<String>> listAreasByGroup, Path trajectoryFilePath, String area) throws Exception {
         for (Map.Entry<GroupClusterKey, List<String>> entry : listAreasByGroup.entrySet()) {
             GroupClusterKey groupCluster = entry.getKey();
-            List<String> areas = entry.getValue().stream().map(String::toLowerCase).collect(Collectors.toList());
-            verifyTsFile(horizon, trajectoryFilePath, groupCluster, areas, studyId, area);
+            verifyTsFile(horizon, trajectoryFilePath, groupCluster, entry.getValue(), studyId, area);
         }
     }
 
@@ -226,13 +228,11 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
             } else {
                 try {
                     List<String> headerAreas = readHeaderAreas(horizon, trajectoryFilePath, groupClusterKey);
-                    if (area != null && !OTHERS_AREA.equalsIgnoreCase(area)) {
-                        if (!headerAreas.contains(area.toLowerCase())) {
-                            throw BusinessException.builder()
-                                    .message("Load factor file {0} is missing area {1} for group {2}")
-                                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), area, groupClusterKey.groupe))
-                                    .build();
-                        }
+                    if (area != null && !AreaNaming.isOthers(area) && !AreaNaming.containsArea(headerAreas, area)) {
+                        throw BusinessException.builder()
+                                .message("Load factor file {0} is missing area {1} for group {2}")
+                                .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), area, groupClusterKey.groupe))
+                                .build();
                     }
                     log.info("Load factor file {} for group {} found at expected location {}", tsFilePath.getFileName(), groupClusterKey.groupe, tsFilePath);
                 } catch (TechnicalException | IOException technicalException) {
@@ -293,9 +293,12 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         mergeSpecificTrajectoryWithActualOther(horizon, groupClusterKey, studyId, tsFilePath, mergedAreas);
 
         // 4. Vérification finale : toutes les zones attendues sont présentes
-        Set<String> missingAreas = new HashSet<>(expectedAreas.stream().map(String::toLowerCase).toList());
-
-        mergedAreas.forEach(missingAreas::remove);
+        // Skip blanks before
+        Set<String> missingAreas = expectedAreas.stream()
+                .filter(expected -> expected != null && !expected.isBlank())
+                .filter(expected -> !AreaNaming.containsArea(mergedAreas, expected))
+                .map(expected -> AreaKey.of(expected).value())
+                .collect(Collectors.toCollection(HashSet::new));
 
         if (!missingAreas.isEmpty()) {
             throw BusinessException.builder()
@@ -304,7 +307,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                             missingAreas.toString(),
                             groupClusterKey.groupe))
                     .message(ERROR_LOAD_FACTOR_MISSING_AREAS)
-                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString().toUpperCase(), groupClusterKey.groupe))
+                    .errorMessageArguments(List.of(tsFilePath.getFileName().toString(), missingAreas.toString(), groupClusterKey.groupe))
                     .build();
         }
 
@@ -317,7 +320,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
 
         for (TrajectoryEntity traj : existingTrajectories) {
 
-            if (OTHERS_AREA.equalsIgnoreCase(traj.getArea())) continue;
+            if (AreaNaming.isOthers(traj.getArea())) continue;
 
             try {
                 Path existingTrajectoryPath = trajectoryService.buildTrajectoryPath(traj.getFileName(), TrajectoryType.MISC_LOAD);
@@ -332,8 +335,8 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                 }
                 List<String> header = readHeaderAreas(horizon, existingTrajectoryPath, groupClusterKey);
 
-                if (header.contains(traj.getArea().toLowerCase())) {
-                    mergedAreas.add(traj.getArea().toLowerCase());
+                if (AreaNaming.containsArea(header, traj.getArea())) {
+                    mergedAreas.add(traj.getArea());
                 }
             } catch (Exception e) {
                 log.warn("Skipping trajectory {}: {}", traj.getFileName(), e.getMessage());
@@ -342,12 +345,10 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
     }
 
     private static boolean verifySpecificAreatTsFile(GroupClusterKey groupClusterKey, List<String> expectedAreas, String selectedArea, List<String> currentHeader, Path tsFilePath) {
-        if (!OTHERS_AREA.equalsIgnoreCase(selectedArea)) {
-
-            String area = selectedArea.toLowerCase();
+        if (!AreaNaming.isOthers(selectedArea)) {
 
             // ✅ Vérif 2 : présence dans le fichier
-            if (!currentHeader.contains(area)) {
+            if (!AreaNaming.containsArea(currentHeader, selectedArea)) {
                 throw BusinessException.builder()
                         .message("Load factor file {0} is missing area {1} for group {2}")
                         .errorMessageArguments(List.of(
@@ -357,7 +358,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                         .build();
             }
             // ✅ Vérif 1 : cohérence IP
-            if (!expectedAreas.contains(area)) {
+            if (!AreaNaming.containsArea(expectedAreas, selectedArea)) {
                 throw BusinessException.builder()
                         .message("Area {0} is not expected for group {1}")
                         .errorMessageArguments(List.of(
@@ -382,7 +383,7 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
                     String headerLine = scanner.nextLine();
                     String delimiter = headerLine.contains(";") ? ";" : ",";
                     return Arrays.stream(headerLine.split(delimiter))
-                            .map(s -> s.strip().replace("\"", "").toLowerCase())
+                            .map(s -> s.strip().replace("\"", ""))
                             .toList();
                 } else {
                     throw BusinessException.builder()
@@ -494,13 +495,13 @@ public class MiscFileProcessorServiceImpl implements MiscFileProcessorService {
         String area = Optional.ofNullable(getCellValue(row, 1)).map(Object::toString).orElse(null);
 
         if (context.getAreaParam() != null
-                && !OTHERS_AREA.equalsIgnoreCase(context.getAreaParam())
-                && !context.getAreaParam().equalsIgnoreCase(Objects.toString(area, ""))) {
+                && !AreaNaming.isOthers(context.getAreaParam())
+                && !AreaNaming.sameArea(context.getAreaParam(), area)) {
             return;
         }
 
-        if (OTHERS_AREA.equalsIgnoreCase(context.getAreaParam())
-                && !context.getStudyAreas().contains(Objects.toString(area, "").toUpperCase())) {
+        if (AreaNaming.isOthers(context.getAreaParam())
+                && !AreaNaming.containsArea(context.getStudyAreas(), area)) {
             return;
         }
 

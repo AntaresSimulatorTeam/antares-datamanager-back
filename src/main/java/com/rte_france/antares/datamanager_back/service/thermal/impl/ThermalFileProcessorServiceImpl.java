@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.thermal.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.rte_france.antares.datamanager_back.dto.ThermalClusterCapacityDto;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
@@ -31,6 +32,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.repository.model.WarningCode.THERMAL_INSTALLED_POWER_MISSING_AREAS;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castDouble;
 import static com.rte_france.antares.datamanager_back.util.CastCellUtil.castString;
@@ -222,8 +224,8 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
                 if (rowArea.isEmpty()) continue;
                 String trajectoryName = path.getFileName().toString();
 
-                if (!area.equals(OTHERS_AREA)) {
-                    if (rowArea.equals(area.toUpperCase())) {
+                if (!isOthers(area)) {
+                    if (AreaNaming.sameArea(rowArea, area)) {
                         isSpecificAreaFound = true;
                         processThermalRow(row, header, horizon, isCivilYear, technology, rowArea, capacities, checksumBuilder, trajectoryName);
                     }
@@ -241,7 +243,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         List<String> studyAreas = getStudyAreasForCurrentStudy(studyId);
         List<ThermalClusterCapacityEntity> filteredCapacities = capacities.stream()
-                .filter(capacity -> studyAreas.contains(capacity.getArea()))
+                .filter(capacity -> AreaNaming.containsArea(studyAreas, capacity.getArea()))
                 .toList();
 
         String checksum = calculateChecksum(checksumBuilder.toString());
@@ -255,7 +257,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
 
         thermalControlService.verifyClustersInSpecificParamTrajectory(studyId, horizon, filteredCapacities, area);
 
-        if (area.equals(OTHERS_AREA)) {
+        if (isOthers(area)) {
             log.info("Areas liés à l'étude récupérées : {}", studyAreas);
             warningMessage = buildWarningMessage(path, area, studyId, isSpecificAreaFound, otherAreas, studyAreas);
         }
@@ -439,7 +441,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         // À adapter selon votre contexte pour récupérer l'id de l'étude
         return areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
-                .map(a -> a.getName().toUpperCase())
+                .map(AreaEntity::getName)
                 .toList();
     }
 
@@ -507,7 +509,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
     }
 
     private List<String> checkForMissingArea(String area, boolean isSpecificAreaFound, Set<String> listOfOtherArea, List<String> studyAreas, Path path) {
-        if (!OTHERS_AREA.equals(area)) {
+        if (!isOthers(area)) {
             if (!isSpecificAreaFound) {
                 throw BusinessException.builder()
                         .message("No area of the AREA trajectory is present in THERMAL Installed Power trajectory " + path.getFileName())
@@ -517,7 +519,7 @@ public class ThermalFileProcessorServiceImpl implements ThermalFileProcessorServ
         }
 
         List<String> missingAreas = studyAreas.stream()
-                .filter(studyArea -> !listOfOtherArea.contains(studyArea))
+                .filter(studyArea -> !AreaNaming.containsArea(listOfOtherArea, studyArea))
                 .toList();
 
         if (missingAreas.size() == studyAreas.size()) {

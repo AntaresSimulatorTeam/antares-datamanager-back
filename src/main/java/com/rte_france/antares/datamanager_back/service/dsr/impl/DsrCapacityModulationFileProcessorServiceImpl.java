@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalFileProcessorServiceImpl.UNKNOWN_USER;
 import static com.rte_france.antares.datamanager_back.util.Utils.*;
 import static com.rte_france.antares.datamanager_back.util.Utils.buildTrajectory;
@@ -174,7 +175,7 @@ public class DsrCapacityModulationFileProcessorServiceImpl implements DsrCapacit
                     // trajectoire spécifique = area != "OTHERS"
                     Optional<DsrClusterEntity> specific =
                             group.stream()
-                                    .filter(c -> !"OTHERS".equals(c.getTrajectory().getArea()))
+                                    .filter(c -> !isOthers(c.getTrajectory().getArea()))
                                     .findFirst();
 
                     if (specific.isPresent()) {

@@ -358,12 +358,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                         .orElse(Collections.emptyMap())
                         .entrySet()
                         .stream()
-                        // A blank area can't be a study area: skip it before building the key
-                        .filter(e -> !e.getKey().area().isBlank())
                         .collect(Collectors.groupingBy(
-                                e -> AreaKey.of(e.getKey().area()),
+                                e -> e.getKey().area(),
                                 Collectors.toMap(
-                                        e -> thermalToJsonService.buildClusterKey(e.getKey().area(), e.getKey().thermalClusterRef().getName()),
+                                        e -> thermalToJsonService.buildClusterKey(e.getKey().area().value(), e.getKey().thermalClusterRef().getName()),
                                         Map.Entry::getValue,
                                         (a, b) -> a,
                                         LinkedHashMap::new
@@ -391,13 +389,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
     private <T> Map<String, T> projectByClusterKey(Map<AreaClusterRefKey, T> byRefKey) {
         Map<String, T> result = new LinkedHashMap<>();
         byRefKey.forEach((key, value) -> result.put(
-                thermalToJsonService.buildClusterKey(key.area(), key.thermalClusterRef().getName()), value));
+                thermalToJsonService.buildClusterKey(key.area().value(), key.thermalClusterRef().getName()), value));
         return result;
     }
 
     private List<String> extractFrNuclearClusterNames(Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps) {
         return thermalClusterProps.entrySet().stream()
-                .filter(entry -> "fr".equalsIgnoreCase(entry.getKey().area())
+                .filter(entry -> NuclearClusterNames.NUCLEAR_AREA.equals(entry.getKey().area())
                         && NuclearClusterNames.isNuclear(entry.getKey().thermalClusterRef().getName()) && entry.getValue().getEnabled())
                 .map(entry -> entry.getKey().thermalClusterRef().getName())
                 .distinct()
@@ -413,7 +411,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         for (var entry : thermalClusterProps.entrySet()) {
             AreaClusterRefKey key = entry.getKey();
             String name = key.thermalClusterRef().getName();
-            if (!"fr".equalsIgnoreCase(key.area()) || !NuclearClusterNames.isNuclear(name) || NuclearClusterNames.isPeak(name)) {
+            if (!NuclearClusterNames.NUCLEAR_AREA.equals(key.area()) || !NuclearClusterNames.isNuclear(name) || NuclearClusterNames.isPeak(name)) {
                 continue;
             }
             String yNucKey = "y_nuc_modulation_" + name.toLowerCase(Locale.ROOT);

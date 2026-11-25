@@ -113,7 +113,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
 
         // then
-        var key = new AreaClusterRefKey("FR", refIncluded);
+        var key = AreaClusterRefKey.of("FR", refIncluded);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -149,7 +149,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
 
         // then
-        var key = new AreaClusterRefKey("FR", refWithNullName);
+        var key = AreaClusterRefKey.of("FR", refWithNullName);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -211,7 +211,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(study);
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -264,8 +264,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(study);
 
         // then
-        assertThat(out).hasSize(1).containsKey(new AreaClusterRefKey("FR", gasRef));
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        assertThat(out).hasSize(1).containsKey(AreaClusterRefKey.of("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
 
         assertThat(dto.getEnabled()).isTrue();
         assertThat(dto.getUnitCount()).isEqualTo(3);
@@ -309,11 +309,11 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         assertThat(out.keySet()).containsExactlyInAnyOrder(
-                new AreaClusterRefKey("FR", gasRef),
-                new AreaClusterRefKey("FR", nucRef)
+                AreaClusterRefKey.of("FR", gasRef),
+                AreaClusterRefKey.of("FR", nucRef)
         );
-        assertThat(out.get(new AreaClusterRefKey("FR", gasRef)).getGroup()).isEqualTo("GAS");
-        assertThat(out.get(new AreaClusterRefKey("FR", nucRef)).getGroup()).isEqualTo("NUCLEAR");
+        assertThat(out.get(AreaClusterRefKey.of("FR", gasRef)).getGroup()).isEqualTo("GAS");
+        assertThat(out.get(AreaClusterRefKey.of("FR", nucRef)).getGroup()).isEqualTo("NUCLEAR");
     }
 
     @Test
@@ -341,7 +341,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTrajectory, paramTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
         assertThat(dto.getNominalCapacity()).isEqualTo(100.0);
         assertThat(dto.getMinStablePower()).isEqualTo(0.50 * 100.0);
         assertThat(dto.getEnabled()).isTrue();
@@ -382,9 +382,9 @@ class ThermalPropertiesAssemblerServiceTest {
         // then
         assertThat(out)
                 .hasSize(1)
-                .containsKey(new AreaClusterRefKey("FR", gasRef));
+                .containsKey(AreaClusterRefKey.of("FR", gasRef));
 
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
 
         assertThat(dto.getNominalCapacity()).isEqualTo(200.0);
         assertThat(dto.getUnitCount()).isEqualTo(3);
@@ -423,7 +423,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         assertThat(out).hasSize(1);
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
 
         // nominal capacity = 1000 / 3 = 333.3333... -> should be rounded to 333.3
         assertThat(dto.getNominalCapacity()).isEqualTo(333.3);
@@ -458,7 +458,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, paramTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
         assertThat(dto.getCo2()).isEqualTo(0.87);
     }
 
@@ -518,7 +518,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, paramTraj, economicTrajectory, specificTrajectory)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
         // Calculation: (100.0 / 1000) / (40.0 / 100) / 1.0 = 0.1 / 0.4 = 0.25 (ratioNcvHcv defaults to 1.0 when null)
         assertThat(dto.getCo2()).isEqualTo(0.25);
     }
@@ -601,7 +601,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTrajectory, econTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
 
         // Formula: (co2EmissionFuel / 1000) / (efficiency / 100) / ratioNcvHcv
         // co2EmissionFuel = 1000
@@ -642,11 +642,11 @@ class ThermalPropertiesAssemblerServiceTest {
         var study = StudyEntity.builder().trajectories(Set.of(capacity, commonTrajectory, costs, economic)).build();
 
         var result = service.assembleThermalForTrajectories(study);
-        assertThat(result.get(new AreaClusterRefKey("FR", gasRef)).getCo2()).isEqualTo(0.36);
+        assertThat(result.get(AreaClusterRefKey.of("FR", gasRef)).getCo2()).isEqualTo(0.36);
 
         common.setCo2(null);
         result = service.assembleThermalForTrajectories(study);
-        assertThat(result.get(new AreaClusterRefKey("FR", gasRef)).getCo2()).isEqualTo(0.2);
+        assertThat(result.get(AreaClusterRefKey.of("FR", gasRef)).getCo2()).isEqualTo(0.2);
     }
 
     @Test
@@ -703,7 +703,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj, specificTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("AT", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("AT", gasRef));
         assertThat(dto.getCo2()).isNull();
     }
 
@@ -845,7 +845,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, specificTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
         // (startup_fuel (500) * 1/(3.6) * efficiency (0.4) * marginal_cost (30.0) + startup_fix_cost (1000))*nominalCapacity (100)
         // (500 * 1/3.6 * 0.4 * 30.0 + 1000)*100 = 100 * 12 + 1000 = 1200 + 1000 = 22600
         assertThat(dto.getStartupCost()).isEqualTo(266700.0);
@@ -924,7 +924,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, commonTraj, econTraj, costTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
 
         // 1. CO2 calculation: (90 / 1000) / (50 / 100) / 0.9 = 0.09 / 0.5 / 0.9 = 0.18 / 0.9 = 0.2
         assertThat(dto.getCo2()).isCloseTo(0.2, within(0.0001));
@@ -977,7 +977,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build(), specificTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
         assertThat(dto.getMarketBidCost()).isEqualByComparingTo(BigDecimal.valueOf(105.0));
     }
 
@@ -1023,7 +1023,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .build(), specificTraj)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
         // market_bid_cost should be null since marginalCostSource is SPECIFIC_PARAM
         assertThat(dto.getMarketBidCost()).isNull();
     }
@@ -1072,7 +1072,7 @@ class ThermalPropertiesAssemblerServiceTest {
         )).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("FR", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("FR", gasRef));
 
         assertThat(dto.getCo2()).isEqualTo(0.72);
         assertThat(dto.getMarginalCost()).isEqualByComparingTo(BigDecimal.valueOf(200));
@@ -1138,7 +1138,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 .trajectories(Set.of(capacityTrajectory, commonTrajectory, specificTrajectory, economicTrajectory)).build());
 
         // then
-        var dto = out.get(new AreaClusterRefKey("fr", gasRef));
+        var dto = out.get(AreaClusterRefKey.of("fr", gasRef));
 
         // Formula: (co2EmissionFuel / 1000) / (efficiency / 100) / ratioNcvHcv
         // co2EmissionFuel = 1000
@@ -1233,7 +1233,7 @@ class ThermalPropertiesAssemblerServiceTest {
         );
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(out).containsKey(key);
 
         var dto = out.get(key);
@@ -1294,7 +1294,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(study);
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -1347,7 +1347,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(study);
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -1405,7 +1405,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capacityTrajectory, specificTraj)).build());
 
         // then
-        var key = new AreaClusterRefKey("FR", standardRef);
+        var key = AreaClusterRefKey.of("FR", standardRef);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
 
@@ -1571,7 +1571,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var out = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj, commonTraj)).build());
 
         // then
-        var key = new AreaClusterRefKey("FR", refWithoutTech);
+        var key = AreaClusterRefKey.of("FR", refWithoutTech);
         assertThat(out).containsKey(key);
         var dto = out.get(key);
         // minStablePower should be computed from commonWithoutTech (0.40 * 100 = 40.0), not commonWithTech (0.9 * 100 = 90.0)
@@ -1625,13 +1625,13 @@ class ThermalPropertiesAssemblerServiceTest {
 
         // then
         // FR - CCGT_old (global) was filtered out
-        assertThat(result).doesNotContainKey(new AreaClusterRefKey("FR", refCcgtGlobal))
+        assertThat(result).doesNotContainKey(AreaClusterRefKey.of("FR", refCcgtGlobal))
         // FR - CCGT_new (specific) was kept
-        .containsKey(new AreaClusterRefKey("FR", refCcgtSpecific))
+        .containsKey(AreaClusterRefKey.of("FR", refCcgtSpecific))
         // FR - NUC_1 (global, but technology NUCLEAR has no specific trajectory) was kept
-        .containsKey(new AreaClusterRefKey("FR", refNuclear))
+        .containsKey(AreaClusterRefKey.of("FR", refNuclear))
         // BE - CCGT_BE (global, area BE has no specific trajectory) was kept
-        .containsKey(new AreaClusterRefKey("BE", refCcgtBe));
+        .containsKey(AreaClusterRefKey.of("BE", refCcgtBe));
     }
 
     @Test
@@ -1653,8 +1653,8 @@ class ThermalPropertiesAssemblerServiceTest {
         var result = ThermalPropertiesAssemblerServiceImpl.extractThermalCapacitiesByAreaClusterRef(List.of(globalCapTraj));
 
         // then
-        assertThat(result).containsKey(new AreaClusterRefKey("FR", refCcgt));
-        assertThat(result.get(new AreaClusterRefKey("FR", refCcgt))).hasSize(2);
+        assertThat(result).containsKey(AreaClusterRefKey.of("FR", refCcgt));
+        assertThat(result.get(AreaClusterRefKey.of("FR", refCcgt))).hasSize(2);
     }
 
     @Test
@@ -1692,7 +1692,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var result = service.assembleThermalForTrajectories(study);
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(result).containsKey(key);
         assertThat(result.get(key).getParamModulationTsList()).containsExactly(matchingFile);
     }
@@ -1727,7 +1727,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var result = service.assembleThermalForTrajectories(study);
 
         // then
-        assertThat(result).containsKey(new AreaClusterRefKey("FR", gasRef));
+        assertThat(result).containsKey(AreaClusterRefKey.of("FR", gasRef));
         assertThat(enerContentMwht.getTrajectory()).isSameAs(econTraj);
     }
 
@@ -1817,7 +1817,7 @@ class ThermalPropertiesAssemblerServiceTest {
 
     @Test
     void extractModulationParamTsFilesByAreaClusterRefKey_whenThermalClusterRefNull_usesNullSegment() {
-        AreaClusterRefKey keyWithNullRef = new AreaClusterRefKey("FR", null);
+        AreaClusterRefKey keyWithNullRef = AreaClusterRefKey.of("FR", null);
         List<String> files = List.of(
                 "modulation_FR_null.csv.arrow",
                 "modulation_FR_gas.csv.arrow"
@@ -1857,7 +1857,7 @@ class ThermalPropertiesAssemblerServiceTest {
                 Arrays.asList(trajBlankTech, trajNullCapacities, null)
         );
 
-        assertThat(result).containsKey(new AreaClusterRefKey("FR", ref));
+        assertThat(result).containsKey(AreaClusterRefKey.of("FR", ref));
     }
 
     @Test
@@ -1876,7 +1876,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var result = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(result).containsKey(key);
         assertThat(result.get(key).getNominalCapacity()).isNull();
         assertThat(result.get(key).getEnabled()).isFalse();
@@ -1900,7 +1900,7 @@ class ThermalPropertiesAssemblerServiceTest {
         var result = service.assembleThermalForTrajectories(StudyEntity.builder().trajectories(Set.of(capTraj)).build());
 
         // then
-        var key = new AreaClusterRefKey("FR", gasRef);
+        var key = AreaClusterRefKey.of("FR", gasRef);
         assertThat(result).containsKey(key);
         assertThat(result.get(key).getEnabled()).isFalse();
     }

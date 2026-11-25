@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabilityAssemblerService {
 
-    private static final String FR_AREA = "fr";
+    private static final String FR_AREA = "fr"; // for the seed
     private static final String LT_SIMU_FILE_PREFIX = "Simu_";
     private static final String XLSX_SUFFIX = ".xlsx";
     private static final String SEED_SUFFIX = "seed-tsgen-thermal";
@@ -117,7 +117,7 @@ public class NuclearAvailabilityAssemblerServiceImpl implements NuclearAvailabil
     private static List<AreaClusterRefKey> collectMatchingClusters(Map<AreaClusterRefKey, ThermalClusterGenerationDto> thermalClusterProps,
             Predicate<String> clusterNamePredicate) {
         return thermalClusterProps.keySet().stream()
-                .filter(key -> FR_AREA.equalsIgnoreCase(key.area()) && clusterNamePredicate.test(key.thermalClusterRef().getName()))
+                .filter(key -> NuclearClusterNames.NUCLEAR_AREA.equals(key.area()) && clusterNamePredicate.test(key.thermalClusterRef().getName()))
                 .toList();
     }
 

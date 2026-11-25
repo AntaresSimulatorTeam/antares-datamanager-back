@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.study.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rte_france.antares.datamanager_back.dto.NuclearSMRMixageDTO;
@@ -32,9 +33,9 @@ public class ThermalToJsonService {
 
     public  Map<String, ThermalClusterGenerationDto> getClusterPropsForArea(Map<AreaClusterRefKey, ThermalClusterGenerationDto> areaRefProps, String areaName) {
         return areaRefProps.entrySet().stream()
-                .filter(e -> e.getKey().area().equalsIgnoreCase(areaName))
+                .filter(e -> AreaNaming.sameArea(e.getKey().area().value(), areaName))
                 .collect(Collectors.toMap(
-                        e -> buildClusterKey(e.getKey().area(), e.getKey().thermalClusterRef().getName()),
+                        e -> buildClusterKey(e.getKey().area().value(), e.getKey().thermalClusterRef().getName()),
                         Map.Entry::getValue,
                         (a, b) -> a,
                         LinkedHashMap::new

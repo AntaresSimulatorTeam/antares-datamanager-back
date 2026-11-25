@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.util.Utils.checkMissingColumns;
 import static com.rte_france.antares.datamanager_back.util.Utils.getCellValue;
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.isRowEmpty;
@@ -255,7 +256,7 @@ public class StStorageConstraintsFileProcessorServiceImpl implements StStorageCo
     }
 
     private Predicate<String> buildZoneFilter(String areaParam, List<String> studyAreas) {
-        if ("OTHERS".equalsIgnoreCase(areaParam)) {
+        if (isOthers(areaParam)) {
             return zone -> studyAreas != null &&
                     studyAreas.stream().anyMatch(a -> a.equalsIgnoreCase(zone));
         }

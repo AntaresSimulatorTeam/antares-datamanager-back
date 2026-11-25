@@ -47,6 +47,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.common.impl.TrajectoryServiceImpl.*;
 import static com.rte_france.antares.datamanager_back.util.TrajectoryPrefixes.*;
@@ -77,7 +78,6 @@ public class Utils {
     private static final String ERROR_PROCESSING_FILE = "Error processing file: ";
     private static final String XLSX_EXTANSION = ".xlsx";
 
-    public static final String OTHERS_AREA = "OTHERS";
     public static final String ERROR_DIRECTORY_NULL = "Error processing file: directory path is null";
     public static final String ERROR_DIRECTORY_NOT_EXIST = "Error processing file: directory does not exist or is not a directory";
     public static final String ERROR_FILE_PATH_OUTSIDE = "Error processing file: file path is outside of the allowed directory";
@@ -124,7 +124,7 @@ public class Utils {
     }
 
     public static List<String> getValidLoadFileNamesWithHorizon(Path dir, String area, String expectedHorizon, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) throws IOException {
-        String areaRegex = area.equals(OTHERS_AREA) ? "[a-z0-9]+" : Pattern.quote(area.toLowerCase());
+        String areaRegex = isOthers(area) ? "[a-z0-9]+" : Pattern.quote(area.toLowerCase());
 
         Pattern pattern = compile("load_(" + areaRegex + ")_(\\d{4}-\\d{4})\\.txt");
 
@@ -148,8 +148,8 @@ public class Utils {
     }
 
     private static boolean isValidLoadFile(String horizon, String expectedHorizon, String areaFromFile, List<String> areaLoadAlreadyChosen, List<String> areaWithStudy) {
-        boolean isAreaValid = areaWithStudy.contains(areaFromFile.toLowerCase());
-        boolean isAreaNotChosen = areaLoadAlreadyChosen.isEmpty() || !areaLoadAlreadyChosen.contains(areaFromFile.toLowerCase());
+        boolean isAreaValid = AreaNaming.containsArea(areaWithStudy, areaFromFile);
+        boolean isAreaNotChosen = !AreaNaming.containsArea(areaLoadAlreadyChosen, areaFromFile);
         return horizon.equals(expectedHorizon) && isAreaValid && isAreaNotChosen;
     }
 
@@ -674,7 +674,7 @@ public class Utils {
             }
 
             var normalizedAreaFilter = areaFilter == null ? null : areaFilter.toUpperCase(Locale.ROOT);
-            var isOthers = OTHERS_AREA.equals(normalizedAreaFilter);
+            var isOthers = isOthers(normalizedAreaFilter);
             var hHash = hashSheet(horizonSheet, area ->
                     isOthers || StringUtils.equals(
                             normalizedAreaFilter,
@@ -1548,7 +1548,7 @@ public class Utils {
     public static void validateTrajectoryAreasPresence(List<String> studyAreas, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
         boolean hasNoAreaOfTrajectoryAreaInFile = studyAreas.stream()
                 .noneMatch(sa -> fileAreas.stream()
-                        .anyMatch(fa -> fa != null && fa.equalsIgnoreCase(sa)));
+                        .anyMatch(fa -> AreaNaming.sameArea(fa, sa)));
 
         if (hasNoAreaOfTrajectoryAreaInFile) {
             throwTrajectoryValidationException(
@@ -1562,7 +1562,7 @@ public class Utils {
     }
 
     public static void validateSelectedAreaPresence(String areaParam, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && fileAreas.stream().noneMatch(fa -> fa.equalsIgnoreCase(areaParam))) {
+        if (!areaParam.isBlank() && !isOthers(areaParam) && !AreaNaming.containsArea(fileAreas, areaParam)) {
             throwTrajectoryValidationException(
                     trajectoryType.name(),
                     "Selected area {0} is not present in the 'node' column of {1} trajectory {2}",
@@ -1575,10 +1575,8 @@ public class Utils {
     }
 
     public static void validateSelectedOthersAreaPresence(List<String> areasToCompare, List<String> fileAreas, TrajectoryType trajectoryType, String trajectoryToUse) {
-        Set<String> fileAreasLookup = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        fileAreasLookup.addAll(fileAreas);
         List<String> missingAreas = areasToCompare.stream()
-                .filter(a -> !fileAreasLookup.contains(a))
+                .filter(a -> !AreaNaming.containsArea(fileAreas, a))
                 .toList();
 
         if (!missingAreas.isEmpty()) {

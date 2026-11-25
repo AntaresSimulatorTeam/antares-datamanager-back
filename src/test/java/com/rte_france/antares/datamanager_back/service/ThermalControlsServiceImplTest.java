@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -459,7 +459,7 @@ class ThermalControlsServiceImplTest {
         );
 
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
-                .area(OTHERS_AREA)
+                .area(OTHERS)
                 .thermalSpecificParameters(new ArrayList<>())
                 .fileName("SpecificParamOthers")
                 .build();
@@ -493,7 +493,7 @@ class ThermalControlsServiceImplTest {
 
         // Trajectory OTHERS exists but only contains FR data
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
-                .area(OTHERS_AREA)
+                .area(OTHERS)
                 .fileName("SpecificParamOthers")
                 .thermalSpecificParameters(new ArrayList<>())
                 .build();
@@ -582,7 +582,7 @@ class ThermalControlsServiceImplTest {
         Integer studyId = 1;
         String horizon = "2023-2024";
         // paramClusters = clusters in the NEW file being uploaded
-        Set<String> paramClusters = new HashSet<>(Set.of("ClusterInFile/AreaA"));
+        Set<String> paramClusters = new HashSet<>(Set.of(ThermalControlsServiceImpl.clusterAreaKey("ClusterInFile", "AreaA")));
 
         // Capacity has both: ClusterInFile/AreaA AND ClusterBD/AreaB
         // ClusterBD/AreaB is ALREADY in the DB specific trajectory, so it's NOT in the new file.
@@ -606,10 +606,10 @@ class ThermalControlsServiceImplTest {
         when(trajectoryRepository.findByTypeAndStudyId(TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER.name(), studyId))
                 .thenReturn(List.of(existingTraj));
 
-        // When the area is OTHERS_AREA, it should merge "ClusterBD/AreaB" into paramClusters.
+        // When the area is OTHERS, it should merge "ClusterBD/AreaB" into paramClusters.
         // Then checkMissingClusters will check if ALL clusters in capacity are in paramClusters.
         // If "ClusterBD/AreaB" WAS NOT merged, checkMissingClusters would throw because ClusterBD/AreaB is in capacity but not in paramClusters.
-        assertDoesNotThrow(() -> thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA));
+        assertDoesNotThrow(() -> thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS));
     }
 
     @Test
@@ -617,7 +617,7 @@ class ThermalControlsServiceImplTest {
         Integer studyId = 1;
         String horizon = "2023-2024";
         // New file only has ClusterInFile/AreaA
-        Set<String> paramClusters = new java.util.HashSet<>(Set.of("ClusterInFile/AreaA"));
+        Set<String> paramClusters = new java.util.HashSet<>(Set.of(ThermalControlsServiceImpl.clusterAreaKey("ClusterInFile", "AreaA")));
 
         // Capacity has: ClusterInFile/AreaA AND ClusterMissing/AreaM
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
@@ -636,9 +636,9 @@ class ThermalControlsServiceImplTest {
 
         // Should throw because ClusterMissing/AreaM is in capacity but NOT in new file AND NOT in DB
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS_AREA));
+                thermalControlsService.checkMissingClusters(studyId, horizon, paramClusters, TrajectoryType.THERMAL_TECHNICAL_SPECIFIC_PARAMETER, OTHERS));
 
-        assertTrue(exception.getMessage().contains("ClusterMissing/AreaM"));
+        assertTrue(exception.getMessage().contains(ThermalControlsServiceImpl.clusterAreaKey("ClusterMissing", "AreaM")));
     }
 
     @Test
@@ -646,7 +646,7 @@ class ThermalControlsServiceImplTest {
         Integer studyId = 1;
         String horizon = "2023-2024";
         String targetArea = "AreaA";
-        Set<String> paramClusters = new java.util.HashSet<>(Set.of("ClusterInFile/AreaA"));
+        Set<String> paramClusters = new java.util.HashSet<>(Set.of(ThermalControlsServiceImpl.clusterAreaKey("ClusterInFile", "AreaA")));
 
         // Capacity has both
         when(trajectoryRepository.findAllByStudyIdAndHorizonAndTypeOrderByVersionDesc(studyId, horizon, TrajectoryType.THERMAL_CAPACITY.name()))
@@ -661,7 +661,7 @@ class ThermalControlsServiceImplTest {
 
         // Existing in BD: ClusterBD in OTHERS trajectory, but with area AreaA
         TrajectoryEntity existingOthersTraj = TrajectoryEntity.builder()
-                .area(OTHERS_AREA)
+                .area(OTHERS)
                 .thermalSpecificParameters(List.of(
                         ThermalSpecificParametersEntity.builder().cluster("ClusterBD").area(targetArea).build(),
                         ThermalSpecificParametersEntity.builder().cluster("ClusterOther").area("OtherArea").build()
@@ -803,7 +803,7 @@ class ThermalControlsServiceImplTest {
         // Mocking to reach the problematic code
         ThermalSpecificParametersEntity entity = new ThermalSpecificParametersEntity();
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
-                .area(OTHERS_AREA)
+                .area(OTHERS)
                 .fileName("SpecificParamOthers")
                 .thermalSpecificParameters(List.of(entity))
                 .build();
@@ -828,7 +828,7 @@ class ThermalControlsServiceImplTest {
 
         ThermalSpecificParametersEntity entity = new ThermalSpecificParametersEntity();
         TrajectoryEntity specificParamTrajectory = TrajectoryEntity.builder()
-                .area(OTHERS_AREA)
+                .area(OTHERS)
                 .fileName("SpecificParamOthers")
                 .thermalSpecificParameters(List.of(entity))
                 .build();

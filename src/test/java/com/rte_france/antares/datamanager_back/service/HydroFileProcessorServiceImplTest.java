@@ -34,7 +34,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -196,7 +196,7 @@ class HydroFileProcessorServiceImplTest {
             setName(AREA_FR);
         }}));
 
-        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS_AREA, false);
+        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS, false);
 
         assertNotNull(result);
         assertEquals(5, result.getHydroSeriesEntities().size());
@@ -234,7 +234,7 @@ class HydroFileProcessorServiceImplTest {
             setName(AREA_FR);
         }}));
 
-        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS_AREA, false);
+        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS, false);
 
         assertNotNull(result);
         // 1 maxpower + 4 series FR (mod_DE exclu car DE pas dans studyAreas)
@@ -878,7 +878,7 @@ class HydroFileProcessorServiceImplTest {
                         filePath,
                         TRAJ,
                         HORIZON,
-                        OTHERS_AREA,
+                        OTHERS,
                         List.of("FR", "AT"),
                         List.of("BE")
                 )
@@ -904,7 +904,7 @@ class HydroFileProcessorServiceImplTest {
                         filePath,
                         TRAJ,
                         HORIZON,
-                        OTHERS_AREA,
+                        OTHERS,
                         List.of("FR", "AT", "BE"),
                         List.of("FR", "BE")
                 )
@@ -1057,7 +1057,7 @@ class HydroFileProcessorServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void loadStudyAreas_returnsUppercaseAreaNames() {
+    void loadStudyAreas_keepsAreaNamesAsWritten() {
         Mockito.when(areaRepository.findAllByStudyId(42, TrajectoryType.AREA.toString())).thenReturn(List.of(
                 new AreaEntity() {{ setName("fr"); }},
                 new AreaEntity() {{ setName("at"); }},
@@ -1067,8 +1067,8 @@ class HydroFileProcessorServiceImplTest {
         List<String> areas = service.loadStudyAreas(42);
 
         assertEquals(3, areas.size());
-        assertTrue(areas.contains("FR"));
-        assertTrue(areas.contains("AT"));
+        assertTrue(areas.contains("fr"));
+        assertTrue(areas.contains("at"));
         assertTrue(areas.contains("BE"));
     }
 
@@ -1141,7 +1141,7 @@ class HydroFileProcessorServiceImplTest {
         ));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS_AREA, false));
+                service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Missing maxpower file (maxpower_{1}) in {0} trajectory {1}"));
@@ -1169,7 +1169,7 @@ class HydroFileProcessorServiceImplTest {
                 new AreaEntity() {{ setName("BE"); }}
         ));
 
-        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS_AREA, false);
+        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS, false);
 
         assertNotNull(result);
         // 2 fichiers ROR (FR + BE), aucun maxpower
@@ -1226,7 +1226,7 @@ class HydroFileProcessorServiceImplTest {
             setName(AREA_FR);
         }}));
 
-        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS_AREA, false);
+        TrajectoryEntity result = service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS, false);
 
         assertNotNull(result);
         assertEquals(1, result.getHydroSeriesEntities().size());
@@ -1284,7 +1284,7 @@ class HydroFileProcessorServiceImplTest {
         ));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
-                service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS_AREA, false));
+                service.processHydroSeriesFile(TrajectoryType.HYDRO_SERIES, TRAJ, HORIZON, 1, OTHERS, false));
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Missing files in {0} trajectory"));

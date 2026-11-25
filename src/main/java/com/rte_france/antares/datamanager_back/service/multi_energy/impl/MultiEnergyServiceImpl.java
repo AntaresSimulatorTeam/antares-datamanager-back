@@ -115,7 +115,7 @@ public class MultiEnergyServiceImpl implements MultiEnergyService {
                 continue;
             }
 
-            String clusterKey = thermalToJsonService.buildClusterKey(key.area(), key.thermalClusterRef().getName());
+            String clusterKey = thermalToJsonService.buildClusterKey(key.area().value(), key.thermalClusterRef().getName());
             efficiencyByClusterKey.put(clusterKey, dto.getEfficiency());
         }
 

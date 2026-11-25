@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service.sts.impl;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.StsConstraintParameterDTO;
@@ -335,7 +336,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
 
     private Set<String> resolveTargetAreas(String contextArea, Set<String> allAreas) {
         String upperContextArea = contextArea != null ? contextArea.toUpperCase(Locale.ROOT) : "";
-        return "OTHERS".equals(upperContextArea) ? allAreas : Set.of(upperContextArea);
+        return isOthers(upperContextArea) ? allAreas : Set.of(upperContextArea);
     }
 
     private Set<String> toLowerCaseSet(Set<String> values) {

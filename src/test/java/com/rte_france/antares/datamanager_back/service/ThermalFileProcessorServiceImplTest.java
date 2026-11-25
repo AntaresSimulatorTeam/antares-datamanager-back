@@ -42,7 +42,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static com.rte_france.antares.datamanager_back.util.Utils.OTHERS_AREA;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
@@ -206,7 +206,7 @@ class ThermalFileProcessorServiceImplTest {
         when(areaRepository.findAllByStudyId(any(), any(String.class))).thenReturn(List.of(AreaEntity.builder().id(1).name("FR").build()));
 
         var horizon = "2025-2026";
-        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,OTHERS_AREA,"CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
+        thermalFileProcessorService.processThermalCapacityFile(tempFile, horizon, thermalFileProcessorService.buildThermalClusterCapacityValuesList(tempFile, horizon, true,OTHERS,"CCGT",1), TrajectoryType.THERMAL_CAPACITY,"FR", "CCGT");
 
         verify(trajectoryRepository, times(1)).save(any());
     }

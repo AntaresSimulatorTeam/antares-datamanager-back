@@ -5,6 +5,8 @@ import com.rte_france.antares.datamanager_back.dto.*;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
 import com.rte_france.antares.datamanager_back.mapper.AreaMapper;
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.mapper.LinkMapper;
 import com.rte_france.antares.datamanager_back.mapper.StStorageMapper;
 import com.rte_france.antares.datamanager_back.mapper.TrajectoryMapper;
@@ -51,6 +53,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.isOthers;
+import static com.rte_france.antares.datamanager_back.util.AreaNaming.OTHERS;
 import static com.rte_france.antares.datamanager_back.dto.TrajectoryType.*;
 import static com.rte_france.antares.datamanager_back.service.hydro.impl.HydroFileProcessorServiceImpl.HYDRO_TYPES;
 import static com.rte_france.antares.datamanager_back.service.thermal.impl.ThermalEconomicServiceImpl.SHEET_CO2;
@@ -64,7 +68,6 @@ import static com.rte_france.antares.datamanager_back.util.Utils.*;
 @RequiredArgsConstructor
 public class TrajectoryServiceImpl implements TrajectoryService {
 
-    public static final String OTHER_AREA = "OTHERS";
 
     private final AreaFileProcessorService areaFileProcessorService;
 
@@ -333,14 +336,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // Filter out rows whose area is not present in the study AREA trajectory
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString())
                 .stream()
-                .map(a -> a.getName().toUpperCase())
+                .map(AreaEntity::getName)
                 .toList();
-        Set<String> fileAreas = params.stream()
-                .map(p -> Optional.ofNullable(p.getNode()).orElse("").toUpperCase())
-                .collect(Collectors.toSet());
+        List<String> fileAreas = params.stream()
+                .map(ThermalSpecificParametersEntity::getNode)
+                .toList();
 
         // The selected area must be present in the file's 'node' column, except when area equals OTHERS
-        if (area != null && !area.isBlank() && !OTHER_AREA.equals(area) && !fileAreas.contains(area.toUpperCase())) {
+        if (area != null && !area.isBlank() && !isOthers(area) && !AreaNaming.containsArea(fileAreas, area)) {
             throw BusinessException.builder()
                     .message("Selected area " + area + " is not present in the 'node' column of THERMAL Specific Param trajectory " + trajectoryName)
                     .httpStatus(HttpStatus.BAD_REQUEST)
@@ -363,7 +366,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
 
         List<String> missingAreas = studyAreas.stream()
-                .filter(sa -> !fileAreas.contains(sa))
+                .filter(sa -> !AreaNaming.containsArea(fileAreas, sa))
                 .toList();
         if (!missingAreas.isEmpty()) {
             String message = "Area(s) " + String.join(", ", missingAreas)
@@ -883,7 +886,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         }
 
-        if (!area.equals(OTHER_AREA)) {
+        if (!isOthers(area)) {
             checkIfAreaIsLinkedToStudy(studyId, area);
         }
 
@@ -905,8 +908,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (existingTrajectoryOpt.isPresent()) {
             TrajectoryEntity existingTrajectory = existingTrajectoryOpt.get();
-            if ((isSameTrajectory(trajectoryPath, existingTrajectory) && !area.equals(OTHER_AREA))
-                    || (area.equals(OTHER_AREA)
+            if ((isSameTrajectory(trajectoryPath, existingTrajectory) && !isOthers(area))
+                    || (isOthers(area)
                     && isSameVersionOfOtherLoadTrajectory(existingTrajectory, studyId, trajectoryPath, horizon)
             )
             ) {
@@ -926,7 +929,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         // No existing trajectory: create and save new
         TrajectoryEntity newTrajectory = buildNewLoadTrajectory(trajectoryToUse, horizon, trajectoryPath, userNni);
-        if (area.equals(OTHER_AREA)) {
+        if (isOthers(area)) {
             warningMessageEntities = loadFileProcessorServiceImpl.checkForMissingLoadFiles(trajectoryPath, horizon, studyId, userNni, newTrajectory);
         }
         return buildAndSaveLoadTrajectory(area, horizon, trajectoryPath, newTrajectory, studyId, warningMessageEntities);
@@ -978,21 +981,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private boolean isSameVersionOfOtherLoadTrajectory(TrajectoryEntity existingTrajectory, Integer studyId, Path trajectoryPath, String horizon) {
         List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream()
-                .map(a -> a.getName().toLowerCase())
+                .map(AreaEntity::getName)
                 .toList();
 
         log.info("Study Areas: {}", studyAreas);
         Set<String> importedAreas = existingTrajectory.getLoadEntities().stream()
                 .map(load -> {
                     String[] parts = load.getFileName().split("_");
-                    return parts.length > 1 ? parts[1].toLowerCase() : "";
+                    return parts.length > 1 ? parts[1] : "";
                 })
                 .collect(Collectors.toSet());
         log.info("Imported areas: {}", importedAreas);
 
         for (String area : studyAreas) {
-            if (!importedAreas.contains(area)) {
-                String fileName = "load_" + area + "_" + horizon + ".txt";
+            if (!AreaNaming.containsArea(importedAreas, area)) {
+                String fileName = "load_" + area.toLowerCase() + "_" + horizon + ".txt";
                 if (Files.exists(trajectoryPath.resolve(fileName))) {
                     log.info("at least one load is not  missing in the file system for area : {}", area);
                     return false;
@@ -1052,15 +1055,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
     private TrajectoryEntity buildAndSaveLoadTrajectory(String area, String horizon, Path trajectoryPath, TrajectoryEntity loadTrajectory, Integer studyId, Set<WarningMessageEntity> warningMessageEntities) throws IOException {
         List<String> listCustomLoadFilesAlreadyChoosed = new ArrayList<>();
-        if (area.equals(OTHER_AREA)) {
+        if (isOthers(area)) {
             listCustomLoadFilesAlreadyChoosed = trajectoryRepository.findByTypeAndStudyId(TrajectoryType.LOAD.name(), studyId)
                     .stream()
                     .map(TrajectoryEntity::getArea)
-                    .filter(loadArea -> !loadArea.equals(OTHER_AREA))
-                    .map(String::toLowerCase)
+                    .filter(loadArea -> !isOthers(loadArea))
                     .toList();
         }
-        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(areaStudy -> areaStudy.getName().toLowerCase()).toList();
+        List<String> areaWithStudy = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(AreaEntity::getName).toList();
 
         List<String> loadsFile = getValidLoadFileNamesWithHorizon(trajectoryPath, area, horizon, listCustomLoadFilesAlreadyChoosed, areaWithStudy);
         if (loadsFile.isEmpty()) {
@@ -1625,7 +1627,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     }
 
     private Set<WarningMessageEntity> verifyLoad(Integer studyId, Set<WarningMessageEntity> warningMessages, TrajectoryEntity trajectory, String userNni) throws IOException {
-        if (OTHER_AREA.equals(trajectory.getArea())) {
+        if (isOthers(trajectory.getArea())) {
             warningMessages = loadFileProcessorService.checkForMissingLoadByAreaFromDb(
                     trajectory.getHorizon(), studyId, userNni, trajectory);
         }
@@ -1696,7 +1698,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 String[] areas = link.getName().split("-");
                 for (String area : areas) {
                     if (areasSavedForScenario.stream()
-                            .noneMatch(existingArea -> existingArea.equalsIgnoreCase(area))) {
+                            .noneMatch(existingArea -> AreaNaming.sameArea(existingArea, area))) {
                         allMissingAreas.add(area);
                     }
                 }
@@ -1800,7 +1802,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             List<TrajectoryEntity> loadFactorTrajectories, String horizon)
             throws IOException {
 
-        if (OTHER_AREA.equalsIgnoreCase(installedPowerArea)) {
+        if (isOthers(installedPowerArea)) {
             // For OTHERS installed power: check specific areas + OTHERS in load factor
             validateOthersInstalledPowerAreasAgainstLoadFactors(groupCluster, areasInInstalledPower, loadFactorTrajectories, horizon);
         } else {
@@ -1833,7 +1835,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         } else {
             // No load factor with same area, try OTHERS
             TrajectoryEntity loadFactorOthers = findLoadFactorForAreaAndGroup(
-                    loadFactorTrajectories, OTHER_AREA, horizon
+                    loadFactorTrajectories, OTHERS, horizon
             );
 
             if (loadFactorOthers != null) {
@@ -1863,7 +1865,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             } else {
                 // Try the OTHERS load factor
                 TrajectoryEntity loadFactorOthers = findLoadFactorForAreaAndGroup(
-                        loadFactorTrajectories, OTHER_AREA, horizon
+                        loadFactorTrajectories, OTHERS, horizon
                 );
 
                 if (loadFactorOthers != null) {
@@ -1883,7 +1885,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             String horizon) {
 
         return loadFactorTrajectories.stream()
-                .filter(t -> t.getArea().equalsIgnoreCase(area))
+                .filter(t -> AreaNaming.sameArea(t.getArea(), area))
                 .filter(t -> t.getHorizon().equals(horizon) || horizon == null)
                 .findFirst()
                 .orElse(null);
@@ -1902,7 +1904,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Path loadFactorPath = buildTrajectoryPath(loadFactorTrajectory.getFileName(), TrajectoryType.MISC_LOAD);
         List<String> headers = MiscFileProcessorServiceImpl.readHeaderAreas(horizon, loadFactorPath, groupCluster);
 
-        if (!headers.contains(expectedArea.toLowerCase())) {
+        if (!AreaNaming.containsArea(headers, expectedArea)) {
             throw BusinessException.builder()
                     .message("Load factor trajectory {0} for area {1} does not contain the expected area {2} for group {3}")
                     .errorMessageArguments(List.of(
@@ -1967,7 +1969,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         return capacities.stream()
                 .collect(Collectors.groupingBy(
                         e -> new MiscFileProcessorServiceImpl.GroupClusterKey(e.getGroupe(), e.getCluster()),
-                        Collectors.mapping(e -> e.getArea().toLowerCase(), Collectors.toSet())
+                        // A blank area can't be a study area: skip it before building the key
+                        Collectors.filtering(e -> e.getArea() != null && !e.getArea().isBlank(),
+                                Collectors.mapping(e -> AreaKey.of(e.getArea()).value(), Collectors.toSet()))
                 ));
     }
 
