@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -98,12 +97,13 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
         }
 
         P2gRawData data = loadP2gData(capacityCostTrajectory);
-        Set<String> studyAreas = areaRepository.findAllByStudyId(study.getId(), TrajectoryType.AREA.name()).stream()
-                .map(area -> area.getName().toUpperCase(Locale.ROOT))
+        Set<AreaKey> studyAreas = areaRepository.findAllByStudyId(study.getId(), TrajectoryType.AREA.name()).stream()
+                .map(area -> AreaKey.of(area.getName()))
                 .collect(Collectors.toSet());
+        // A blank area matches no study area: skip it before building the key
         List<P2GCapacityEntity> capacities = data.capacities().stream()
-                .filter(capacity -> capacity.getArea() != null
-                        && studyAreas.contains(capacity.getArea().toUpperCase(Locale.ROOT)))
+                .filter(capacity -> capacity.getArea() != null && !capacity.getArea().isBlank()
+                        && studyAreas.contains(AreaKey.of(capacity.getArea())))
                 .toList();
         String trajectoryName = capacityCostTrajectory.getFileName();
 
@@ -223,8 +223,8 @@ public class P2gGenerationAssemblerServiceImpl implements P2gGenerationAssembler
             return;
         }
 
-        Map<String, Map<String, ResClusterGenerationDto>> resPropsByArea = resGenerationAssemblerService.assembleResProperties(study);
-        asserviAreas.forEach(area -> checkAreaHasFcCoverage(area, resPropsByArea.getOrDefault(area.toUpperCase(Locale.ROOT), Collections.emptyMap())));
+        Map<AreaKey, Map<String, ResClusterGenerationDto>> resPropsByArea = resGenerationAssemblerService.assembleResProperties(study);
+        asserviAreas.forEach(area -> checkAreaHasFcCoverage(area, resPropsByArea.getOrDefault(AreaKey.of(area), Collections.emptyMap())));
     }
 
     private void checkAreaHasFcCoverage(String area, Map<String, ResClusterGenerationDto> areaResProps) {

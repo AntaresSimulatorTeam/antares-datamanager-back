@@ -3,6 +3,7 @@ package com.rte_france.antares.datamanager_back.util.excel_file_validators;
 import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.exception.TechnicalException;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.columns_enum.AreaColumns;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.http.HttpStatus;
@@ -11,9 +12,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.IntStream;
 
 import static com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator.*;
@@ -43,7 +48,7 @@ public class AreasValidator {
             checkColumnsRules(sheet, horizon, new ArrayList<>(), AreaColumns.getStringColumnNames(), AreaColumns.getNumericalColumnNames(), TrajectoryType.AREA.name());
             checkColumnValueLength(sheet, horizon, AreaColumns.AREAS.getDisplayName(), trajectoryType.equals(TrajectoryType.AREA_ME.name()) ? AREAS_ME_MAX_LENGTH : AREAS_MAX_LENGTH);
             checkColumnValueLength(sheet, horizon, AreaColumns.DISTRICT.getDisplayName(), DISTRICT_MAX_LENGTH);
-            checkForDuplicateValues(sheet, AreaColumns.AREAS.getDisplayName(), horizon, false, TrajectoryType.AREA.name());
+            checkForDuplicateAreas(sheet, horizon);
         } catch (IOException e) {
             throw TechnicalException.builder()
                     .message("Error reading file:  {0}")
@@ -53,6 +58,35 @@ public class AreasValidator {
         }
     }
 
+
+    /**
+     * Two area names that differ only by case designate the same area, so they are duplicates (Antares cannot create both).
+     */
+    private static void checkForDuplicateAreas(Sheet sheet, String horizon) {
+        int columnIndex = findColumnIndex(sheet, AreaColumns.AREAS.getDisplayName(), horizon, TrajectoryType.AREA.name());
+        Map<AreaKey, String> firstSpellingByKey = new HashMap<>();
+        Set<String> duplicates = new TreeSet<>();
+
+        sheet.forEach(row -> Optional.ofNullable(row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL))
+                .map(ExcelCommonValidator::getCellValue)
+                .map(String::trim)
+                .filter(areaName -> !areaName.isEmpty())
+                .ifPresent(areaName -> {
+                    String firstSpelling = firstSpellingByKey.putIfAbsent(AreaKey.of(areaName), areaName);
+                    if (firstSpelling != null) {
+                        duplicates.add(firstSpelling);
+                        duplicates.add(areaName);
+                    }
+                }));
+
+        if (!duplicates.isEmpty()) {
+            throw BusinessException.builder()
+                    .message("Duplicate value for {0}(s): {1} for {2} trajectory")
+                    .errorMessageArguments(List.of(TrajectoryType.AREA.name().toLowerCase(), String.join(", ", duplicates), TrajectoryType.AREA.name()))
+                    .httpStatus(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+    }
 
     private static void checkColumnsRules(Sheet sheet, String horizon, List<String> booleanColumns, List<String> stringColumns, List<String> numericalColumns, String trajectoryType) {
         checkBooleanColumns(sheet, horizon, booleanColumns, trajectoryType);

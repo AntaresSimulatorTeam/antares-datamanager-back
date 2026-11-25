@@ -11,12 +11,12 @@ import java.util.Map;
 @Builder
 public class AreasGenerationContextDTO {
     private Map<AreaKey, List<String>> arrowLoadFilesByArea;
-    private Map<String, Map<String, ThermalClusterGenerationDto>> clusterPropsByArea;
+    private Map<AreaKey, Map<String, ThermalClusterGenerationDto>> clusterPropsByArea;
     private Map<String, StsGenerationDTO> stsClusterProps;
     private Map<String, DsrGenerationDTO> dsrClusterProps;
-    private Map<String, List<MiscGenerationDTO>> miscProps;
-    private Map<String, Map<String, ResClusterGenerationDto>> resProps;
-    private Map<String, HydroAreaGenerationDTO> hydroProps;
+    private Map<AreaKey, List<MiscGenerationDTO>> miscProps;
+    private Map<AreaKey, Map<String, ResClusterGenerationDto>> resProps;
+    private Map<AreaKey, HydroAreaGenerationDTO> hydroProps;
     private Map<String, String> nuclearSeriesByClusterKey;
     private Map<String, NuclearSMRMixageDTO> nuclearSmrMixageByClusterKey;
 }

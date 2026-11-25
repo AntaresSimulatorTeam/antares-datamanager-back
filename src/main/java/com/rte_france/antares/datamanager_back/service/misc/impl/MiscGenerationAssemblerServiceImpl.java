@@ -1,5 +1,7 @@
 package com.rte_france.antares.datamanager_back.service.misc.impl;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.configuration.AntaresDataManagerProperties;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO;
@@ -45,22 +47,25 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         this.timeSeriesReader = timeSeriesReader;
     }
 
-    private static final String OTHER_AREA = "OTHERS";
+    private static final AreaKey OTHERS_KEY = AreaKey.of(AreaNaming.OTHERS);
+    private static final AreaKey FR_KEY = AreaKey.of("FR");
 
     @ExecutionTime("MISC")
     @Override
-    public Map<String, List<MiscGenerationDTO>> assembleMiscProperties(StudyEntity studyEntity) {
+    public Map<AreaKey, List<MiscGenerationDTO>> assembleMiscProperties(StudyEntity studyEntity) {
         List<Path> generatedFiles = createSplitMiscGenFiles(studyEntity);
-        Map<String, List<String>> filesByArea = buildFilesByArea(generatedFiles);
-        Set<String> areasWithSpecificCapacity = getAreasWithSpecificCapacity(studyEntity);
+        Map<AreaKey, List<String>> filesByArea = buildFilesByArea(generatedFiles);
+        Set<AreaKey> areasWithSpecificCapacity = getAreasWithSpecificCapacity(studyEntity);
 
         return studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.MISC_CAPACITY.name().equals(t.getType()))
                 .flatMap(trajectory -> filterMiscCapacityEntities(trajectory, areasWithSpecificCapacity))
                 .filter(c -> c.getCapacityByYear() != null && c.getCapacityByYear().signum() > 0)
+                // A blank area can't be a study area: skip it before building the key
+                .filter(c -> !c.getArea().isBlank())
                 .collect(Collectors.groupingBy(
-                        misc -> misc.getArea().toUpperCase(),
+                        misc -> AreaKey.of(misc.getArea()),
                         Collectors.mapping(
                                 misc -> mapToDto(misc, filesByArea),
                                 Collectors.toList()
@@ -68,30 +73,29 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
                 ));
     }
 
-    private MiscGenerationDTO mapToDto(MiscClusterCapacityEntity misc, Map<String, List<String>> filesByArea) {
+    private MiscGenerationDTO mapToDto(MiscClusterCapacityEntity misc, Map<AreaKey, List<String>> filesByArea) {
         MiscGenerationDTO dto = MiscGenMapper.mapToMiscGenerationDTO(misc);
-        dto.setMiscGenTsList(filesByArea.getOrDefault(misc.getArea().toUpperCase(), Collections.emptyList()));
+        dto.setMiscGenTsList(filesByArea.getOrDefault(AreaKey.of(misc.getArea()), Collections.emptyList()));
         return dto;
     }
 
-    private Set<String> getAreasWithSpecificCapacity(StudyEntity studyEntity) {
+    private Set<AreaKey> getAreasWithSpecificCapacity(StudyEntity studyEntity) {
         return studyEntity.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> TrajectoryType.MISC_CAPACITY.name().equals(t.getType()))
-                .filter(t -> t.getArea() != null && !OTHER_AREA.equalsIgnoreCase(t.getArea()))
-                .map(t -> t.getArea().toUpperCase())
+                .filter(t -> t.getArea() != null && !t.getArea().isBlank() && !AreaNaming.isOthers(t.getArea()))
+                .map(t -> AreaKey.of(t.getArea()))
                 .collect(Collectors.toSet());
     }
 
     private Stream<MiscClusterCapacityEntity> filterMiscCapacityEntities(
             TrajectoryEntity trajectory,
-            Set<String> areasWithSpecificCapacity) {
+            Set<AreaKey> areasWithSpecificCapacity) {
         List<MiscClusterCapacityEntity> entities = trajectory.getMiscClusterCapacityEntities();
         if (entities == null) {
             return Stream.empty();
         }
-        String trajectoryArea = trajectory.getArea() != null ? trajectory.getArea().toUpperCase() : "";
-        boolean isOthersTrajectory = OTHER_AREA.equalsIgnoreCase(trajectoryArea);
+        boolean isOthersTrajectory = AreaNaming.isOthers(trajectory.getArea());
 
         return entities.stream()
                 .filter(entity -> shouldIncludeMiscCapacityEntity(entity, isOthersTrajectory, areasWithSpecificCapacity));
@@ -100,31 +104,31 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
     private boolean shouldIncludeMiscCapacityEntity(
             MiscClusterCapacityEntity entity,
             boolean isOthersTrajectory,
-            Set<String> areasWithSpecificCapacity) {
+            Set<AreaKey> areasWithSpecificCapacity) {
         if (!isOthersTrajectory) {
             return true;
         }
-        String entityArea = entity.getArea() != null ? entity.getArea().toUpperCase() : "";
-        return !areasWithSpecificCapacity.contains(entityArea);
+        String entityArea = entity.getArea();
+        return entityArea == null || entityArea.isBlank() || !areasWithSpecificCapacity.contains(AreaKey.of(entityArea));
     }
 
     private List<Path> createSplitMiscGenFiles(StudyEntity study) {
         // 1. Group trajectories by type and by area (area)
-        Map<String, TrajectoryEntity> miscCapacityByArea = mapTrajectoriesByArea(study, TrajectoryType.MISC_CAPACITY);
-        Map<String, TrajectoryEntity> miscLoadByArea = mapTrajectoriesByArea(study, TrajectoryType.MISC_LOAD);
+        Map<AreaKey, TrajectoryEntity> miscCapacityByArea = mapTrajectoriesByArea(study, TrajectoryType.MISC_CAPACITY);
+        Map<AreaKey, TrajectoryEntity> miscLoadByArea = mapTrajectoriesByArea(study, TrajectoryType.MISC_LOAD);
         List<Path> allGeneratedFiles = new ArrayList<>();
-        Set<String> processedAreas = new HashSet<>();
+        Set<AreaKey> processedAreas = new HashSet<>();
 
         // 2. Specific areas treatment
         var areas = nonOtherAreas(miscCapacityByArea.keySet(), miscLoadByArea.keySet());
-        for (String area : areas) {
-            TrajectoryEntity capacityTraj = containsOnlyOtherCapacity(miscCapacityByArea.keySet()) ? miscCapacityByArea.get(OTHER_AREA) : miscCapacityByArea.get(area);
+        for (AreaKey area : areas) {
+            TrajectoryEntity capacityTraj = miscCapacityByArea.get(containsOnlyOtherCapacity(miscCapacityByArea.keySet()) ? OTHERS_KEY : area);
             TrajectoryEntity loadTraj = resolveLoadTrajectoryForArea(area, miscLoadByArea);
             if (capacityTraj != null) {
                 processedAreas.add(area);
             }
             if (loadTraj != null && loadTraj.getFileName() != null) {
-                allGeneratedFiles.addAll(processTrajectoryPair(study, area, capacityTraj, loadTraj.getFileName(), Set.of()));
+                allGeneratedFiles.addAll(processTrajectoryPair(study, area.value(), capacityTraj, loadTraj.getFileName(), Set.of()));
             }
         }
 
@@ -133,39 +137,35 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         return allGeneratedFiles;
     }
 
-    public static boolean containsOnlyOtherCapacity(Set<String> capacityKeys) {
-        if (capacityKeys == null || capacityKeys.isEmpty()) {
-            return false;
-        }
-        return capacityKeys.size() == 1 &&
-                capacityKeys.iterator().next().trim().equalsIgnoreCase(OTHER_AREA);
+    private static boolean containsOnlyOtherCapacity(Set<AreaKey> capacityKeys) {
+        return capacityKeys.size() == 1 && capacityKeys.contains(OTHERS_KEY);
     }
 
-    private void processOthers(StudyEntity study, Map<String, TrajectoryEntity> capMap, Map<String, TrajectoryEntity> loadMap, Set<String> processed, List<Path> files) {
-        TrajectoryEntity capacityOthers = capMap.get(OTHER_AREA.toUpperCase());
-        TrajectoryEntity loadOthers = loadMap.get(OTHER_AREA.toUpperCase());
+    private void processOthers(StudyEntity study, Map<AreaKey, TrajectoryEntity> capMap, Map<AreaKey, TrajectoryEntity> loadMap, Set<AreaKey> processed, List<Path> files) {
+        TrajectoryEntity capacityOthers = capMap.get(OTHERS_KEY);
+        TrajectoryEntity loadOthers = loadMap.get(OTHERS_KEY);
         if (capacityOthers != null && loadOthers != null && loadOthers.getFileName() != null) {
-            files.addAll(processTrajectoryPair(study, OTHER_AREA, capacityOthers, loadOthers.getFileName(), processed));
+            files.addAll(processTrajectoryPair(study, AreaNaming.OTHERS, capacityOthers, loadOthers.getFileName(), processed));
         }
     }
 
-    private TrajectoryEntity resolveLoadTrajectoryForArea(String area, Map<String, TrajectoryEntity> miscLoadByArea) {
-        TrajectoryEntity directLoadTrajectory = miscLoadByArea.get(area.toUpperCase());
+    private TrajectoryEntity resolveLoadTrajectoryForArea(AreaKey area, Map<AreaKey, TrajectoryEntity> miscLoadByArea) {
+        TrajectoryEntity directLoadTrajectory = miscLoadByArea.get(area);
         if (directLoadTrajectory != null) {
             return directLoadTrajectory;
         }
-        return "FR".equalsIgnoreCase(area) ? null : miscLoadByArea.get(OTHER_AREA.toUpperCase());
+        return FR_KEY.equals(area) ? null : miscLoadByArea.get(OTHERS_KEY);
     }
 
-    private List<Path> processTrajectoryPair(StudyEntity study, String area, TrajectoryEntity capacityTraj, String loadFileName, Set<String> processedAreas) {
+    private List<Path> processTrajectoryPair(StudyEntity study, String area, TrajectoryEntity capacityTraj, String loadFileName, Set<AreaKey> processedAreas) {
         Map<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> groupToAreas = resolveGroupToAreas(study, area, capacityTraj);
         if (loadFileName == null || groupToAreas.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<Path> generatedFiles = new ArrayList<>();
-        Map<String, double[]> weightedOtherSeriesByArea = new LinkedHashMap<>();
-        Map<String, Double> totalOtherCapacityByArea = new LinkedHashMap<>();
+        Map<AreaKey, double[]> weightedOtherSeriesByArea = new LinkedHashMap<>();
+        Map<AreaKey, Double> totalOtherCapacityByArea = new LinkedHashMap<>();
         Path baseMiscLoadPath = Path.of(antaresDataManagerProperties.getNasDirectory()).resolve(antaresDataManagerProperties.getTrajectoryFilePath()).resolve(antaresDataManagerProperties.getMiscLoadDirectory()).resolve(loadFileName);
         Map<Path, TimeSeriesMatrix> matrixCache = new HashMap<>();
 
@@ -181,10 +181,11 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         return generatedFiles;
     }
 
-    private void processGroupEntry(Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> entry, Set<String> processedAreas, Path basePath, String horizon, TrajectoryEntity capacityTraj, Map<Path, TimeSeriesMatrix> cache, Map<String, double[]> weightedSum, Map<String, Double> totalCap, List<Path> files) {
+    private void processGroupEntry(Map.Entry<MiscFileProcessorServiceImpl.GroupClusterKey, List<String>> entry, Set<AreaKey> processedAreas, Path basePath, String horizon, TrajectoryEntity capacityTraj, Map<Path, TimeSeriesMatrix> cache, Map<AreaKey, double[]> weightedSum, Map<AreaKey, Double> totalCap, List<Path> files) {
         MiscFileProcessorServiceImpl.GroupClusterKey key = entry.getKey();
         String normalizedGroup = MiscGroupEnum.normalizeForGenerator(key.groupe());
-        Set<String> areasToProcess = entry.getValue().stream().filter(a -> !processedAreas.contains(a.toUpperCase())).collect(Collectors.toSet());
+        Set<AreaKey> areasToProcess = toAreaKeys(entry.getValue());
+        areasToProcess.removeAll(processedAreas);
 
         if (areasToProcess.isEmpty()) return;
 
@@ -219,10 +220,10 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         }
     }
 
-    private void aggregateSeries(TimeSeriesMatrix matrix, MiscFileProcessorServiceImpl.GroupClusterKey key, Set<String> areas, TrajectoryEntity capacityTrajectory, Map<String, double[]> weightedSumByArea, Map<String, Double> totalCapacityByArea) throws IOException {
-        Map<String, double[]> areaSeries = extractSeriesByArea(matrix, areas);
-        for (Map.Entry<String, double[]> areaSeriesEntry : areaSeries.entrySet()) {
-            String area = areaSeriesEntry.getKey();
+    private void aggregateSeries(TimeSeriesMatrix matrix, MiscFileProcessorServiceImpl.GroupClusterKey key, Set<AreaKey> areas, TrajectoryEntity capacityTrajectory, Map<AreaKey, double[]> weightedSumByArea, Map<AreaKey, Double> totalCapacityByArea) {
+        Map<AreaKey, double[]> areaSeries = extractSeriesByArea(matrix, areas);
+        for (Map.Entry<AreaKey, double[]> areaSeriesEntry : areaSeries.entrySet()) {
+            AreaKey area = areaSeriesEntry.getKey();
             double[] values = areaSeriesEntry.getValue();
             double capacity = getCapacityForAreaGroupCluster(capacityTrajectory, area, key);
 
@@ -242,10 +243,10 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         }
     }
 
-    private void validateAndSumArrays(double[] existing, double[] values, double capacity, String area) {
+    private void validateAndSumArrays(double[] existing, double[] values, double capacity, AreaKey area) {
         if (existing.length != values.length) {
             throw TechnicalException.builder()
-                    .message("Cannot aggregate MISC load factor series with different row counts for area " + area)
+                    .message("Cannot aggregate MISC load factor series with different row counts for area " + area.value())
                     .build();
         }
         for (int i = 0; i < existing.length; i++) {
@@ -253,14 +254,14 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         }
     }
 
-    private List<Path> writeAggregatedOtherSeries(Map<String, double[]> weightedSumByArea, Map<String, Double> totalCapacityByArea) throws IOException {
+    private List<Path> writeAggregatedOtherSeries(Map<AreaKey, double[]> weightedSumByArea, Map<AreaKey, Double> totalCapacityByArea) throws IOException {
         if (weightedSumByArea.isEmpty()) return Collections.emptyList();
 
         String outputDir = antaresDataManagerProperties.getMiscGenTsOutputDirectory();
         List<Path> generatedFiles = new ArrayList<>();
 
-        for (Map.Entry<String, double[]> entry : weightedSumByArea.entrySet()) {
-            String area = entry.getKey();
+        for (Map.Entry<AreaKey, double[]> entry : weightedSumByArea.entrySet()) {
+            AreaKey area = entry.getKey();
             Double totalCapacity = totalCapacityByArea.get(area);
             if (totalCapacity == null || totalCapacity <= 0d) continue;
 
@@ -270,21 +271,21 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
                 weightedAverage[i] = weightedSum[i] / totalCapacity;
             }
 
-            TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn(area, weightedAverage)));
-            String outputFileName = nasFileService.saveMatrixToNas(matrix, area.toUpperCase() + "_" + MiscGroupEnum.OTHER.value(), outputDir);
+            TimeSeriesMatrix matrix = new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn(area.value(), weightedAverage)));
+            String outputFileName = nasFileService.saveMatrixToNas(matrix, area.value() + "_" + MiscGroupEnum.OTHER.value(), outputDir);
             generatedFiles.add(Path.of(outputDir).resolve(outputFileName));
         }
         return generatedFiles;
     }
 
-    private double getCapacityForAreaGroupCluster(TrajectoryEntity capacityTrajectory, String area, MiscFileProcessorServiceImpl.GroupClusterKey groupClusterKey) {
+    private double getCapacityForAreaGroupCluster(TrajectoryEntity capacityTrajectory, AreaKey area, MiscFileProcessorServiceImpl.GroupClusterKey groupClusterKey) {
         if (capacityTrajectory == null || capacityTrajectory.getMiscClusterCapacityEntities() == null) {
             return 0d;
         }
         return capacityTrajectory.getMiscClusterCapacityEntities().stream()
                 .filter(Objects::nonNull)
                 .filter(e -> e.getCapacityByYear() != null && e.getCapacityByYear().signum() > 0)
-                .filter(e -> e.getArea() != null && e.getArea().equalsIgnoreCase(area))
+                .filter(e -> e.getArea() != null && !e.getArea().isBlank() && area.equals(AreaKey.of(e.getArea())))
                 .filter(e -> e.getGroupe() != null && e.getGroupe().equalsIgnoreCase(groupClusterKey.groupe()))
                 .filter(e -> isSameCluster(e.getCluster(), groupClusterKey.cluster()))
                 .mapToDouble(e -> e.getCapacityByYear().doubleValue())
@@ -295,17 +296,21 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         return expectedCluster == null || expectedCluster.isBlank() || (entityCluster != null && entityCluster.equalsIgnoreCase(expectedCluster));
     }
 
-    private Map<String, double[]> extractSeriesByArea(TimeSeriesMatrix matrix, Set<String> areas) {
-        Set<String> allowedAreas = normalizeAreas(areas);
-        Map<String, double[]> seriesByArea = new LinkedHashMap<>();
-
+    private Map<AreaKey, double[]> extractSeriesByArea(TimeSeriesMatrix matrix, Set<AreaKey> areas) {
+        Map<AreaKey, double[]> seriesByArea = new LinkedHashMap<>();
         for (TimeSeriesMatrixColumn column : matrix.columns()) {
-            String colName = column.name() != null ? column.name().trim() : "";
-            if (!colName.isEmpty() && allowedAreas.contains(colName.toLowerCase())) {
-                seriesByArea.put(colName.toUpperCase(), column.values());
-            }
+            columnArea(column, areas).ifPresent(area -> seriesByArea.put(area, column.values()));
         }
         return seriesByArea;
+    }
+
+    // The area of a series column, if it is one of the given areas
+    private Optional<AreaKey> columnArea(TimeSeriesMatrixColumn column, Set<AreaKey> areas) {
+        if (column.name() == null || column.name().isBlank()) {
+            return Optional.empty();
+        }
+        AreaKey area = AreaKey.of(column.name());
+        return areas.contains(area) ? Optional.of(area) : Optional.empty();
     }
 
     public List<Path> splitMiscGenLoadFiles(Path file, Set<String> areas, String horizon, String groupName) throws IOException {
@@ -313,45 +318,44 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         if (matrix == null || matrix.columns().isEmpty()) {
             return Collections.emptyList();
         }
-        return splitMatrixColumns(matrix, areas, groupName);
+        return splitMatrixColumns(matrix, toAreaKeys(areas), groupName);
     }
 
-    private List<Path> splitMatrixColumns(TimeSeriesMatrix matrix, Set<String> areas, String groupName) throws IOException {
-        Set<String> allowedAreas = normalizeAreas(areas);
+    private List<Path> splitMatrixColumns(TimeSeriesMatrix matrix, Set<AreaKey> areas, String groupName) throws IOException {
         List<Path> generatedFiles = new ArrayList<>();
         String outputDir = antaresDataManagerProperties.getMiscGenTsOutputDirectory();
 
         for (TimeSeriesMatrixColumn column : matrix.columns()) {
-            String colName = column.name() != null ? column.name().trim() : "";
-            if (colName.isEmpty() || !allowedAreas.contains(colName.toLowerCase())) continue;
+            Optional<AreaKey> area = columnArea(column, areas);
+            if (area.isEmpty()) continue;
 
             TimeSeriesMatrix singleColMatrix = new TimeSeriesMatrix(List.of(column));
-            String baseName = groupName != null && !groupName.isEmpty() ? colName.toUpperCase() + "_" + groupName : colName.toUpperCase();
+            String areaName = area.get().value();
+            String baseName = groupName != null && !groupName.isEmpty() ? areaName + "_" + groupName : areaName;
             String outputFileName = nasFileService.saveMatrixToNas(singleColMatrix, baseName, outputDir);
             generatedFiles.add(Path.of(outputDir).resolve(outputFileName));
         }
         return generatedFiles;
     }
 
-    private Map<String, TrajectoryEntity> mapTrajectoriesByArea(StudyEntity study, TrajectoryType type) {
+    private Map<AreaKey, TrajectoryEntity> mapTrajectoriesByArea(StudyEntity study, TrajectoryType type) {
         return study.getTrajectories().stream()
                 .filter(Objects::nonNull)
                 .filter(t -> type.name().equals(t.getType()))
-                .filter(t -> t.getArea() != null)
+                .filter(t -> t.getArea() != null && !t.getArea().isBlank())
                 .collect(Collectors.toMap(
-                        t -> t.getArea().toUpperCase(),
+                        t -> AreaKey.of(t.getArea()),
                         t -> t,
                         (t1, t2) -> t1
                 ));
     }
 
-    private Set<String> nonOtherAreas(Set<String> capacityAreas, Set<String> loadAreas) {
-        Set<String> resultCapacity = new HashSet<>(capacityAreas);
-        Set<String> resultLoad = new HashSet<>(loadAreas);
-        if (containsOnlyOtherCapacity(resultCapacity) && !resultLoad.contains(OTHER_AREA) && !loadAreas.isEmpty()) {
+    private Set<AreaKey> nonOtherAreas(Set<AreaKey> capacityAreas, Set<AreaKey> loadAreas) {
+        if (containsOnlyOtherCapacity(capacityAreas) && !loadAreas.contains(OTHERS_KEY) && !loadAreas.isEmpty()) {
             return loadAreas;
         }
-        resultCapacity.remove(OTHER_AREA.toUpperCase());
+        Set<AreaKey> resultCapacity = new HashSet<>(capacityAreas);
+        resultCapacity.remove(OTHERS_KEY);
         return resultCapacity;
     }
 
@@ -362,11 +366,12 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         return miscFileProcessorService.getAreasByGroupClusterByStudyId(study.getId(), area);
     }
 
-    private Set<String> normalizeAreas(Set<String> areas) {
+    // A blank name can't match a series column: skip it before building the key
+    private Set<AreaKey> toAreaKeys(Collection<String> areas) {
         return areas.stream()
-                .map(String::trim)
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet());
+                .filter(area -> area != null && !area.isBlank())
+                .map(AreaKey::of)
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
     private TimeSeriesMatrix readMatrix(Path file, String horizon) throws IOException {
@@ -381,8 +386,8 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
         }
     }
 
-    private Map<String, List<String>> buildFilesByArea(List<Path> generatedFiles) {
-        Map<String, List<String>> filesByArea = new HashMap<>();
+    private Map<AreaKey, List<String>> buildFilesByArea(List<Path> generatedFiles) {
+        Map<AreaKey, List<String>> filesByArea = new HashMap<>();
         for (Path path : generatedFiles) {
             String fileName = path.getFileName().toString();
             // Expected filename: AREA_GROUP.UUID.arrow or AREA.UUID.arrow
@@ -390,8 +395,8 @@ public class MiscGenerationAssemblerServiceImpl implements MiscGenerationAssembl
             if (delimiterIndex == -1) {
                 delimiterIndex = fileName.indexOf('.');
             }
-            String area = (delimiterIndex != -1) ? fileName.substring(0, delimiterIndex).toUpperCase() : fileName.toUpperCase();
-            filesByArea.computeIfAbsent(area, ignored -> new ArrayList<>()).add(fileName);
+            String area = (delimiterIndex == -1) ? fileName : fileName.substring(0, delimiterIndex);
+            filesByArea.computeIfAbsent(AreaKey.of(area), ignored -> new ArrayList<>()).add(fileName);
         }
         return filesByArea;
     }

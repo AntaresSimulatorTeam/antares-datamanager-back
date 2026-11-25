@@ -343,13 +343,13 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         var areaDsrClusterGenerationDtoMap = dsrPropertiesAssemblerService.assembleDsrProperties(studyEntity);
         log.info("DSR cluster props {} entries", areaDsrClusterGenerationDtoMap != null ? areaDsrClusterGenerationDtoMap.size() : 0);
 
-        Map<String, List<MiscGenerationDTO>> areaMiscGenerationDtoMap = miscPropertiesAssemblerService.assembleMiscProperties(studyEntity);
+        Map<AreaKey, List<MiscGenerationDTO>> areaMiscGenerationDtoMap = miscPropertiesAssemblerService.assembleMiscProperties(studyEntity);
         log.info("Misc generation {} entries", areaMiscGenerationDtoMap != null ? areaMiscGenerationDtoMap.size() : 0);
 
         var areaResGenerationMap = resGenerationAssemblerService.assembleResProperties(studyEntity);
         log.info("RES generation {} entries", areaResGenerationMap != null ? areaResGenerationMap.size() : 0);
 
-        Map<String, HydroAreaGenerationDTO> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
+        Map<AreaKey, HydroAreaGenerationDTO> areaHydroGenerationMap = hydroGenerationAssemblerService.assembleHydroProperties(studyEntity);
         log.info("HYDRO generation {} entries", areaHydroGenerationMap != null ? areaHydroGenerationMap.size() : 0);
 
         AreasGenerationContextDTO context = AreasGenerationContextDTO.builder()
@@ -358,8 +358,10 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
                         .orElse(Collections.emptyMap())
                         .entrySet()
                         .stream()
+                        // A blank area can't be a study area: skip it before building the key
+                        .filter(e -> !e.getKey().area().isBlank())
                         .collect(Collectors.groupingBy(
-                                e -> e.getKey().area(),
+                                e -> AreaKey.of(e.getKey().area()),
                                 Collectors.toMap(
                                         e -> thermalToJsonService.buildClusterKey(e.getKey().area(), e.getKey().thermalClusterRef().getName()),
                                         Map.Entry::getValue,
@@ -499,7 +501,7 @@ public class StudyGeneratorServiceImpl implements StudyGeneratorService {
         areaProperties.put("energy_cost_spilled", areaDTO.getSpilledEnergyCost());
         areaMap.put(PROPERTIES, areaProperties);
 
-        Map<String, ThermalClusterGenerationDto> allClusters = context.getClusterPropsByArea().get(areaDTO.getName());
+        Map<String, ThermalClusterGenerationDto> allClusters = context.getClusterPropsByArea().get(AreaKey.of(areaDTO.getName()));
         Map<String, ThermalClusterGenerationDto> nonNuclearClusters = new LinkedHashMap<>();
         Map<String, ThermalClusterGenerationDto> nuclearClusters = new LinkedHashMap<>();
         if (allClusters != null) {

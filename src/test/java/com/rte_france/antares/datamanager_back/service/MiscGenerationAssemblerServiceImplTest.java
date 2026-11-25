@@ -1,5 +1,6 @@
 package com.rte_france.antares.datamanager_back.service;
 
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.repository.model.MiscClusterCapacityEntity;
 import com.rte_france.antares.datamanager_back.repository.model.MiscGroupEnum;
 import com.rte_france.antares.datamanager_back.repository.model.StudyEntity;
@@ -82,9 +83,9 @@ class MiscGenerationAssemblerServiceImplTest {
 
         // Then
         assertEquals(1, result.size());
-        assertTrue(result.containsKey("FR"));
-        assertEquals(1, result.get("FR").size());
-        assertEquals("biogas", result.get("FR").getFirst().getGroupe());
+        assertTrue(result.containsKey(AreaKey.of("FR")));
+        assertEquals(1, result.get(AreaKey.of("FR")).size());
+        assertEquals("biogas", result.get(AreaKey.of("FR")).getFirst().getGroupe());
     }
 
     @Test
@@ -208,7 +209,7 @@ class MiscGenerationAssemblerServiceImplTest {
         when(timeSeriesReader.readFromTxt(otherFile)).thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("FR", new double[]{5.0, 6.0}))));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_other"), eq(outputDir))).thenReturn("FR_other.UUID.arrow");
 
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
         ArgumentCaptor<TimeSeriesMatrix> matrixCaptor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
         verify(nasFileService, times(1)).saveMatrixToNas(matrixCaptor.capture(), eq("FR_other"), eq(outputDir));
@@ -219,9 +220,9 @@ class MiscGenerationAssemblerServiceImplTest {
         assertEquals(59.0 / 21.0, savedMatrix.columns().getFirst().values()[0], 1e-9);
         assertEquals(80.0 / 21.0, savedMatrix.columns().getFirst().values()[1], 1e-9);
 
-        assertTrue(result.containsKey("FR"));
-        assertEquals(3, result.get("FR").size());
-        result.get("FR").forEach(dto -> {
+        assertTrue(result.containsKey(AreaKey.of("FR")));
+        assertEquals(3, result.get(AreaKey.of("FR")).size());
+        result.get(AreaKey.of("FR")).forEach(dto -> {
             assertEquals(MiscGroupEnum.OTHER.value(), dto.getGroupe());
             assertEquals(List.of("FR_other.UUID.arrow"), dto.getMiscGenTsList());
         });
@@ -293,7 +294,7 @@ class MiscGenerationAssemblerServiceImplTest {
         when(timeSeriesReader.readFromTxt(otherFile)).thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("FR", new double[]{5.0, 6.0}))));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("FR_other"), eq(outputDir))).thenReturn("FR_other.UUID.arrow");
 
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
         ArgumentCaptor<TimeSeriesMatrix> matrixCaptor = ArgumentCaptor.forClass(TimeSeriesMatrix.class);
         verify(nasFileService, times(1)).saveMatrixToNas(matrixCaptor.capture(), eq("FR_other"), eq(outputDir));
@@ -304,9 +305,9 @@ class MiscGenerationAssemblerServiceImplTest {
         assertEquals(59.0 / 21.0, savedMatrix.columns().getFirst().values()[0], 1e-9);
         assertEquals(80.0 / 21.0, savedMatrix.columns().getFirst().values()[1], 1e-9);
 
-        assertTrue(result.containsKey("FR"));
-        assertEquals(3, result.get("FR").size());
-        result.get("FR").forEach(dto -> {
+        assertTrue(result.containsKey(AreaKey.of("FR")));
+        assertEquals(3, result.get(AreaKey.of("FR")).size());
+        result.get(AreaKey.of("FR")).forEach(dto -> {
             assertEquals(MiscGroupEnum.OTHER.value(), dto.getGroupe());
             assertEquals(List.of("FR_other.UUID.arrow"), dto.getMiscGenTsList());
         });
@@ -357,10 +358,10 @@ class MiscGenerationAssemblerServiceImplTest {
         when(timeSeriesReader.readFromTxt(hydroFile)).thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("BE", new double[]{0.2, 0.4}))));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("BE_other"), eq(outputDir))).thenReturn("BE_other.UUID.arrow");
 
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
-        assertTrue(result.containsKey("BE"));
-        assertEquals(List.of("BE_other.UUID.arrow"), result.get("BE").getFirst().getMiscGenTsList());
+        assertTrue(result.containsKey(AreaKey.of("BE")));
+        assertEquals(List.of("BE_other.UUID.arrow"), result.get(AreaKey.of("BE")).getFirst().getMiscGenTsList());
     }
 
     @Test
@@ -407,11 +408,11 @@ class MiscGenerationAssemblerServiceImplTest {
         when(timeSeriesReader.readFromTxt(hydroFile)).thenReturn(new TimeSeriesMatrix(List.of(new TimeSeriesMatrixColumn("BE", new double[]{0.2, 0.4}))));
         when(nasFileService.saveMatrixToNas(any(TimeSeriesMatrix.class), eq("BE_other"), eq(outputDir))).thenReturn("BE_other.UUID.arrow");
 
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
         verify(miscFileProcessorService, times(1)).getAreasByGroupClusterByTrajectoryId(101);
-        assertTrue(result.containsKey("BE"));
-        assertEquals(List.of("BE_other.UUID.arrow"), result.get("BE").getFirst().getMiscGenTsList());
+        assertTrue(result.containsKey(AreaKey.of("BE")));
+        assertEquals(List.of("BE_other.UUID.arrow"), result.get(AreaKey.of("BE")).getFirst().getMiscGenTsList());
     }
 
     @Test
@@ -439,13 +440,13 @@ class MiscGenerationAssemblerServiceImplTest {
 
         study.setTrajectories(Set.of(capacityTrajectory, loadTrajectory));
 
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result = miscGenerationAssemblerService.assembleMiscProperties(study);
 
         verify(miscFileProcessorService, never()).getAreasByGroupClusterByTrajectoryId(anyInt());
         verify(miscFileProcessorService, never()).getAreasByGroupClusterByStudyId(anyInt(), any(String.class));
         verify(nasFileService, never()).saveMatrixToNas(any(TimeSeriesMatrix.class), any(String.class), any(String.class));
-        assertTrue(result.containsKey("FR"));
-        assertTrue(result.get("FR").getFirst().getMiscGenTsList().isEmpty());
+        assertTrue(result.containsKey(AreaKey.of("FR")));
+        assertTrue(result.get(AreaKey.of("FR")).getFirst().getMiscGenTsList().isEmpty());
     }
 
     @Test
@@ -612,18 +613,18 @@ class MiscGenerationAssemblerServiceImplTest {
         study.setTrajectories(Set.of(beCapacityTrajectory, othersCapacityTrajectory));
 
         // When
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result =
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result =
                 miscGenerationAssemblerService.assembleMiscProperties(study);
 
         // Then: Result should contain single BE entry
-        assertTrue(result.containsKey("BE"));
-        assertEquals(1, result.get("BE").size());
-        assertEquals(674.0, result.get("BE").getFirst().getCapacity());
+        assertTrue(result.containsKey(AreaKey.of("BE")));
+        assertEquals(1, result.get(AreaKey.of("BE")).size());
+        assertEquals(674.0, result.get(AreaKey.of("BE")).getFirst().getCapacity());
 
         // And: Result should contain single DE entry (from others)
-        assertTrue(result.containsKey("DE"));
-        assertEquals(1, result.get("DE").size());
-        assertEquals(8800.0, result.get("DE").getFirst().getCapacity());
+        assertTrue(result.containsKey(AreaKey.of("DE")));
+        assertEquals(1, result.get(AreaKey.of("DE")).size());
+        assertEquals(8800.0, result.get(AreaKey.of("DE")).getFirst().getCapacity());
     }
 
     @Test
@@ -673,12 +674,12 @@ class MiscGenerationAssemblerServiceImplTest {
         when(timeSeriesReader.readFromTxt(badFile)).thenThrow(new RuntimeException("Simulated disk read failure"));
 
         // When
-        Map<String, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result =
+        Map<AreaKey, List<com.rte_france.antares.datamanager_back.dto.MiscGenerationDTO>> result =
                 miscGenerationAssemblerService.assembleMiscProperties(study);
 
         // Then
-        assertTrue(result.containsKey("BE"));
-        assertEquals(1, result.get("BE").size());
-        assertTrue(result.get("BE").getFirst().getMiscGenTsList().isEmpty());
+        assertTrue(result.containsKey(AreaKey.of("BE")));
+        assertEquals(1, result.get(AreaKey.of("BE")).size());
+        assertTrue(result.get(AreaKey.of("BE")).getFirst().getMiscGenTsList().isEmpty());
     }
 }

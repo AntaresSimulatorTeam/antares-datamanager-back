@@ -11,6 +11,8 @@ import com.rte_france.antares.datamanager_back.repository.model.*;
 import com.rte_france.antares.datamanager_back.service.area_link.LinkFileProcessorService;
 import com.rte_france.antares.datamanager_back.service.common.WarningService;
 import com.rte_france.antares.datamanager_back.service.user.UserService;
+import com.rte_france.antares.datamanager_back.util.AreaNaming;
+import com.rte_france.antares.datamanager_back.util.AreaNaming.AreaKey;
 import com.rte_france.antares.datamanager_back.util.ExecutionTime;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.ExcelCommonValidator;
 import com.rte_france.antares.datamanager_back.util.excel_file_validators.LinksValidator;
@@ -283,18 +285,19 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
 
     public void checkConsistencyTrajectoryLinkAndArea(List<LinkEntity> linkEntities, List<String> areaNames, Set<WarningMessageEntity> warningMessages, Integer studyId, Integer trajectoryId, TrajectoryEntity secondTrajectory, String userNni) {
         log.info("areaNames from AREA trajectory: {}", areaNames);
-        Set<String> linkedAreas = linkEntities.stream()
-                .flatMap(link -> Arrays.stream(link.getName().split("-")))
-                .collect(Collectors.toSet());
-        log.info("Linked areas from LINKS file: {}", linkedAreas);
-
         StudyEntity study = studyRepository.findById(studyId).orElseThrow();
         // Validate each link individually
         for (LinkEntity linkEntity : linkEntities) {
             validateLinkAreas(linkEntity.getName(), areaNames);
         }
+        Set<AreaKey> linkedAreas = linkEntities.stream()
+                .flatMap(link -> Arrays.stream(link.getName().split("-")))
+                .map(AreaKey::of)
+                .collect(Collectors.toSet());
+        log.info("Linked areas from LINKS file: {}", linkedAreas);
+
         Set<String> missingAreas = areaNames.stream()
-                .filter(area -> !linkedAreas.contains(area))
+                .filter(area -> !linkedAreas.contains(AreaKey.of(area)))
                 .collect(Collectors.toSet());
 
         if (!missingAreas.isEmpty()) {
@@ -345,8 +348,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         }
 
         for (String area : areas) {
-            boolean found = areaNames.stream()
-                    .anyMatch(existingArea -> existingArea.equalsIgnoreCase(area));
+            boolean found = AreaNaming.containsArea(areaNames, area);
             if (!found) {
                 throw BusinessException.builder()
                         .message("Areas {0} in LINKS file is not present in AREA trajectory")

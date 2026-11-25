@@ -491,9 +491,41 @@ class AreaFileValidatorTest {
                 AreasValidator.validateAreaColumns(tempFile, "2035-2036", TrajectoryType.AREA.name()));
     }
 
+    @Test
+    void validateAreaColumns_shouldRejectAreasDifferingOnlyByCase() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "CaseDuplicates.xlsx", "2035-2036",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("DEkf", "district1", 10.2, 3.2, 230, 420, 128, 260, 113),
+                        List.of("FR", "district1", 10.2, 3.2, 230, 420, 128, 260, 113),
+                        List.of("DKkf", "district1", 10.2, 3.2, 230, 420, 128, 260, 113),
+                        List.of("DEKF", "district2", 200.3, 20, 168, 650, 125, 265, 113)
+                )
+        );
 
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                AreasValidator.validateAreaColumns(tempFile, "2035-2036", TrajectoryType.AREA.name()));
 
+        assertAll(
+                () -> assertEquals("Duplicate value for {0}(s): {1} for {2} trajectory", exception.getMessage()),
+                () -> assertIterableEquals(List.of("area", "DEKF, DEkf", TrajectoryType.AREA.name()), exception.getErrorMessageArguments()),
+                () -> assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus())
+        );
+    }
 
+    @Test
+    void validateAreaColumns_shouldStillRejectIdenticalDuplicates() throws IOException {
+        tempFile = CreateExcelTestUtil.createExcelFile(tempDir, "IdenticalDuplicates.xlsx", "2035-2036",
+                List.of("areas", "district", "spilled energy cost", "unsupplied energy cost", "x", "y", "r", "g", "b"),
+                List.of(
+                        List.of("Area1", "district1", 10.2, 3.2, 230, 420, 128, 260, 113),
+                        List.of("Area1", "district2", 200.3, 20, 168, 650, 125, 265, 113)
+                )
+        );
 
+        BusinessException exception = assertThrows(BusinessException.class, () ->
+                AreasValidator.validateAreaColumns(tempFile, "2035-2036", TrajectoryType.AREA.name()));
 
+        assertIterableEquals(List.of("area", "Area1", TrajectoryType.AREA.name()), exception.getErrorMessageArguments());
+    }
 }
