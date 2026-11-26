@@ -180,11 +180,7 @@ databaseChangeLog:
       file: classpath*:db/changelog/1.1.0/V86-add_generation_started_by_column_scenario_table.sql
   - include:
       file: classpath*:db/changelog/1.1.0/V87-alter-area-config-district-length.sql
-
-
-
   - include:
-      file: classpath*:db/changelog/1.1.0/V89-add-allow-overflow-st-storage.sql
       file: classpath*:db/changelog/1.1.0/V88-add-enabled-to-thermal-technology.sql
   - include:
-      file: classpath*:db/changelog/1.1.0/V88-add-allow-overflow-st-storage.sql
+      file: classpath*:db/changelog/1.1.0/V89-add-allow-overflow-st-storage.sql
