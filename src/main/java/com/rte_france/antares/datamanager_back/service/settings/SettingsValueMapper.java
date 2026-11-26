@@ -48,6 +48,8 @@ public enum SettingsValueMapper {
     )),
 
     // Only validated
+    SIMPLEX_RANGE(Set.of("day", "week")),
+
     TRANSMISSION_CAPACITIES(Set.of(
             "local-values",
             "null-for-all-links",
@@ -64,7 +66,15 @@ public enum SettingsValueMapper {
 
     POWER_FLUCTUATIONS(Set.of("free modulations", "minimize excursions", "minimize ramping")),
 
-    SHEDDING_POLICY(Set.of("shave peaks", "minimize duration", "accurate shave peaks"));
+    SHEDDING_POLICY(Set.of("shave peaks", "minimize duration", "accurate shave peaks")),
+
+    HYDRO_PRICING_MODE(Set.of("fast", "accurate")),
+
+    UNIT_COMMITMENT_MODE(Set.of("fast", "accurate", "milp")),
+
+    NUMBER_OF_CORES_MODE(Set.of("minimum", "low", "medium", "high", "maximum")),
+
+    RENEWABLE_GENERATION_MODELLING(Set.of("aggregated", "clusters"));
 
     private final Set<String> allowedValues;
     private final Map<String, String> translations;

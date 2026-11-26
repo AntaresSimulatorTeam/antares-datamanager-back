@@ -116,6 +116,18 @@ class SettingsImportServiceImportSettingsTest {
         var row3c = sheet3.createRow(2);
         row3c.createCell(0).setCellValue("shedding policy");
         row3c.createCell(1).setCellValue("shave peaks");
+        var row3d = sheet3.createRow(3);
+        row3d.createCell(0).setCellValue("hydro pricing mode");
+        row3d.createCell(1).setCellValue("Accurate");
+        var row3e = sheet3.createRow(4);
+        row3e.createCell(0).setCellValue("unit commitment mode");
+        row3e.createCell(1).setCellValue("MILP");
+        var row3f = sheet3.createRow(5);
+        row3f.createCell(0).setCellValue("Simulation cores");
+        row3f.createCell(1).setCellValue("Medium");
+        var row3g = sheet3.createRow(6);
+        row3g.createCell(0).setCellValue("renewable generation modeling");
+        row3g.createCell(1).setCellValue("Clusters");
 
         File file = directory.resolve(fileName).toFile();
         try (FileOutputStream fos = new FileOutputStream(file)) {
@@ -175,6 +187,7 @@ class SettingsImportServiceImportSettingsTest {
         ArgumentCaptor<SettingsOptimizationParametersEntity> optimizationCaptor = ArgumentCaptor.forClass(SettingsOptimizationParametersEntity.class);
         verify(optimizationParametersRepository).save(optimizationCaptor.capture());
         assertEquals("local-values", optimizationCaptor.getValue().getTransmissionCapacities());
+        assertEquals("week", optimizationCaptor.getValue().getSimplexRange());
         assertEquals("none", optimizationCaptor.getValue().getIncludeExportmps());
         assertEquals("error-verbose", optimizationCaptor.getValue().getIncludeUnfeasibleProblemBehavior());
 
@@ -183,6 +196,10 @@ class SettingsImportServiceImportSettingsTest {
         assertEquals("accommodate rule curves", advancedCaptor.getValue().getHydroHeuristicPolicy());
         assertEquals("free modulations", advancedCaptor.getValue().getPowerFluctuations());
         assertEquals("shave peaks", advancedCaptor.getValue().getSheddingPolicy());
+        assertEquals("accurate", advancedCaptor.getValue().getHydroPricingMode());
+        assertEquals("milp", advancedCaptor.getValue().getUnitCommitmentMode());
+        assertEquals("medium", advancedCaptor.getValue().getNumberOfCoresMode());
+        assertEquals("clusters", advancedCaptor.getValue().getRenewableGenerationModelling());
     }
 
     @Test
