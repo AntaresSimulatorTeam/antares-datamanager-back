@@ -21,4 +21,7 @@ public class ThermalTechnology {
     @Column(name = "name", length = 40)
     private String name;
 
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled;
+
 }
