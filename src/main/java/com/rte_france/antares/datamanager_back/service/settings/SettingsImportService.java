@@ -316,7 +316,7 @@ public class SettingsImportService {
 
 
         SettingsOptimizationParametersEntity entity = SettingsOptimizationParametersEntity.builder()
-                .simplexRange(ParameterValueConverter.getStringValue(dataMap, KEY_SIMPLEX_OPTIMIZATION_RANGE))
+                .simplexRange(mapValue(dataMap, KEY_SIMPLEX_OPTIMIZATION_RANGE, SettingsValueMapper.SIMPLEX_RANGE))
                 .transmissionCapacities(mapValue(dataMap, KEY_TRANSMISSION_CAPACITIES, SettingsValueMapper.TRANSMISSION_CAPACITIES))
                 .includeConstraints(ParameterValueConverter.getBooleanValue(dataMap, KEY_BINDING_CONSTRAINTS))
                 .includeHurdlecosts(ParameterValueConverter.getBooleanValue(dataMap, KEY_HURDLE_COSTS))
@@ -346,12 +346,12 @@ public class SettingsImportService {
 
         SettingsAdvancedParametersEntity entity = SettingsAdvancedParametersEntity.builder()
                 .hydroHeuristicPolicy(mapValue(dataMap, KEY_HYDRO_HEURISTIC_POLICY, SettingsValueMapper.HYDRO_HEURISTIC_POLICY))
-                .hydroPricingMode(ParameterValueConverter.getStringValue(dataMap, KEY_HYDRO_PRICING_MODE))
+                .hydroPricingMode(mapValue(dataMap, KEY_HYDRO_PRICING_MODE, SettingsValueMapper.HYDRO_PRICING_MODE))
                 .powerFluctuations(mapValue(dataMap, KEY_POWER_FLUCTUATIONS, SettingsValueMapper.POWER_FLUCTUATIONS))
                 .sheddingPolicy(mapValue(dataMap, KEY_SHEDDING_POLICY, SettingsValueMapper.SHEDDING_POLICY))
-                .unitCommitmentMode(ParameterValueConverter.getStringValue(dataMap, KEY_UNIT_COMMITMENT_MODE))
-                .numberOfCoresMode(ParameterValueConverter.getStringValue(dataMap, KEY_NUMBER_OF_CORES_MODE))
-                .renewableGenerationModelling(ParameterValueConverter.getStringValue(dataMap, KEY_RENEWABLE_GENERATION_MODELLING))
+                .unitCommitmentMode(mapValue(dataMap, KEY_UNIT_COMMITMENT_MODE, SettingsValueMapper.UNIT_COMMITMENT_MODE))
+                .numberOfCoresMode(mapValue(dataMap, KEY_NUMBER_OF_CORES_MODE, SettingsValueMapper.NUMBER_OF_CORES_MODE))
+                .renewableGenerationModelling(mapValue(dataMap, KEY_RENEWABLE_GENERATION_MODELLING, SettingsValueMapper.RENEWABLE_GENERATION_MODELLING))
                 .accurateShavePeaksIncludeShortTermtorage(ParameterValueConverter.getBooleanValue(dataMap, KEY_ACCURATE_SHAVE_PEAKS_INCLUDE_SHORT_TERM_STORAGE))
                 .trajectory(trajectory)
                 .build();

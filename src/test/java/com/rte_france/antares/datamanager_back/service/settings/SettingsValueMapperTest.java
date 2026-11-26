@@ -56,7 +56,22 @@ class SettingsValueMapperTest {
             "SHEDDING_POLICY, shave peaks, shave peaks",
             "SHEDDING_POLICY, Shave Peaks, shave peaks",
             "SHEDDING_POLICY, minimize duration, minimize duration",
-            "SHEDDING_POLICY, accurate shave peaks, accurate shave peaks"
+            "SHEDDING_POLICY, accurate shave peaks, accurate shave peaks",
+            "SIMPLEX_RANGE, day, day",
+            "SIMPLEX_RANGE, Week, week",
+            "HYDRO_PRICING_MODE, fast, fast",
+            "HYDRO_PRICING_MODE, ACCURATE, accurate",
+            "UNIT_COMMITMENT_MODE, fast, fast",
+            "UNIT_COMMITMENT_MODE, accurate, accurate",
+            "UNIT_COMMITMENT_MODE, milp, milp",
+            "UNIT_COMMITMENT_MODE, MILP, milp",
+            "NUMBER_OF_CORES_MODE, minimum, minimum",
+            "NUMBER_OF_CORES_MODE, low, low",
+            "NUMBER_OF_CORES_MODE, Medium, medium",
+            "NUMBER_OF_CORES_MODE, high, high",
+            "NUMBER_OF_CORES_MODE, maximum, maximum",
+            "RENEWABLE_GENERATION_MODELLING, aggregated, aggregated",
+            "RENEWABLE_GENERATION_MODELLING, Clusters, clusters"
     })
     void shouldMapUserValueToAntaresCraftValue(SettingsValueMapper mapper, String rawValue, String expected) {
         assertEquals(expected, mapper.map("param", rawValue));
@@ -89,5 +104,14 @@ class SettingsValueMapperTest {
                 () -> SettingsValueMapper.SHEDDING_POLICY.map("shedding policy", "SHAVE_PEAKS"));
 
         assertEquals("accurate shave peaks, minimize duration, shave peaks", exception.getErrorMessageArguments().get(2));
+    }
+
+    @Test
+    void shouldRejectUnknownUnitCommitmentMode() {
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> SettingsValueMapper.UNIT_COMMITMENT_MODE.map("unit commitment mode", "mip"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+        assertEquals("accurate, fast, milp", exception.getErrorMessageArguments().get(2));
     }
 }
