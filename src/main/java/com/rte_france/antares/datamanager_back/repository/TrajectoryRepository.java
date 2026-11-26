@@ -107,6 +107,16 @@ public interface TrajectoryRepository extends JpaRepository<TrajectoryEntity, In
           and t.type = :type
     """)
     List<String> findAreasByStudyIdAndType(Integer studyId, String type);
+
+    @Query("""
+        select distinct storage.area
+        from Trajectory t
+        join t.scenarioEntities s
+        join t.stStorageEntities storage
+        where s.id = :studyId
+          and t.type = :type
+    """)
+    List<String> findStStorageAreasByStudyIdAndType(@Param("studyId") Integer studyId, @Param("type") String type);
     
     @Query("""
                 SELECT t FROM Trajectory t

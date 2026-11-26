@@ -71,31 +71,58 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
 
         Path trajectoryFilePath = findTrajectoryFileCaseInsensitive(trajectoryToUse, technology);
 
-        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream().map(a -> a.getName().toUpperCase()).toList();
+        List<String> studyAreas = areaRepository.findAllByStudyId(studyId, TrajectoryType.AREA.toString()).stream()
+                .map(area -> area.getName().toUpperCase(Locale.ROOT))
+                .toList();
+        Set<String> existingStsAreas = OTHERS_AREA.equalsIgnoreCase(areaParam)
+                ? trajectoryRepository.findStStorageAreasByStudyIdAndType(studyId, TrajectoryType.STS.name()).stream()
+                .filter(Objects::nonNull)
+                .map(area -> area.toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet())
+                : Set.of();
 
-        Path root = Path.of(antaresDataManagerProperties.getNasDirectory())
-                .resolve(antaresDataManagerProperties.getTrajectoryFilePath())
-                .resolve(antaresDataManagerProperties.getStsDirectory());
-        try (StsFileSnapshot snapshot = new StsFileSnapshot(root)) {
-            Path clusterCopy = snapshot.capture(trajectoryFilePath, true);
-            List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1],
-                    trajectoryFilePath, clusterCopy, areaParam, technology, studyAreas, studyId, snapshot);
-            if (stStorageEntityList.isEmpty()) {
-                throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
-            }
-            for (StStorageEntity storage : stStorageEntityList) {
-                snapshot.captureSeries(storage);
-                if (storage.getConstraintsPath() != null) {
-                    snapshot.capture(Path.of(storage.getConstraintsPath()), true);
+        String checksum = getFileChecksum(trajectoryFilePath.toString());
+        List<StStorageEntity> stStorageEntityList = buildStStorageLines(horizon.split("-")[1],
+                trajectoryFilePath, areaParam, technology, studyAreas, studyId, existingStsAreas);
+        if (stStorageEntityList.isEmpty()) {
+            throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
+        }
+        validateOptionalSeriesFiles(stStorageEntityList);
+        if (!checksum.equals(getFileChecksum(trajectoryFilePath.toString()))) {
+            throw BusinessException.builder()
+                    .message("STS cluster file changed while being processed: {0}")
+                    .errorMessageArguments(List.of(trajectoryFilePath.toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST).build();
+        }
+        boolean isSeriesTrue = stStorageEntityList.stream()
+                .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
+        TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam,
+                technology, isSeriesTrue, checksum);
+        stStorageEntityList.forEach(storage -> storage.setTrajectory(trajectoryEntity));
+        trajectoryEntity.setStStorageEntities(stStorageEntityList);
+        return trajectoryRepository.save(trajectoryEntity);
+    }
+
+    private void validateOptionalSeriesFiles(List<StStorageEntity> storages) throws IOException {
+        for (StStorageEntity storage : storages) {
+            if (storage.getTsPath() == null || storage.getTsPath().isBlank()) continue;
+            Path directory = Path.of(storage.getTsPath()).toAbsolutePath().normalize();
+            if (!Files.isDirectory(directory)) continue;
+            try (Stream<Path> paths = Files.list(directory)) {
+                List<Path> entries = paths.toList();
+                for (StsTsFile optional : StsTsFile.optionalFiles()) {
+                    List<Path> matches = entries.stream()
+                            .filter(path -> path.getFileName().toString().equalsIgnoreCase(optional.fileName()))
+                            .toList();
+                    if (matches.size() > 1 || (matches.size() == 1 && !Files.isRegularFile(matches.getFirst()))) {
+                        String path = directory.resolve(optional.fileName()).toString();
+                        throw BusinessException.builder()
+                                .message(matches.size() > 1 ? "Ambiguous STS series file: {0}" : "Invalid STS file: {0}")
+                                .errorMessageArguments(List.of(path))
+                                .httpStatus(HttpStatus.BAD_REQUEST).build();
+                    }
                 }
             }
-            boolean isSeriesTrue = stStorageEntityList.stream()
-                    .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
-            TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(clusterCopy, horizon, areaParam,
-                    technology, isSeriesTrue, snapshot.checksum());
-            stStorageEntityList.forEach(storage -> storage.setTrajectory(trajectoryEntity));
-            trajectoryEntity.setStStorageEntities(stStorageEntityList);
-            return trajectoryRepository.save(trajectoryEntity);
         }
     }
 
@@ -150,25 +177,26 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return trajectory;
     }
 
-    private List<StStorageEntity> buildStStorageLines(String horizon, Path trajectoryFilePath, Path clusterCopy,
+    private List<StStorageEntity> buildStStorageLines(String horizon, Path trajectoryFilePath,
                                                       String areaParam, String technology, List<String> studyAreas,
-                                                      Integer studyId, StsFileSnapshot snapshot)throws IOException {
+                                                      Integer studyId, Set<String> existingStsAreas)throws IOException {
         List<StStorageEntity> results = new ArrayList<>();
         String trajectoryFileName = trajectoryFilePath.getFileName().toString();
         // Parse additional constraints once and cache by area
         Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache = new HashMap<>();
 
-        try (InputStream inputStream = Files.newInputStream(clusterCopy); Workbook workbook = WorkbookFactory.create(inputStream)) {
+        try (InputStream inputStream = Files.newInputStream(trajectoryFilePath); Workbook workbook = WorkbookFactory.create(inputStream)) {
             Sheet sheet = getRequiredSheet(workbook, horizon, trajectoryFilePath.getFileName().toString(), TrajectoryType.STS.name());
 
             String[] expectedColumns = StStorageColumns.getAllColumnNames();
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
 
-            buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache, snapshot);
+            buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache);
 
-            var foundStudyArea = processSheetRows(sheet, trajectoryFilePath, areaParam, technology, studyAreas, studyId, horizon, constraintsParamsCache, results, trajectoryFileName);
+            var foundStudyArea = processSheetRows(sheet, trajectoryFilePath, areaParam, technology, studyAreas,
+                    studyId, horizon, constraintsParamsCache, results, trajectoryFileName, existingStsAreas);
 
-            // The selected area must be present in the file's 'node' column, except when area equals OTHERS
+            // The selected area must be present in the file's 'node' column, except when area is OTHERS.
             validateSelectedAreaPresence(areaParam, results, trajectoryFileName);
 
             if (!foundStudyArea) {
@@ -176,11 +204,22 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                         .message("None of the areas of trajectory AREA are present in STS trajectory " + trajectoryFileName)
                         .build();
             }
+            if (OTHERS_AREA.equalsIgnoreCase(areaParam) && results.isEmpty()) {
+                throw BusinessException.builder()
+                        .message("No new STS areas to import for trajectory {0}; all study areas are already covered")
+                        .errorMessageArguments(List.of(trajectoryFileName))
+                        .httpStatus(HttpStatus.BAD_REQUEST)
+                        .build();
+            }
         }
         return results;
     }
 
-    private boolean processSheetRows(Sheet sheet, Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, Integer studyId, String horizon, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache, List<StStorageEntity> results, String trajectoryFileName) throws IOException {
+    private boolean processSheetRows(Sheet sheet, Path trajectoryFilePath, String areaParam, String technology,
+                                     List<String> studyAreas, Integer studyId, String horizon,
+                                     Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache,
+                                     List<StStorageEntity> results, String trajectoryFileName,
+                                     Set<String> existingStsAreas) throws IOException {
         boolean foundStudyArea = false;
 
         for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) { // skip header
@@ -193,10 +232,14 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             // Zone must be present
             validateMandatoryArea(rowArea, trajectoryFileName, r);
 
-            if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase())) {
+            if (!shouldIncludeRow(rowArea, areaParam) || !studyAreas.contains(rowArea.toUpperCase(Locale.ROOT))) {
                 continue;
             }
             foundStudyArea = true;
+            if (OTHERS_AREA.equalsIgnoreCase(areaParam)
+                    && existingStsAreas.contains(rowArea.toUpperCase(Locale.ROOT))) {
+                continue;
+            }
 
             validateRowFields(row, clusterName, trajectoryFileName, rowArea, horizon);
             StStorageEntity entity = mapRowToEntity(row, trajectoryFilePath, technology, rowArea,
@@ -236,10 +279,10 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         validateNumericRange(row, 3, 8, trajectoryFileName);
         validateZeroToOneRange(row, trajectoryFileName);
         validateBooleanRange(row, 9, 12, trajectoryFileName);
-        validateAllowOverflow(row, horizon, trajectoryFileName);
+        validateAllowOverflow(row, horizon, rowArea, trajectoryFileName);
     }
 
-    private void validateAllowOverflow(Row row, String horizon, String trajectoryFileName) {
+    private void validateAllowOverflow(Row row, String horizon, String area, String trajectoryFileName) {
         Cell cell = row.getCell(ALLOW_OVERFLOW_INDEX);
         boolean empty = cell == null || cell.getCellType() == CellType.BLANK;
         if (!empty) {
@@ -250,43 +293,42 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
         if (empty) {
             throw BusinessException.builder()
-                    .message("Empty values found for Allow_overflow for horizon {0} in {1} trajectory")
-                    .errorMessageArguments(List.of(horizon, trajectoryFileName))
+                    .message("Empty values found for Allow_overflow for area {0}, horizon {1} in {2} trajectory")
+                    .errorMessageArguments(List.of(area, horizon, trajectoryFileName))
                     .build();
         }
         if (!isBooleanCell(cell)) {
             throw BusinessException.builder()
-                    .message("Waiting for boolean value(s) in column(s) Allow_overflow in {0} trajectory")
-                    .errorMessageArguments(List.of(trajectoryFileName))
+                    .message("Waiting for boolean value(s) in column(s) Allow_overflow for area {0} in {1} trajectory")
+                    .errorMessageArguments(List.of(area, trajectoryFileName))
                     .build();
         }
     }
 
-    private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache, StsFileSnapshot snapshot) throws IOException {
+    private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
         // Read constraints file once before processing storages
         Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, "", CONSTRAINTS_FILES);
         Path additionalConstraintsPath = pathSecurityUtil.resolveSafePath(constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()));
 
-        Path additionalConstraintsCopy = snapshot.capture(additionalConstraintsPath, false);
-        if (additionalConstraintsCopy != null) {
-                log.info("Reading STS additional constraints file={} for trajectory={}, area={}",
-                        additionalConstraintsPath, trajectoryFileName, areaParam);
-                List<StConstraintsParameterEntity> allParams =
-                        stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
-                                additionalConstraintsCopy,
-                                areaParam,
-                                studyAreas,
-                                technology,
-                                "",
-                                trajectoryFileName,
-                                null
-                        );
-                constraintsParamsCache.put(areaParam, allParams);
+        if (Files.exists(additionalConstraintsPath)) {
+            log.info("Reading STS additional constraints file={} for trajectory={}, area={}",
+                    additionalConstraintsPath, trajectoryFileName, areaParam);
+            List<StConstraintsParameterEntity> allParams =
+                    stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
+                            additionalConstraintsPath,
+                            areaParam,
+                            studyAreas,
+                            technology,
+                            "",
+                            trajectoryFileName,
+                            null
+                    );
+            constraintsParamsCache.put(areaParam, allParams);
         }
     }
 
     private boolean shouldIncludeRow(String rowArea, String areaParam) {
-        return rowArea.equalsIgnoreCase(areaParam) || areaParam.equals(OTHERS_AREA);
+        return rowArea.equalsIgnoreCase(areaParam) || OTHERS_AREA.equalsIgnoreCase(areaParam);
     }
 
     private String getStringCellValue(Row row, int idx) {
@@ -391,7 +433,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 .map(StStorageEntity::getArea)
                 .map(String::toUpperCase)
                 .collect(Collectors.toSet());
-        if (!areaParam.isBlank() && !OTHERS_AREA.equals(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
+        if (!areaParam.isBlank() && !OTHERS_AREA.equalsIgnoreCase(areaParam) && !fileAreas.contains(areaParam.toUpperCase())) {
             throw BusinessException.builder()
                     .message("Selected area {0} is not present in the 'node' column of STS trajectory {1}")
                     .errorMessageArguments(List.of(areaParam, trajectoryFileName))

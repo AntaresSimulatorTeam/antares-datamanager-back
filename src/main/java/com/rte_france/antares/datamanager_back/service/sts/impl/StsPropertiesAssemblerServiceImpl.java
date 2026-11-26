@@ -15,7 +15,6 @@ import com.rte_france.antares.datamanager_back.service.sts.StsTsFile;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrix;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesMatrixColumn;
 import com.rte_france.antares.datamanager_back.util.timeseries_manager.TimeSeriesReader;
-import com.rte_france.antares.datamanager_back.util.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,7 +25,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -62,24 +60,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             return Collections.emptyMap();
         }
 
-        try (SnapshotGroup snapshots = new SnapshotGroup()) {
-            for (TrajectoryEntity trajectory : stsTrajectories) {
-                String checksum = trajectory.getChecksum();
-                if (checksum != null && checksum.startsWith(StsFileSnapshot.PREFIX)) {
-                    snapshots.capture(trajectory);
-                } else if (checksum != null && checksum.startsWith("sts-v")) {
-                    throw BusinessException.builder()
-                            .message("Unsupported STS checksum format for trajectory {0}")
-                            .errorMessageArguments(List.of(trajectory.getFileName()))
-                            .httpStatus(HttpStatus.BAD_REQUEST).build();
-                } else {
-                    log.warn("STS trajectory {} has a legacy checksum; file integrity cannot be verified", trajectory.getFileName());
-                }
-            }
-            return assembleStsTrajectories(studyEntity, stsTrajectories, false, snapshots.byTrajectory);
-        } catch (IOException e) {
-            throw TechnicalException.builder().message("Failed to capture STS files").cause(e).build();
-        }
+        return assembleStsTrajectories(studyEntity, stsTrajectories, false);
     }
 
     @Override
@@ -98,24 +79,15 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             return Collections.emptyMap();
         }
 
-        return assembleStsTrajectories(studyEntity, List.of(stsMeTrajectory), true, Map.of());
+        return assembleStsTrajectories(studyEntity, List.of(stsMeTrajectory), true);
     }
 
     private Map<String, StsGenerationDTO> assembleStsTrajectories(
             StudyEntity studyEntity,
             List<TrajectoryEntity> trajectories,
-            boolean isMe,
-            Map<TrajectoryEntity, StsFileSnapshot> snapshots
+            boolean isMe
     ) {
         associateStStorageEntities(trajectories);
-        Map<StStorageEntity, StsFileSnapshot> snapshotsByStorage = new IdentityHashMap<>();
-        for (TrajectoryEntity trajectory : trajectories) {
-            StsFileSnapshot snapshot = snapshots.get(trajectory);
-            if (snapshot != null && trajectory.getStStorageEntities() != null) {
-                trajectory.getStStorageEntities().stream().filter(Objects::nonNull)
-                        .forEach(storage -> snapshotsByStorage.put(storage, snapshot));
-            }
-        }
 
         List<StStorageEntity> eligibleEntities = trajectories.stream()
                 .map(TrajectoryEntity::getStStorageEntities)
@@ -149,7 +121,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             }
         }
 
-        List<StorageConstraintsContext> contexts = isMe ? List.of() : buildStorageConstraintsContext(studyEntity, snapshots);
+        List<StorageConstraintsContext> contexts = isMe ? List.of() : buildStorageConstraintsContext(studyEntity);
 
         Set<String> allAreas = trajectories.stream()
                 .map(TrajectoryEntity::getStStorageEntities)
@@ -186,7 +158,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                     : StStorageMapper.mapToStsGenerationDTO(sts);
             List<String> savedFiles = new ArrayList<>();
             dto.setStsTsList(savedFiles);
-            addSeriesJobs(sts, savedFiles, seriesJobs, snapshotsByStorage.get(sts));
+            addSeriesJobs(sts, savedFiles, seriesJobs);
             String clusterKey = sts.getArea().toUpperCase(Locale.ROOT) + "_" + sts.getName();
             dto.setStsConstraintsSeriesList(constraintsByArea.getOrDefault(clusterKey, List.of()));
             dto.setConstraintParameters(constraintParamsById.get(sts.getId()));
@@ -194,71 +166,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         }
         generateSeriesFiles(seriesJobs, horizon);
         return result;
-    }
-
-    private final class SnapshotGroup implements AutoCloseable {
-        private final Map<TrajectoryEntity, StsFileSnapshot> byTrajectory = new IdentityHashMap<>();
-
-        private void capture(TrajectoryEntity trajectory) throws IOException {
-            Path root = buildStsConstraintsBasePath().toAbsolutePath().normalize();
-            Path technologyDir = Utils.findChildDirectoryIgnoreCase(root, trajectory.getTechnology());
-            Path clusterDir = technologyDir.resolve("clusters");
-            String prefix = "cluster_" + trajectory.getTechnology() + "_";
-            List<Path> matches;
-            if (Files.notExists(clusterDir)) {
-                throw BusinessException.builder()
-                        .message("STS cluster directory is missing for trajectory {0}")
-                        .errorMessageArguments(List.of(trajectory.getFileName()))
-                        .httpStatus(HttpStatus.BAD_REQUEST).build();
-            }
-            try (var files = Files.list(clusterDir)) {
-                matches = files.filter(Files::isRegularFile).filter(path -> {
-                    String fileName = path.getFileName().toString();
-                    return fileName.regionMatches(true, 0, prefix, 0, prefix.length())
-                            && (fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")
-                            || fileName.toLowerCase(Locale.ROOT).endsWith(".xls"))
-                            && Utils.getFileNameWithoutExtensionAndWithoutPrefix(fileName, TrajectoryType.STS.name())
-                            .equalsIgnoreCase(trajectory.getFileName());
-                }).toList();
-            }
-            if (matches.size() != 1) {
-                throw BusinessException.builder()
-                        .message("STS cluster file is missing or ambiguous for trajectory {0}")
-                        .errorMessageArguments(List.of(trajectory.getFileName()))
-                        .httpStatus(HttpStatus.BAD_REQUEST).build();
-            }
-            StsFileSnapshot snapshot = new StsFileSnapshot(root);
-            byTrajectory.put(trajectory, snapshot);
-            snapshot.capture(matches.getFirst(), true);
-            snapshot.capture(technologyDir.resolve("constraints").resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()), false);
-            for (StStorageEntity storage : trajectory.getStStorageEntities()) {
-                if (storage == null) continue;
-                snapshot.captureSeries(storage);
-                if (storage.getConstraintsPath() != null) {
-                    snapshot.capture(root.resolve(storage.getConstraintsPath()), true);
-                }
-            }
-            if (!trajectory.getChecksum().equals(snapshot.checksum())) {
-                throw BusinessException.builder()
-                        .message("STS files have changed since import for trajectory {0}")
-                        .errorMessageArguments(List.of(trajectory.getFileName()))
-                        .httpStatus(HttpStatus.BAD_REQUEST).build();
-            }
-        }
-
-        @Override
-        public void close() throws IOException {
-            IOException failure = null;
-            for (StsFileSnapshot snapshot : byTrajectory.values()) {
-                try {
-                    snapshot.close();
-                } catch (IOException e) {
-                    if (failure == null) failure = e;
-                    else failure.addSuppressed(e);
-                }
-            }
-            if (failure != null) throw failure;
-        }
     }
 
     private void associateStStorageEntities(List<TrajectoryEntity> trajectories){
@@ -294,7 +201,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
             String horizon
     ) {
         // Group contexts by file path to read each xlsx only once.
-        // Snapshots are taken on the caller thread so workers never touch Hibernate entities.
         Map<Path, List<ConstraintContextSnapshot>> snapshotsByFile = contexts.stream()
                 .collect(Collectors.groupingBy(StorageConstraintsContext::file,
                         Collectors.mapping(ctx -> new ConstraintContextSnapshot(
@@ -485,13 +391,13 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
     public List<String> createMatrixStsTsFiles(StStorageEntity stsEntity, String horizon) {
         List<String> savedFiles = new ArrayList<>();
         Map<Path, SeriesFileJob> seriesJobs = new LinkedHashMap<>();
-        addSeriesJobs(stsEntity, savedFiles, seriesJobs, null);
+        addSeriesJobs(stsEntity, savedFiles, seriesJobs);
         generateSeriesFiles(seriesJobs, horizon);
         return savedFiles;
     }
 
     private void addSeriesJobs(StStorageEntity stsEntity, List<String> savedFiles,
-                               Map<Path, SeriesFileJob> seriesJobs, StsFileSnapshot snapshot) {
+                               Map<Path, SeriesFileJob> seriesJobs) {
         if (stsEntity == null || stsEntity.getTsPath() == null || stsEntity.getTsPath().isBlank()) {
             return;
         }
@@ -500,32 +406,14 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         String meKey = trajectoryType == TrajectoryType.STS_ME
                 ? buildMeKey(stsEntity) : "";
         List<Path> inputPaths = new ArrayList<>();
-        if (snapshot != null) {
-            try {
-                inputPaths.addAll(snapshot.captureSeries(stsEntity));
-            } catch (IOException e) {
-                throw TechnicalException.builder().message("Failed to access captured STS series").cause(e).build();
-            }
-        } else {
-            StsTsFile.requiredFiles(trajectoryType).forEach(file -> inputPaths.add(file.resolve(tsDir)));
-            if (trajectoryType == TrajectoryType.STS && Files.isDirectory(tsDir)) {
-                try (var paths = Files.list(tsDir)) {
-                    List<Path> entries = paths.toList();
-                    for (StsTsFile optional : StsTsFile.optionalFiles()) {
-                        List<Path> matches = entries.stream()
-                                .filter(path -> path.getFileName().toString().equalsIgnoreCase(optional.fileName()))
-                                .toList();
-                        if (matches.size() > 1 || (matches.size() == 1 && !Files.isRegularFile(matches.getFirst()))) {
-                            throw BusinessException.builder()
-                                    .message("Invalid or ambiguous optional STS series file {0} in {1}")
-                                    .errorMessageArguments(List.of(optional.fileName(), tsDir.toString()))
-                                    .httpStatus(HttpStatus.BAD_REQUEST).build();
-                        }
-                        if (!matches.isEmpty()) inputPaths.add(matches.getFirst());
-                    }
-                } catch (IOException e) {
-                    throw TechnicalException.builder().message("Failed to list STS series files").cause(e).build();
-                }
+        for (StsTsFile required : StsTsFile.requiredFiles(trajectoryType)) {
+            Path file = resolveSeriesFile(tsDir, required, true);
+            if (file != null) inputPaths.add(file);
+        }
+        if (trajectoryType == TrajectoryType.STS) {
+            for (StsTsFile optional : StsTsFile.optionalFiles()) {
+                Path file = resolveSeriesFile(tsDir, optional, false);
+                if (file != null) inputPaths.add(file);
             }
         }
         for (Path inputPath : inputPaths) {
@@ -535,13 +423,33 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
         }
     }
 
+    private Path resolveSeriesFile(Path directory, StsTsFile file, boolean required) {
+        if (!Files.isDirectory(directory)) {
+            return required ? file.resolve(directory) : null;
+        }
+        List<Path> matches;
+        try (var paths = Files.list(directory)) {
+            matches = paths.filter(path -> path.getFileName().toString().equalsIgnoreCase(file.fileName())).toList();
+        } catch (IOException e) {
+            throw TechnicalException.builder().message("Failed to list STS series files").cause(e).build();
+        }
+        if (matches.size() > 1 || (matches.size() == 1 && !Files.isRegularFile(matches.getFirst()))) {
+            throw BusinessException.builder()
+                    .message("Invalid or ambiguous " + (required ? "required" : "optional") + " STS series file {0} in {1}")
+                    .errorMessageArguments(List.of(file.fileName(), directory.toString()))
+                    .httpStatus(HttpStatus.BAD_REQUEST).build();
+        }
+        if (!matches.isEmpty()) return matches.getFirst();
+        return required ? file.resolve(directory) : null;
+    }
+
     private record SeriesTarget(String meKey, List<String> savedFiles) {}
 
     private record SeriesFileJob(Path path, String group, TrajectoryType type, List<SeriesTarget> targets) {}
 
     /**
      * Reads, serializes and saves each shared series only once per assembly.
-     * Workers use snapshots, never Hibernate entities, and retain at most four input matrices.
+     * Workers use file-job metadata rather than Hibernate entities and retain at most four input matrices.
      */
     private void generateSeriesFiles(Map<Path, SeriesFileJob> jobs, String horizon) {
         if (jobs.isEmpty()) {
@@ -703,7 +611,7 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
      * Builds the list of {@link StorageConstraintsContext} for all STS storage entities
      * that have constraints enabled, a valid constraints file, and non-empty parameter names.
      */
-    private List<StorageConstraintsContext> buildStorageConstraintsContext(StudyEntity studyEntity, Map<TrajectoryEntity, StsFileSnapshot> snapshots) {
+    private List<StorageConstraintsContext> buildStorageConstraintsContext(StudyEntity studyEntity) {
         Path basePath = buildStsConstraintsBasePath();
 
         return studyEntity.getTrajectories().stream()
@@ -715,8 +623,6 @@ public class StsPropertiesAssemblerServiceImpl implements StsGenerationAssembler
                         .filter(s -> s.getConstraintsPath() != null)
                         .map(storage -> {
                             Path file = basePath.resolve(storage.getConstraintsPath()).normalize();
-                            StsFileSnapshot snapshot = snapshots.get(t);
-                            if (snapshot != null) file = snapshot.copyOf(file);
                             Set<String> params = Optional.ofNullable(storage.getParameters())
                                     .orElse(List.of())
                                     .stream()
