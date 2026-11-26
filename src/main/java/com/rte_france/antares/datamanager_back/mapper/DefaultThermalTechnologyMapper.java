@@ -18,6 +18,7 @@ public class DefaultThermalTechnologyMapper {
     public static DefaultThermalTechnologyDTO toDefaultThermalTechnologyDTO(ThermalTechnology thermalTechnology) {
         return DefaultThermalTechnologyDTO.builder()
                 .name(thermalTechnology.getName())
+                .enabled(thermalTechnology.getEnabled())
                 .build();
     }
 
