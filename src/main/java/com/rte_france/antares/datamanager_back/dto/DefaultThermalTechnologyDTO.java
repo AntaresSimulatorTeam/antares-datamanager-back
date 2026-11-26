@@ -11,4 +11,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class DefaultThermalTechnologyDTO {
     String name;
+    Boolean enabled;
 }
