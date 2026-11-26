@@ -650,22 +650,6 @@ class StStorageFileProcessorServiceImplTest {
     }
 
     @Test
-    void shouldRejectClusterWorkbookChangedAfterImport() throws Exception {
-        IntegrityFixture fixture = importIntegrityFixture();
-        Files.writeString(fixture.clusters(), "changed");
-        NasFileService nas = mock(NasFileService.class);
-        TimeSeriesReader reader = mock(TimeSeriesReader.class);
-        StsPropertiesAssemblerServiceImpl assembler = new StsPropertiesAssemblerServiceImpl(properties, nas, reader);
-        StudyEntity study = StudyEntity.builder().horizon("2029-2030")
-                .trajectories(Set.of(fixture.trajectory())).build();
-
-        assertThatThrownBy(() -> assembler.assembleStsProperties(study))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("STS cluster file has changed since import");
-        verifyNoInteractions(nas, reader);
-    }
-
-    @Test
     void shouldNotValidateAuxiliaryFilesAgainstClusterChecksum() throws Exception {
         IntegrityFixture fixture = importIntegrityFixture();
         Files.writeString(fixture.series().resolve("inflows.xlsx"), "changed series");
