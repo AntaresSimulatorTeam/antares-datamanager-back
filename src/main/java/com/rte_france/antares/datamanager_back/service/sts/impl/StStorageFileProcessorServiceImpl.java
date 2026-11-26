@@ -88,12 +88,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             throw BusinessException.builder().message("No ST Storage data found in the file for horizon: " + horizon).build();
         }
         validateOptionalSeriesFiles(stStorageEntityList);
-        if (!checksum.equals(getFileChecksum(trajectoryFilePath.toString()))) {
-            throw BusinessException.builder()
-                    .message("STS cluster file changed while being processed: {0}")
-                    .errorMessageArguments(List.of(trajectoryFilePath.toString()))
-                    .httpStatus(HttpStatus.BAD_REQUEST).build();
-        }
         boolean isSeriesTrue = stStorageEntityList.stream()
                 .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
         TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam,
