@@ -40,6 +40,25 @@ final class ThermalCostSheetValidator {
         return offset;
     }
 
+    static void validateRate(Sheet sheet, String trajectoryName) {
+        List<String> names = readHeaderNames(sheet.getRow(0));
+        int lastNonBlank = lastNonBlankIndex(names);
+        List<String> missing = new ArrayList<>();
+        if (names.isEmpty() || !"rate".equals(names.get(0))) {
+            missing.add("rate");
+        }
+        if (!containsYear(names, 1, lastNonBlank)) {
+            missing.add("YYYY");
+        }
+        if (!missing.isEmpty()) {
+            String message = missing.size() == 1 && missing.contains("rate")
+                    ? "Missing column {0} in Thermal Costs trajectory {1} in rate tab"
+                    : "Missing columns {0} in Thermal Costs trajectory {1} in rate tab";
+            throw badRequest(message, String.join(", ", missing), trajectoryName);
+        }
+        validateUnexpectedHeaders(names, 1, lastNonBlank, trajectoryName, "rate");
+    }
+
     private static List<String> readHeaderNames(Row header) {
         int lastCell = header == null ? 0 : header.getLastCellNum();
         List<String> names = new ArrayList<>();
@@ -54,7 +73,7 @@ final class ThermalCostSheetValidator {
         int lastNonBlank = lastNonBlankIndex(names);
         int yearStart = offset + REQUIRED.size();
         validateRequiredHeaders(names, offset, yearStart, lastNonBlank, trajectoryName);
-        validateUnexpectedHeaders(names, yearStart, lastNonBlank, trajectoryName);
+        validateUnexpectedHeaders(names, yearStart, lastNonBlank, trajectoryName, "costs");
     }
 
     private static void validateRequiredHeaders(
@@ -68,7 +87,7 @@ final class ThermalCostSheetValidator {
             missing.add("YYYY");
         }
         if (!missing.isEmpty()) {
-            throw badRequest("Missing columns {0} in Thermal Costs trajectory {1}",
+            throw badRequest("Missing columns {0} in Thermal Costs trajectory {1} in costs tab",
                     String.join(", ", missing), trajectoryName);
         }
     }
@@ -94,7 +113,7 @@ final class ThermalCostSheetValidator {
     }
 
     private static void validateUnexpectedHeaders(
-            List<String> names, int yearStart, int lastNonBlank, String trajectoryName) {
+            List<String> names, int yearStart, int lastNonBlank, String trajectoryName, String tab) {
         Set<String> unexpected = new LinkedHashSet<>();
         for (int i = 0; i <= lastNonBlank; i++) {
             String name = names.get(i);
@@ -105,8 +124,10 @@ final class ThermalCostSheetValidator {
             }
         }
         if (!unexpected.isEmpty()) {
-            throw badRequest("Unexpected columns {0} in Thermal Costs trajectory {1}",
-                    String.join(", ", unexpected), trajectoryName);
+            String message = "costs".equals(tab)
+                    ? "Unexpected columns {0} in Thermal Costs trajectory {1} in costs tab"
+                    : "Unexpected columns {0} in Thermal Costs trajectory {1} in rate tab";
+            throw badRequest(message, String.join(", ", unexpected), trajectoryName);
         }
     }
 
@@ -173,19 +194,19 @@ final class ThermalCostSheetValidator {
 
     private static void throwDataValidationError(DataValidationErrors errors, String trajectoryName) {
         if (!errors.tooLong.isEmpty()) {
-            throw badRequest("Columns {0} value cannot exceed 20 characters in Thermal Costs trajectory {1}",
+            throw badRequest("Columns {0} value cannot exceed 20 characters in Thermal Costs trajectory {1} in costs tab",
                     String.join(", ", errors.tooLong), trajectoryName);
         }
         if (errors.countryTooLong) {
-            throw badRequest("Column country value cannot exceed 10 characters in Thermal Costs trajectory {0}",
+            throw badRequest("Column country value cannot exceed 10 characters in Thermal Costs trajectory {0} in costs tab",
                     trajectoryName);
         }
         if (errors.commentTooLong) {
-            throw badRequest("Column comment value cannot exceed 255 characters in Thermal Costs trajectory {0}",
+            throw badRequest("Column comment value cannot exceed 255 characters in Thermal Costs trajectory {0} in costs tab",
                     trajectoryName);
         }
         if (errors.invalidRatio) {
-            throw badRequest("Column ratio_ncv_hcv must be numeric in Thermal Costs trajectory {0}",
+            throw badRequest("Column ratio_ncv_hcv must be numeric in Thermal Costs trajectory {0} in costs tab",
                     trajectoryName);
         }
     }

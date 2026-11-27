@@ -193,7 +193,7 @@ class ThermalControlsServiceImplTest {
         Path file = createWorkbook(wb -> {
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
             Row rateHeader = rate.createRow(0);
-            rateHeader.createCell(0).setCellValue("Type");
+            rateHeader.createCell(0).setCellValue("rate");
             rateHeader.createCell(1).setCellValue("2025");
             rate.createRow(1).createCell(0).setCellValue("rate1");
 
@@ -250,7 +250,7 @@ class ThermalControlsServiceImplTest {
 
             Sheet rate = wb.createSheet(ThermalControlsServiceImpl.SHEET_RATE);
             Row rateHeader = rate.createRow(0);
-            rateHeader.createCell(0).setCellValue("Type");
+            rateHeader.createCell(0).setCellValue("rate");
             rateHeader.createCell(1).setCellValue("2025");
             // Pas de ligne de données ajoutée
         });
@@ -274,7 +274,8 @@ class ThermalControlsServiceImplTest {
         });
         BusinessException ex = assertThrows(BusinessException.class, () ->
                 thermalControlsService.verifyCostsTrajectory("2025", file, "CostTraj", 1));
-        assertTrue(ex.getMessage().contains("Horizon does not exist in THERMAL Costs trajectory"));
+        assertEquals("Missing columns {0} in Thermal Costs trajectory {1} in rate tab", ex.getMessage());
+        assertEquals(List.of("rate, YYYY", "CostTraj"), ex.getErrorMessageArguments());
         assertTrue(ex.getMessage().contains("rate tab"));
     }
 

@@ -71,7 +71,9 @@ class ThermalCostSheetValidatorTest {
                     Sheet sheet = sheet(workbook, country, numericYear);
                     assertEquals(country ? 1 : 0, ThermalCostSheetValidator.validate(sheet, TRAJECTORY));
                     Sheet rate = workbook.createSheet("rate");
-                    rate.createRow(0).createCell(1).setCellValue("2025");
+                    Row rateHeader = rate.createRow(0);
+                    rateHeader.createCell(0).setCellValue("rate");
+                    rateHeader.createCell(1).setCellValue("2025");
                     rate.createRow(1).createCell(1).setCellValue(1.0);
                     Path path = tempDir.resolve("cost-" + country + "-" + numericYear + ".xlsx");
                     try (OutputStream out = Files.newOutputStream(path)) {
@@ -103,7 +105,7 @@ class ThermalCostSheetValidatorTest {
             header.removeCell(header.getCell(5));
             BusinessException error = assertThrows(BusinessException.class,
                     () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY));
-            assertEquals("Missing columns fuel, comment, unit, YYYY in Thermal Costs trajectory costs_test", message(error));
+            assertEquals("Missing columns fuel, comment, unit, YYYY in Thermal Costs trajectory costs_test in costs tab", message(error));
         }
     }
 
@@ -112,7 +114,7 @@ class ThermalCostSheetValidatorTest {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = sheet(workbook, false, false);
             sheet.getRow(0).createCell(6).setCellValue("country");
-            assertEquals("Missing columns country in Thermal Costs trajectory costs_test",
+            assertEquals("Missing columns country in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
         }
     }
@@ -123,8 +125,77 @@ class ThermalCostSheetValidatorTest {
             Sheet sheet = sheet(workbook, true, true);
             sheet.getRow(0).createCell(7).setCellValue("scenario");
             sheet.getRow(0).createCell(8).setCellValue(2025);
-            assertEquals("Unexpected columns scenario, 2025 in Thermal Costs trajectory costs_test",
+            assertEquals("Unexpected columns scenario, 2025 in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
+        }
+    }
+
+    @Test
+    void rateRequiresFirstHeaderAndAtLeastOneYear() throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet rate = workbook.createSheet("rate");
+            assertEquals("Missing columns rate, YYYY in Thermal Costs trajectory costs_test in rate tab",
+                    message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY))));
+
+            Row header = rate.createRow(0);
+            header.createCell(0).setCellValue(" RATE ");
+            assertEquals("Missing columns YYYY in Thermal Costs trajectory costs_test in rate tab",
+                    message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY))));
+
+            header.createCell(1).setCellValue(2025);
+            assertDoesNotThrow(() -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY));
+            header.getCell(0).setBlank();
+            assertEquals("Missing column rate in Thermal Costs trajectory costs_test in rate tab",
+                    message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY))));
+            header.getCell(0).setCellValue("other");
+            assertEquals("Missing column rate in Thermal Costs trajectory costs_test in rate tab",
+                    message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY))));
+            header.getCell(0).setCellValue("2025");
+            header.getCell(1).setCellValue("rate");
+            assertEquals("Missing columns rate, YYYY in Thermal Costs trajectory costs_test in rate tab",
+                    message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY))));
+        }
+    }
+
+    @Test
+    void rateRejectsUnexpectedHeadersAndDuplicateYears() throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            Sheet rate = workbook.createSheet("rate");
+            Row header = rate.createRow(0);
+            header.createCell(0).setCellValue("rate");
+            header.createCell(1).setCellValue("2025");
+            header.createCell(2).setCellValue("scenario");
+            header.createCell(3).setCellValue(2025);
+            header.createCell(5).setCellValue(2030);
+            assertEquals("Unexpected columns scenario, 2025, <empty at E> in Thermal Costs trajectory costs_test in rate tab",
+                    message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY))));
+            header.getCell(2).setCellValue("2026");
+            header.getCell(3).setCellValue(2027);
+            header.createCell(4).setCellValue(2028);
+            assertDoesNotThrow(() -> ThermalCostSheetValidator.validateRate(rate, TRAJECTORY));
+        }
+    }
+
+    @Test
+    void rateHeaderErrorIsReportedByTrajectoryVerification() throws Exception {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            sheet(workbook, false, false);
+            Sheet rate = workbook.createSheet("rate");
+            rate.createRow(0).createCell(1).setCellValue(2025);
+            rate.createRow(1).createCell(1).setCellValue(1.0);
+            Path path = tempDir.resolve("invalid-rate.xlsx");
+            try (OutputStream out = Files.newOutputStream(path)) {
+                workbook.write(out);
+            }
+            var controls = new ThermalControlsServiceImpl(null, null);
+            BusinessException error = assertThrows(BusinessException.class,
+                    () -> controls.verifyCostsTrajectory("2025", path, TRAJECTORY, 1));
+            assertEquals("Missing column rate in Thermal Costs trajectory costs_test in rate tab", message(error));
+            var response = new AntaresExceptionHandler().businessExceptionHandler(error);
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Missing column rate in Thermal Costs trajectory costs_test in rate tab",
+                    response.getBody().getAntaresErrorMessage());
         }
     }
 
@@ -136,7 +207,7 @@ class ThermalCostSheetValidatorTest {
             sheet.getRow(0).createCell(6).setCellValue(2030);
             assertDoesNotThrow(() -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY));
             sheet.getRow(0).createCell(7).setCellValue("fuel");
-            assertEquals("Missing columns fuel in Thermal Costs trajectory costs_test",
+            assertEquals("Missing columns fuel in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
         }
     }
@@ -155,13 +226,13 @@ class ThermalCostSheetValidatorTest {
             Row other = sheet.createRow(2);
             other.createCell(2).setCellValue("u".repeat(21));
             other.createCell(3).setCellValue("m".repeat(21));
-            assertEquals("Columns fuel, unit, modulation value cannot exceed 20 characters in Thermal Costs trajectory costs_test",
+            assertEquals("Columns fuel, unit, modulation value cannot exceed 20 characters in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
             row.getCell(0).setCellValue("f");
             other.getCell(2).setCellValue("u");
             other.getCell(3).setCellValue("m");
             row.getCell(1).setCellValue("c".repeat(256));
-            assertEquals("Column comment value cannot exceed 255 characters in Thermal Costs trajectory costs_test",
+            assertEquals("Column comment value cannot exceed 255 characters in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
         }
     }
@@ -173,7 +244,7 @@ class ThermalCostSheetValidatorTest {
             sheet.getRow(1).getCell(0).setCellValue("c".repeat(10));
             assertDoesNotThrow(() -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY));
             sheet.getRow(1).getCell(0).setCellValue("c".repeat(11));
-            assertEquals("Column country value cannot exceed 10 characters in Thermal Costs trajectory costs_test",
+            assertEquals("Column country value cannot exceed 10 characters in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
         }
     }
@@ -192,7 +263,7 @@ class ThermalCostSheetValidatorTest {
             ratio.setCellValue(" ");
             assertDoesNotThrow(() -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY));
             ratio.setCellValue("not numeric");
-            assertEquals("Column ratio_ncv_hcv must be numeric in Thermal Costs trajectory costs_test",
+            assertEquals("Column ratio_ncv_hcv must be numeric in Thermal Costs trajectory costs_test in costs tab",
                     message(assertThrows(BusinessException.class, () -> ThermalCostSheetValidator.validate(sheet, TRAJECTORY))));
         }
     }
@@ -210,11 +281,11 @@ class ThermalCostSheetValidatorTest {
             var controls = new ThermalControlsServiceImpl(null, null);
             BusinessException error = assertThrows(BusinessException.class,
                     () -> controls.verifyCostsTrajectory("2030", path, TRAJECTORY, 1));
-            assertEquals("Missing columns fuel in Thermal Costs trajectory costs_test", message(error));
+            assertEquals("Missing columns fuel in Thermal Costs trajectory costs_test in costs tab", message(error));
             var response = new AntaresExceptionHandler().businessExceptionHandler(error);
             assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
             assertNotNull(response.getBody());
-            assertEquals("Missing columns fuel in Thermal Costs trajectory costs_test",
+            assertEquals("Missing columns fuel in Thermal Costs trajectory costs_test in costs tab",
                     response.getBody().getAntaresErrorMessage());
             assertEquals("BUSINESS", response.getBody().getType());
             var repository = mock(ThermalCostTypeRepository.class);

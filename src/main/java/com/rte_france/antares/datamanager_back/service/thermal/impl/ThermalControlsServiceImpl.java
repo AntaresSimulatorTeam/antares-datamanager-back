@@ -190,6 +190,9 @@ public class ThermalControlsServiceImpl implements ThermalControlService {
                     SHEET_RATE, rateSheet
             );
             for (TabValidationSpec tabSpec : COSTS_TABS) {
+                if (SHEET_RATE.equals(tabSpec.sheetName())) {
+                    ThermalCostSheetValidator.validateRate(rateSheet, trajectoryName);
+                }
                 validateTrajectoryTab(sheetsByName.get(tabSpec.sheetName()), horizon, trajectoryName, tabSpec);
             }
 
