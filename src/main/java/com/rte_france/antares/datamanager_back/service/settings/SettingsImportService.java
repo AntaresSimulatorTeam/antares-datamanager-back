@@ -107,6 +107,10 @@ public class SettingsImportService {
     private final AntaresDataManagerProperties antaresDataManagerProperties;
     private final PathSecurityUtil pathSecurityUtil;
 
+    private static final String ERROR_TRAJECTORY_SETTINGS_FOLDER_NOT_FOUND = "Trajectory settings folder not found: {0}";
+    private static final String ERROR_SETTINGS_FILE_NOT_FOUND = "Settings file not found: {0}";
+    private static final String ERROR_SETTINGS_FILE_ALREADY_PROCESSED = "Settings file already processed with same checksum: {0}";
+
     @Transactional(rollbackFor = {IOException.class})
     public TrajectoryEntity importSettings(String trajectoryToUse, String horizon, Integer studyId, String area) throws IOException {
         // Get the trajectory settings directory from the configuration
@@ -121,7 +125,7 @@ public class SettingsImportService {
         // Check trajectory folder exists
         if (!Files.isDirectory(trajectoryFolder)) {
             throw BusinessException.builder()
-                    .message("Trajectory settings folder not found: {0}")
+                    .message(ERROR_TRAJECTORY_SETTINGS_FOLDER_NOT_FOUND)
                     .errorMessageArguments(List.of(trajectoryFolder.toString()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -134,7 +138,7 @@ public class SettingsImportService {
         // Check settings file exists
         if (!Files.isRegularFile(filePath)) {
             throw BusinessException.builder()
-                    .message("Settings file not found: {0}")
+                    .message(ERROR_SETTINGS_FILE_NOT_FOUND)
                     .errorMessageArguments(List.of(filePath.toString()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -167,7 +171,7 @@ public class SettingsImportService {
             if (existingTrajectory.isPresent()) {
                 if (existingTrajectory.get().getChecksum().equals(combinedChecksum)) {
                     throw BusinessException.builder()
-                            .message("Settings file already processed with same checksum: {0}")
+                            .message(ERROR_SETTINGS_FILE_ALREADY_PROCESSED)
                             .errorMessageArguments(List.of(filePath.getFileName().toString()))
                             .httpStatus(HttpStatus.CONFLICT)
                             .build();
