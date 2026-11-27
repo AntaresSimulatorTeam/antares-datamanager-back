@@ -69,3 +69,7 @@ The tests are in the src/test/java folder. You can run them with JUnit.
 
 Swagger documentation :
 * env local : [http://localhost:8093/swagger-ui/index.html](http://localhost:8093/swagger-ui/index.html)
+
+### Documentation STS
+
+La documentation française du format des fichiers STS, des contrôles, des contraintes additionnelles et de la génération est disponible dans [docs/sts-inputs-and-generation.md](docs/sts-inputs-and-generation.md).
