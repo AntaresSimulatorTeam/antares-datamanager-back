@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,6 +23,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -94,7 +98,7 @@ class SettingsImportServiceImportSettingsTest {
         var sheet2 = workbook.createSheet("Optimization");
         var row2 = sheet2.createRow(0);
         row2.createCell(0).setCellValue("simplex optimization range");
-        row2.createCell(1).setCellValue("week");
+        row2.createCell(1).setCellValue("WeEk");
         var row2b = sheet2.createRow(1);
         row2b.createCell(0).setCellValue("transmission capacities");
         row2b.createCell(1).setCellValue("local-values");
@@ -225,6 +229,60 @@ class SettingsImportServiceImportSettingsTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         verify(generalParametersRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "Optimization, simplex optimization range, 'day, week'",
+            "Advanced parameters, hydro pricing mode, 'accurate, fast'",
+            "Advanced parameters, unit commitment mode, 'accurate, fast, milp'",
+            "Advanced parameters, Simulation cores, 'high, low, maximum, medium, minimum'",
+            "Advanced parameters, renewable generation modeling, 'aggregated, clusters'"
+    })
+    void testImportRejectsInvalidNewlyValidatedParameters(String sheetName, String parameter, String allowedValues)
+            throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            var row = workbook.createSheet(sheetName).createRow(0);
+            row.createCell(0).setCellValue(parameter);
+            row.createCell(1).setCellValue("invalid");
+
+            BusinessException exception = assertThrows(BusinessException.class, () -> {
+                if ("Optimization".equals(sheetName)) {
+                    service.importOptimizationParameters(workbook, new TrajectoryEntity(), Map.of());
+                } else {
+                    service.importAdvancedParameters(workbook, new TrajectoryEntity(), Map.of());
+                }
+            });
+
+            assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
+            assertEquals(List.of("invalid", parameter, allowedValues), exception.getErrorMessageArguments());
+            verify(optimizationParametersRepository, never()).save(any());
+            verify(advancedParametersRepository, never()).save(any());
+        }
+    }
+
+    @Test
+    void testImportMissingNewlyValidatedParametersAsEmptyStrings() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            workbook.createSheet("Optimization");
+            workbook.createSheet("Advanced parameters");
+
+            service.importOptimizationParameters(workbook, new TrajectoryEntity(), Map.of());
+            service.importAdvancedParameters(workbook, new TrajectoryEntity(), Map.of());
+
+            ArgumentCaptor<SettingsOptimizationParametersEntity> optimizationCaptor =
+                    ArgumentCaptor.forClass(SettingsOptimizationParametersEntity.class);
+            verify(optimizationParametersRepository).save(optimizationCaptor.capture());
+            assertEquals("", optimizationCaptor.getValue().getSimplexRange());
+
+            ArgumentCaptor<SettingsAdvancedParametersEntity> advancedCaptor =
+                    ArgumentCaptor.forClass(SettingsAdvancedParametersEntity.class);
+            verify(advancedParametersRepository).save(advancedCaptor.capture());
+            assertEquals("", advancedCaptor.getValue().getHydroPricingMode());
+            assertEquals("", advancedCaptor.getValue().getUnitCommitmentMode());
+            assertEquals("", advancedCaptor.getValue().getNumberOfCoresMode());
+            assertEquals("", advancedCaptor.getValue().getRenewableGenerationModelling());
+        }
     }
 
     @Test
