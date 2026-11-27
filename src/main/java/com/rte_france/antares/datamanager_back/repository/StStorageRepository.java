@@ -11,7 +11,7 @@ import java.util.List;
 public interface StStorageRepository  extends JpaRepository<StStorageEntity, Integer> {
     @Query("""
               SELECT t FROM StStorage t
-              WHERE t.trajectory.id = :id AND t.series = true OR t.constraintsFlag = true
+              WHERE t.trajectory.id = :id AND (t.series = true OR t.constraintsFlag = true)
               ORDER BY t.area ASC
            """)
     List<StStorageEntity> findStStorageEntitiesByTrajectoryId(Integer id);
