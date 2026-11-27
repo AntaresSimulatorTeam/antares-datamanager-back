@@ -44,6 +44,9 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
 
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Boolean>> booleanSetters = new HashMap<>();
     private static final Map<String, BiConsumer<AdequacySettingsEntity, Object>> settingsSetters = new HashMap<>();
+    private static final String ERROR_MISSING_TAB_IN_TRAJECTORY = "Missing tab {0} in AdequacyPatch trajectory {1}";
+    private static final String ERROR_NO_DATA_IN_TAB = "No data in {0} tab in AdequacyPatch trajectory {1}";
+    private static final String ERROR_COULD_NOT_PROCESS_FILE = "Could not process adequacy file: ";
 
     static {
         booleanSetters.put("include_adq_patch", AdequacySettingsEntity::setIncludeAdqPatch);
@@ -90,11 +93,11 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
             List<AdequacyModeEntity> modes = buildAdequacyModeList(workbook, trajectory, missingTabs);
                     
             List<AdequacySettingsEntity> settings = buildAdequacySettingsList(workbook, trajectory, missingTabs);
-            
+
             if (!missingTabs.isEmpty()) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(String.join(", ", missingTabs), trajectoryToUse))
-                        .message("Missing tab {0} in AdequacyPatch trajectory {1}")
+                        .message(ERROR_MISSING_TAB_IN_TRAJECTORY)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -103,7 +106,7 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
                 String dataMissing = settings.isEmpty() ? SHEET_SETTINGS : SHEET_PERIMETER;
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(dataMissing, trajectoryToUse))
-                        .message("No data in {0} tab in AdequacyPatch trajectory {1}")
+                        .message(ERROR_NO_DATA_IN_TAB)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -124,7 +127,7 @@ public class AdequacyFileProcessorServiceImpl implements AdequacyFileProcessorSe
 
         } catch (IOException e) {
             throw TechnicalException.builder()
-                    .message("Could not process adequacy file: " + e.getMessage())
+                    .message(ERROR_COULD_NOT_PROCESS_FILE + e.getMessage())
                     .cause(e)
                     .build();
         }

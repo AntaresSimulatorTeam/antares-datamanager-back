@@ -133,6 +133,47 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private static final String NUCLEAR_SMR_FOLDER = "smr";
     private final LoadFileProcessorServiceImpl loadFileProcessorServiceImpl;
 
+    private static final String ERROR_TRAJECTORY_IDS_MUST_NOT_BE_EMPTY = "trajectoryIds must not be empty";
+    private static final String ERROR_BATCH_DETACH_FAILED = "Batch detach of trajectories {0} failed";
+    private static final String ERROR_NO_LINKS_FOUND = "No links found";
+    private static final String ERROR_TRAJECTORY_TYPE_IS_NOT_SUPPORTED= "TrajectoryType {0} is not supported.";
+    private static final String ERROR_TRAJECTORY_TYPE_NOT_SUPPORTED = "Trajectory type {0} is not supported";
+    private static final String ERROR_PROVIDED_TRAJECTORY_TYPE_NOT_SUPPORTED = "The provided trajectory type is not supported.";
+    private static final String ERROR_THERMAL_CAPACITY_FILE_NAME_PREFIX = "The trajectory file name must start with '" + THERMAL_CAPACITY_PREFIX + "'";
+    private static final String ERROR_NO_VALID_THERMAL_CLUSTER_CAPACITY = "No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}";
+    private static final String ERROR_NO_VALID_THERMAL_COMMON_PARAMETER = "No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}";
+    private static final String ERROR_NO_VALID_THERMAL_SPECIFIC_PARAMETER = "No valid thermal specific parameter found in the trajectory {0} for area: {1} and horizon: {2}";
+    private static final String ERROR_SELECTED_AREA_NOT_IN_NODE_COLUMN = "Selected area %s is not present in the 'node' column of THERMAL Specific Param trajectory %s";
+    private static final String ERROR_STUDY_NOT_FOUND_WITH_ID = "Study not found with id: {0}";
+    private static final String ERROR_NO_CM_AND_MR_TRAJECTORIES = "No CM and MR trajectories found in trajectory {0} for horizon {1}";
+    private static final String ERROR_MISSING_COST_MODULATION_FILE = "Missing Cost Modulation file in trajectory {0} for horizon {1}";
+    private static final String ERROR_MISSING_MUST_RUN_FILE = "Missing Must Run file in trajectory {0} for horizon {1}";
+    private static final String ERROR_NO_DATA_IN_ENER_CONTENT_TAB = "No data in THERMAL Economic trajectory {0} in ener_content tab ";
+    private static final String ERROR_MISSING_CO2_AND_ENER_CONTENT = "Missing CO2_emissions /ener_content data in trajectory {0}";
+    private static final String ERROR_MISSING_CO2 = "Missing CO2_emissions data in trajectory {0}";
+    private static final String ERROR_MISSING_ENER_CONTENT = "Missing ener_content data in trajectory {0}";
+    private static final String ERROR_COULD_NOT_FIND_DIRECTORY = "Could not find directory: {0}";
+    private static final String ERROR_STUDY_NOT_FOUND = "Study not found";
+    private static final String ERROR_TRAJECTORY_NOT_FOUND = "Trajectory not found";
+    private static final String ERROR_LINK_NOT_FOUND = "Link not found";
+    private static final String ERROR_LOAD_AREA_TRAJECTORY_HORIZON_MUST_NOT_BE_NULL = "Area, trajectory name, and horizon must not be null";
+    private static final String ERROR_USER_NNI_NOT_DETERMINED = "User NNI could not be determined";
+    private static final String ERROR_LOAD_ME_TRAJECTORY_HORIZON_MUST_NOT_BE_NULL = "Trajectory name and horizon must not be null";
+    private static final String ERROR_ANTARES_PATH_CONFIGURATION_INCOMPLETE = "Antares path configuration is incomplete";
+    private static final String ERROR_PATH_OUTSIDE_TARGET_DIRECTORY = "Path is outside of the target directory";
+    private static final String ERROR_NO_VALID_LOAD_FILES_FOR_AREA_AND_HORIZON = "No valid load files found in the trajectory path for area: {0} and horizon: {1}";
+    private static final String ERROR_NO_VALID_LOAD_FILES_FOR_HORIZON = "No valid load files found in the trajectory path for horizon: {0}";
+    private static final String ERROR_NO_AREA_LOAD_ME_IN_AREA_ME = "No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}";
+    private static final String ERROR_NO_AREA_ME_TRAJECTORY_LINKED = "No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.";
+    private static final String ERROR_NO_AREAS_IN_AREA_ME_TRAJECTORY = "No areas found in AREA_ME trajectory for study ID: {}\"";
+    private static final String ERROR_AREA_NOT_FOUND_FOR_STUDY = "Area not found for studyId: {0}";
+    private static final String ERROR_CANNOT_READ_TRAJECTORY_FILE = "Can't read trajectory file";
+    private static final String ERROR_INVALID_TRAJECTORY_TYPE = "Invalid TrajectoryType: {0}";
+    private static final String ERROR_COULD_NOT_VERIFY_PARAM_MODULATION = "could not verify param modulation trajectory on selection {0}";
+    private static final String ERROR_LINKS_AREAS_NOT_IN_AREA_TRAJECTORY = "Areas {0} in LINKS file is not present in AREA trajectory";
+    private static final String ERROR_OTHER_TRAJECTORIES_LINKED = "Other trajectories are linked. Confirmation required";
+    private static final String ERROR_LOAD_FACTOR_MISSING_EXPECTED_AREA = "Load factor trajectory {0} for area {1} does not contain the expected area {2} for group {3}";
+
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processLoadTrajectory(String area, String trajectoryToUse, String horizon, Integer studyId) throws IOException {
@@ -154,7 +195,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         var ids = trajectoryIds.stream().filter(Objects::nonNull).distinct().toList();
         if (ids.isEmpty()) {
             throw BusinessException.builder()
-                    .message("trajectoryIds must not be empty")
+                    .message(ERROR_TRAJECTORY_IDS_MUST_NOT_BE_EMPTY)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -169,7 +210,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         var deleted = studyTrajectoryRepository.deleteByStudyIdAndTrajectoryIds(studyId, ids);
         if (deleted != ids.size()) {
             throw BusinessException.builder()
-                    .message("Batch detach of trajectories {0} failed")
+                    .message(ERROR_BATCH_DETACH_FAILED)
                     .errorMessageArguments(List.of(ids.toString()))
                     .httpStatus(HttpStatus.CONFLICT)
                     .build();
@@ -186,7 +227,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         var links = studyTrajectoryRepository.findById_ScenarioId(studyId);
         if (links.isEmpty()) {
             throw BusinessException.builder()
-                    .message("No links found")
+                    .message(ERROR_NO_LINKS_FOUND)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -215,7 +256,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .toList();
 
             default -> throw TechnicalException.builder()
-                    .message("TrajectoryType {0} is not supported.")
+                    .message(ERROR_TRAJECTORY_TYPE_IS_NOT_SUPPORTED)
                     .errorMessageArguments(List.of(trajectoryType.name()))
                     .build();
         };
@@ -253,7 +294,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case LINK -> linkFileProcessorService.processLinkFile(trajectoryFilePath, horizon, studyId);
             case LINK_ME -> linkMeProcessorServiceImpl.processLinkMeFile(trajectoryToUse, horizon, studyId);
             default ->
-                    throw TechnicalException.builder().message("The provided trajectory type is not supported.").build();
+                    throw TechnicalException.builder().message(ERROR_PROVIDED_TRAJECTORY_TYPE_NOT_SUPPORTED).build();
         };
     }
 
@@ -270,7 +311,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity processThermalCapacityTrajectory(String trajectoryToUse, String horizon, Integer studyId, boolean isCivilYear, String area, String technology) throws IOException {
         if (trajectoryToUse == null || !trajectoryToUse.toLowerCase().startsWith(THERMAL_CAPACITY_PREFIX)) {
             throw BusinessException.builder()
-                    .message("The trajectory file name must start with '" + THERMAL_CAPACITY_PREFIX + "'")
+                    .message(ERROR_THERMAL_CAPACITY_FILE_NAME_PREFIX)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -279,7 +320,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (CollectionUtils.isEmpty(thermalClusterCapacityDto.getThermalClusterCapacities())) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, area, horizon))
-                    .message("No valid thermal cluster capacity found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .message(ERROR_NO_VALID_THERMAL_CLUSTER_CAPACITY)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -295,7 +336,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
-                    .message("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .message(ERROR_NO_VALID_THERMAL_COMMON_PARAMETER)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -325,7 +366,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (CollectionUtils.isEmpty(params)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryName, horizon))
-                    .message("No valid thermal specific parameter found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .message(ERROR_NO_VALID_THERMAL_SPECIFIC_PARAMETER)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -342,7 +383,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         // The selected area must be present in the file's 'node' column, except when area equals OTHERS
         if (area != null && !area.isBlank() && !OTHER_AREA.equals(area) && !fileAreas.contains(area.toUpperCase())) {
             throw BusinessException.builder()
-                    .message("Selected area " + area + " is not present in the 'node' column of THERMAL Specific Param trajectory " + trajectoryName)
+                    .message(ERROR_SELECTED_AREA_NOT_IN_NODE_COLUMN.formatted(area, trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -375,7 +416,8 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .warningCode(WarningCode.THERMAL_SPECIFIC_PARAM_MISSING_AREAS)
                     .study(studyRepository.findById(studyId)
                             .orElseThrow(() -> BusinessException.builder()
-                                    .message("Study not found with id: " + studyId)
+                                    .message(ERROR_STUDY_NOT_FOUND_WITH_ID)
+                                    .errorMessageArguments(List.of(studyId.toString()))
                                     .httpStatus(HttpStatus.NOT_FOUND)
                                     .build()))
                     .creationDate(LocalDateTime.now())
@@ -402,14 +444,14 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (cmFile == null && mrFile == null) {
             throw BusinessException.builder()
-                    .message("No CM and MR trajectories found in trajectory {0} for horizon {1}")
+                    .message(ERROR_NO_CM_AND_MR_TRAJECTORIES)
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         if (cmFile == null) {
             throw BusinessException.builder()
-                    .message("Missing Cost Modulation file in trajectory {0} for horizon {1}")
+                    .message(ERROR_MISSING_COST_MODULATION_FILE)
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -417,7 +459,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (mrFile == null) {
             throw BusinessException.builder()
-                    .message("Missing Must Run file in trajectory {0} for horizon {1}")
+                    .message(ERROR_MISSING_MUST_RUN_FILE)
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -443,7 +485,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (CollectionUtils.isEmpty(thermalCostTypeEntities)) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse, horizon))
-                    .message("No valid thermal common parameter found in the trajectory {0} for area: {1} and horizon: {2}")
+                    .message(ERROR_NO_VALID_THERMAL_COMMON_PARAMETER)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -467,7 +509,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             if (CollectionUtils.isEmpty(economicsEnerContentParam)) {
                 throw BusinessException.builder()
                         .errorMessageArguments(List.of(trajectoryToUse))
-                        .message("No data in THERMAL Economic trajectory {0} in ener_content tab ")
+                        .message(ERROR_NO_DATA_IN_ENER_CONTENT_TAB)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
             }
@@ -479,21 +521,21 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (sheetCo2 == null && sheetEnr == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse))
-                    .message("Missing CO2_emissions /ener_content data in trajectory {0}")
+                    .message(ERROR_MISSING_CO2_AND_ENER_CONTENT)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         if (sheetCo2 == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse))
-                    .message("Missing CO2_emissions data in trajectory {0}")
+                    .message(ERROR_MISSING_CO2)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
         if (sheetEnr == null) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(trajectoryToUse))
-                    .message("Missing ener_content data in trajectory {0}")
+                    .message(ERROR_MISSING_ENER_CONTENT)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
 
@@ -532,7 +574,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     .toList();
 
         } catch (IOException e) {
-            throw TechnicalException.builder().message("Could not find directory: " + directory).build();
+            throw TechnicalException.builder()
+                    .message(ERROR_COULD_NOT_FIND_DIRECTORY)
+                    .errorMessageArguments(List.of(directory.toString()))
+                    .build();
         }
     }
 
@@ -624,13 +669,13 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         StudyEntity study = studyRepository.findById(studyId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Study not found")
+                        .message(ERROR_STUDY_NOT_FOUND)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
         TrajectoryEntity trajectory = trajectoryRepository.findById(trajectoryId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Trajectory not found")
+                        .message(ERROR_TRAJECTORY_NOT_FOUND)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
@@ -764,7 +809,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         var studyTrajectory = studyTrajectoryRepository.findById(key)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Link not found")
+                        .message(ERROR_LINK_NOT_FOUND)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
@@ -877,7 +922,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (area == null || trajectoryToUse == null || horizon == null) {
             throw
                     BusinessException.builder()
-                            .message("Area, trajectory name, and horizon must not be null")
+                            .message(ERROR_LOAD_AREA_TRAJECTORY_HORIZON_MUST_NOT_BE_NULL)
                             .httpStatus(HttpStatus.BAD_REQUEST)
                             .build();
 
@@ -891,7 +936,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .map(UserInfoDto::getNni)
                 .orElseThrow(() ->
                         BusinessException.builder()
-                                .message("User NNI could not be determined")
+                                .message(ERROR_USER_NNI_NOT_DETERMINED)
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
@@ -935,7 +980,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public TrajectoryEntity saveLoadMeTrajectoriesInDb(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
         if (trajectoryToUse == null || horizon == null) {
             throw BusinessException.builder()
-                    .message("Trajectory name and horizon must not be null")
+                    .message(ERROR_LOAD_ME_TRAJECTORY_HORIZON_MUST_NOT_BE_NULL)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -944,7 +989,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                 .map(UserInfoDto::getNni)
                 .orElseThrow(() ->
                         BusinessException.builder()
-                                .message("User NNI could not be determined")
+                                .message(ERROR_USER_NNI_NOT_DETERMINED)
                                 .httpStatus(HttpStatus.BAD_REQUEST)
                                 .build());
 
@@ -1012,7 +1057,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (nasDir == null || trajFilePath == null || directoryByType == null) {
             throw BusinessException.builder()
-                    .message("Antares path configuration is incomplete")
+                    .message(ERROR_ANTARES_PATH_CONFIGURATION_INCOMPLETE)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1028,7 +1073,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse).normalize();
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
-            throw new IOException("Path is outside of the target directory");
+            throw new IOException(ERROR_PATH_OUTSIDE_TARGET_DIRECTORY);
         }
 
         return trajectoryFilePath;
@@ -1067,7 +1112,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(area, horizon))
-                    .message("No valid load files found in the trajectory path for area: {0} and horizon: {1}")
+                    .message(ERROR_NO_VALID_LOAD_FILES_FOR_AREA_AND_HORIZON)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1112,7 +1157,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (loadsFileWithAreas.isEmpty()) {
             throw BusinessException.builder()
                     .errorMessageArguments(List.of(horizon))
-                    .message("No valid load files found in the trajectory path for horizon: {0}")
+                    .message(ERROR_NO_VALID_LOAD_FILES_FOR_HORIZON)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
         }
@@ -1137,7 +1182,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         }
         if (loadEntities.isEmpty()) {
             throw BusinessException.builder()
-                    .message("No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}")
+                    .message(ERROR_NO_AREA_LOAD_ME_IN_AREA_ME)
                     .errorMessageArguments(List.of(loadMeTrajectory.getFileName()))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -1210,9 +1255,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (areaMeTrajectories.isEmpty()) {
             // If no AREA_ME trajectory exists, skip validation
-            log.debug("No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.", studyId);
+            log.debug(ERROR_NO_AREA_ME_TRAJECTORY_LINKED, studyId);
             throw BusinessException.builder()
-                    .message("No AREA_ME trajectory linked to study ID: {}. Skipping LOAD_ME area validation.")
+                    .message(ERROR_NO_AREA_ME_TRAJECTORY_LINKED)
                     .errorMessageArguments(List.of(trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -1222,9 +1267,9 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         Set<String> areaMeNames = extractAreaNamesFromAreaMe(areaMeTrajectories);
 
         if (areaMeNames.isEmpty()) {
-            log.debug("No areas found in AREA_ME trajectory for study ID: {}", studyId);
+            log.debug(ERROR_NO_AREAS_IN_AREA_ME_TRAJECTORY, studyId);
             throw BusinessException.builder()
-                    .message("No areas found in AREA_ME trajectory for study ID: {}\"")
+                    .message(ERROR_NO_AREAS_IN_AREA_ME_TRAJECTORY)
                     .errorMessageArguments(List.of(trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -1241,7 +1286,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         if (loadFiles.isEmpty()) {
             log.error("No area from LOAD_ME trajectory is present in AREA_ME trajectory");
             throw BusinessException.builder()
-                    .message("No area from the LOAD_ME trajectory is present in AREA_ME trajectory {0}")
+                    .message(ERROR_NO_AREA_LOAD_ME_IN_AREA_ME)
                     .errorMessageArguments(List.of(trajectoryName))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -1253,7 +1298,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     private void checkIfAreaIsLinkedToStudy(Integer studyId, String area) {
         areaRepository.findAreaByNameAndStudyId(area, studyId).orElseThrow(() ->
                 BusinessException.builder()
-                        .message("Area not found for studyId: {0} ")
+                        .message(ERROR_AREA_NOT_FOUND_FOR_STUDY)
                         .errorMessageArguments(List.of(studyId.toString()))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
@@ -1273,7 +1318,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
         //download the file
         Path trajectoryFilePath = baseDirectory.resolve(trajectoryToUse + ".xlsx").normalize();
         if (!trajectoryFilePath.startsWith(baseDirectory)) {
-            throw new IOException("Path is outside of the target directory");
+            throw new IOException(ERROR_PATH_OUTSIDE_TARGET_DIRECTORY);
         }
         return trajectoryFilePath;
     }
@@ -1290,7 +1335,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                         .build());
             } catch (IOException e) {
                 throw TechnicalException.builder()
-                        .message("Can't read trajectory file")
+                        .message(ERROR_CANNOT_READ_TRAJECTORY_FILE)
                         .cause(e)
                         .build();
             }
@@ -1480,7 +1525,10 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case CONSTRAINT_ME -> antaresDataManagerProperties.getConstraintMeDirectory();
             case EFFICIENCY_ME -> antaresDataManagerProperties.getEfficiencyMeDirectory();
             case THERMAL_CAPACITY_ME -> antaresDataManagerProperties.getThermalMeDirectory();
-            default -> throw TechnicalException.builder().message("Invalid TrajectoryType: " + trajectoryType).build();
+            default -> throw TechnicalException.builder()
+                    .message(ERROR_INVALID_TRAJECTORY_TYPE)
+                    .errorMessageArguments(List.of(trajectoryType.toString()))
+                    .build();
         };
     }
 
@@ -1548,7 +1596,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             case "HYDRO_PARAMETERS_ME" -> hydroParametersMeFileProcessorService.validateHydroParametersMeCoherence(studyId, trajectory);
 
             default -> throw TechnicalException.builder()
-                    .message("Trajectory type {0} is not supported")
+                    .message(ERROR_TRAJECTORY_TYPE_NOT_SUPPORTED)
                     .errorMessageArguments(List.of(type))
                     .build();
         }
@@ -1680,7 +1728,11 @@ public class TrajectoryServiceImpl implements TrajectoryService {
                     try {
                         thermalParamModulationService.verifyExistingSpecificClustersOfParamModulation(trajectory.getHorizon(), studyId, pathToParamModulation.resolve(Path.of(paramModulationFileName)), trajectory.getFileName(), paramModulationFileName.startsWith("CM") ? "CM" : "MR");
                     } catch (IOException e) {
-                        throw TechnicalException.builder().message("could not verify param modulation trajectory on selection" + e.getMessage()).cause(e).build();
+                        throw TechnicalException.builder()
+                                .message(ERROR_COULD_NOT_VERIFY_PARAM_MODULATION)
+                                .errorMessageArguments(List.of(e.getMessage()))
+                                .cause(e)
+                                .build();
 
                     }
                 });
@@ -1705,7 +1757,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             if (!allMissingAreas.isEmpty()) {
                 String missingAreasString = String.join(", ", allMissingAreas);
                 throw BusinessException.builder()
-                        .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                        .message(ERROR_LINKS_AREAS_NOT_IN_AREA_TRAJECTORY)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .errorMessageArguments(List.of(missingAreasString))
                         .build();
@@ -1743,7 +1795,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
     public void validateAreaTrajectoryDeletion(Integer trajectoryId, Integer studyId) {
         var trajectory = trajectoryRepository.findById(trajectoryId)
                 .orElseThrow(() -> BusinessException.builder()
-                        .message("Trajectory not found")
+                        .message(ERROR_TRAJECTORY_NOT_FOUND)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build());
 
@@ -1751,7 +1803,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
             var others = getOtherTrajectoriesLinkedToStudy(studyId, trajectoryId);
             if (!others.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("Other trajectories are linked. Confirmation required")
+                        .message(ERROR_OTHER_TRAJECTORIES_LINKED)
                         .httpStatus(HttpStatus.CONFLICT)
                         .build();
             }
@@ -1904,7 +1956,7 @@ public class TrajectoryServiceImpl implements TrajectoryService {
 
         if (!headers.contains(expectedArea.toLowerCase())) {
             throw BusinessException.builder()
-                    .message("Load factor trajectory {0} for area {1} does not contain the expected area {2} for group {3}")
+                    .message(ERROR_LOAD_FACTOR_MISSING_EXPECTED_AREA)
                     .errorMessageArguments(List.of(
                             loadFactorTrajectory.getFileName(),
                             loadFactorTrajectory.getArea(),
