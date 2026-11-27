@@ -11,6 +11,7 @@ Microservice pegase-back.
 - [Quick Start](#quick-strt)
 - [Testing](#testing)a
 - [API](#api)
+- [Import Adequacy Patch](#import-adequacy-patch)
 
 **********************
 ### Features
@@ -69,3 +70,48 @@ The tests are in the src/test/java folder. You can run them with JUnit.
 
 Swagger documentation :
 * env local : [http://localhost:8093/swagger-ui/index.html](http://localhost:8093/swagger-ui/index.html)
+
+### Import Adequacy Patch
+
+L'import d'une trajectoire Adequacy Patch est exposé par `POST /v1/trajectory/adequacy-patch`.
+
+#### Entrées
+
+L'endpoint attend les paramètres suivants :
+
+| Paramètre | Format / rôle |
+| --- | --- |
+| `trajectoryToUse` | Nom du sous-répertoire de la trajectoire, non vide et limité à 60 caractères (hors préfixe reconnu, le cas échéant). |
+| `horizon` | Horizon au format `YYYY-YYYY` (par exemple `2023-2024`). |
+| `studyId` | Identifiant de l'étude à laquelle rattacher la trajectoire. |
+| `isCivilYear` | Booléen obligatoire. Il est transmis au service mais n'est pas utilisé par le traitement actuel. |
+
+Les quatre paramètres sont obligatoires. Les fichiers sont recherchés sous le répertoire Adequacy Patch défini par la configuration (`nasDirectory` + `trajectoryFilePath` + `adequacyDirectory`), dans le sous-répertoire nommé `trajectoryToUse`. Ce sous-répertoire doit contenir un classeur Excel `default.xlsx` (la casse du nom de fichier est ignorée).
+
+Le classeur doit contenir les feuilles suivantes :
+
+| Feuille | Colonnes attendues |
+| --- | --- |
+| `perimetre` | Colonne A : nom de zone (`area`), colonne B : mode. La première ligne est ignorée. |
+| `settings` | Colonne A : nom du paramètre, colonne B : valeur. Les noms sont convertis en minuscules et les tirets sont remplacés par des underscores. |
+
+Les paramètres reconnus dans `settings` sont `include_adq_patch` (booléen), `price_taking_order` (texte), `include_hurdle_cost_csr` (booléen), `check_csr_cost_function` (booléen), `threshold_initiate_curtailment_sharing_rule` (entier), `threshold_display_local_matching_rule_violations` (entier), `threshold_csr_variable_bounds_relaxation` (entier), `redispatch` (booléen) et `set_to_null_ntc_from_physical_out_to_physical_in_for_first_step` (booléen).
+
+#### Contrôles et traitement
+
+- Le nom de trajectoire est refusé s'il est composé uniquement d'espaces ou dépasse la limite de longueur. La résolution du chemin empêche de sortir du répertoire autorisé, y compris via un lien symbolique.
+- L'horizon doit respecter le motif `YYYY-YYYY`.
+- Le fichier `default.xlsx` et les deux feuilles sont obligatoires. Chaque feuille doit fournir des données exploitables : au moins une zone dans `perimetre` et au moins un paramètre reconnu avec une valeur dans `settings`.
+- Un identifiant d'étude inexistant fait échouer l'import. Une trajectoire déjà importée avec le même nom, le même type, le même horizon et le même contenu est refusée ; si son contenu a changé, une nouvelle version est créée.
+- Les lignes de `perimetre` dont la zone est vide sont ignorées. Dans `settings`, seules les clés reconnues et les valeurs non nulles sont prises en compte ; les erreurs de conversion d'une valeur sont journalisées.
+
+Le service calcule les métadonnées et l'empreinte de la trajectoire, lit les données des feuilles, rattache la trajectoire à l'étude, puis persiste les données dans une transaction. En cas de succès, l'API renvoie la trajectoire créée avec le statut HTTP `201 Created`. Les erreurs de requête ou de structure de classeur renvoient notamment un statut `400 Bad Request`.
+
+#### Persistance en base de données
+
+Les métadonnées et la version de la trajectoire sont enregistrées dans `trajectory`. Les données extraites sont enregistrées dans :
+
+- `adequacy_patch_mode` : une ligne par zone, avec `area`, `mode` et une clé étrangère `trajectory_id` vers `trajectory.id`.
+- `adequacy_patch_settings` : les paramètres de la feuille `settings`, avec une clé étrangère `trajectory_id` vers `trajectory.id`.
+
+La relation entre la trajectoire importée et l'étude est enregistrée dans la table d'association `scenario_trajectory`.
