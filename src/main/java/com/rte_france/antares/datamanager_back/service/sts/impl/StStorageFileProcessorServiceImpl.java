@@ -5,7 +5,6 @@ import com.rte_france.antares.datamanager_back.dto.TrajectoryType;
 import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import com.rte_france.antares.datamanager_back.repository.AreaRepository;
 import com.rte_france.antares.datamanager_back.repository.TrajectoryRepository;
-import com.rte_france.antares.datamanager_back.repository.model.StConstraintsHoursEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StConstraintsParameterEntity;
 import com.rte_france.antares.datamanager_back.repository.model.StStorageEntity;
 import com.rte_france.antares.datamanager_back.repository.model.TrajectoryEntity;
@@ -30,7 +29,6 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -98,7 +96,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         Path techDir = findChildDirectoryIgnoreCase(root, technology).resolve("clusters");
 
         try (Stream<Path> s = Files.list(techDir)) {
-            java.util.Optional<Path> file = s.filter(Files::isRegularFile).filter(p -> {
+            Optional<Path> file = s.filter(Files::isRegularFile).filter(p -> {
                 String fn = p.getFileName().toString();
                 return fn.equalsIgnoreCase(trajectoryFileName + EXCEL_EXTENSION) || fn.equalsIgnoreCase(trajectoryFileName + ".xls");
             }).findFirst();
@@ -143,7 +141,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
             String[] expectedColumns = StStorageColumns.getAllColumnNames();
             checkMissingColumns(sheet, expectedColumns, trajectoryFileName, TrajectoryType.STS);
 
-            buildStsParameters(trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache);
+            buildStsParameters(sheet, trajectoryFilePath, areaParam, technology, studyAreas, trajectoryFileName, constraintsParamsCache);
 
             var foundStudyArea = processSheetRows(sheet, trajectoryFilePath, areaParam, technology, studyAreas, studyId, horizon, constraintsParamsCache, results, trajectoryFileName);
 
@@ -217,30 +215,60 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         validateBooleanRange(row, 9, 12, trajectoryFileName);
     }
 
-    private void buildStsParameters(Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
+    private void buildStsParameters(Sheet clusterSheet, Path trajectoryFilePath, String areaParam, String technology, List<String> studyAreas, String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
         // Read constraints file once before processing storages
         Path constraintsPath = buildStsOptionalFilesPath(trajectoryFilePath, areaParam, technology, "", CONSTRAINTS_FILES);
         Path additionalConstraintsPath = pathSecurityUtil.resolveSafePath(constraintsPath.resolve(StsTsFile.ADDITIONAL_CONSTRAINTS.fileName()));
 
-        if (Files.exists(additionalConstraintsPath)) {
-            try {
-                log.info("Reading STS additional constraints file={} for trajectory={}, area={}",
-                        additionalConstraintsPath, trajectoryFileName, areaParam);
-                List<StConstraintsParameterEntity> allParams =
-                        stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
-                                additionalConstraintsPath,
-                                areaParam,
-                                studyAreas,
-                                technology,
-                                "",
-                                trajectoryFileName,
-                                null
-                        );
-                constraintsParamsCache.put(areaParam, allParams);
-            } catch (IOException e) {
-                log.warn("Failed to read additional constraints file: {}", additionalConstraintsPath, e);
+        if (!Files.exists(additionalConstraintsPath)) {
+            return;
+        }
+        Set<String> clusterFileAreas = collectClusterFileAreas(clusterSheet, studyAreas);
+
+        if (OTHERS_AREA.equals(areaParam)) {
+            // Load constraints for each study area present in the cluster file, keyed by area
+            for (String clusterArea : clusterFileAreas) {
+                loadConstraintsForArea(additionalConstraintsPath, clusterArea, studyAreas, technology, trajectoryFileName, constraintsParamsCache);
+            }
+        } else if (clusterFileAreas.contains(areaParam.toUpperCase())) {
+            loadConstraintsForArea(additionalConstraintsPath, areaParam, studyAreas, technology, trajectoryFileName, constraintsParamsCache);
+        }
+    }
+
+    private void loadConstraintsForArea(Path additionalConstraintsPath, String area, List<String> studyAreas, String technology,
+                                        String trajectoryFileName, Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) {
+        try {
+            log.info("Reading STS additional constraints file={} for trajectory={}, area={}",
+                    additionalConstraintsPath, trajectoryFileName, area);
+            List<StConstraintsParameterEntity> allParams =
+                    stStorageConstraintsFileProcessorService.processConstraintsParametersAnHoursFile(
+                            additionalConstraintsPath,
+                            area,
+                            studyAreas,
+                            technology,
+                            "",
+                            trajectoryFileName,
+                            null
+                    );
+            constraintsParamsCache.put(area.toUpperCase(), allParams);
+        } catch (IOException e) {
+            log.warn("Failed to read additional constraints file: {}", additionalConstraintsPath, e);
+        }
+    }
+
+    private Set<String> collectClusterFileAreas(Sheet sheet, List<String> studyAreas) {
+        Set<String> areas = new LinkedHashSet<>();
+        for (int r = sheet.getFirstRowNum() + 1; r <= sheet.getLastRowNum(); r++) { // skip header
+            Row row = sheet.getRow(r);
+            if (row == null || isRowEmpty(row)) continue;
+            String rowArea = getStringCellValue(row, 0);
+            if (rowArea == null || rowArea.isEmpty()) continue;
+            String upperArea = rowArea.toUpperCase();
+            if (studyAreas.contains(upperArea) && Boolean.TRUE.equals(getBooleanCell(row, CONSTRAINTS_INDEX))) {
+                areas.add(upperArea);
             }
         }
+        return areas;
     }
 
     private boolean shouldIncludeRow(String rowArea, String areaParam) {
@@ -479,8 +507,6 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         return "true".equals(s) || "1".equals(s);
     }
 
-
-
     public void handleStsConstraints(Path trajectoryFilePath,
                                      String rowAreaName,
                                      String technology,
@@ -492,8 +518,9 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                                      Integer studyId,
                                      Map<String, List<StConstraintsParameterEntity>> constraintsParamsCache) throws IOException {
 
-        // Get cached parameters for this area
-        List<StConstraintsParameterEntity> parsedTemplateParams = constraintsParamsCache.getOrDefault(areaParam, List.of());
+        // Cache is keyed by the row's area when areaParam is OTHERS, otherwise by areaParam
+        String cacheKey = OTHERS_AREA.equals(areaParam) ? rowAreaName.toUpperCase() : areaParam.toUpperCase();
+        List<StConstraintsParameterEntity> parsedTemplateParams = constraintsParamsCache.getOrDefault(cacheKey, List.of());
 
         if (parsedTemplateParams.isEmpty()) {
             log.info("No constraints parameters found for area={}, cluster={}", areaParam, clusterName);
@@ -508,25 +535,12 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 CONSTRAINTS_FILES
         );
 
-        // Filter parameters by storage's area and cluster
-        List<StConstraintsParameterEntity> filteredParams = parsedTemplateParams.stream()
-                .filter(p -> p.getZone().equalsIgnoreCase(rowAreaName)
-                        && p.getCluster().equalsIgnoreCase(clusterName))
-                .toList();
-
-        if (filteredParams.isEmpty()) {
-            log.info("No matching constraints for trajectory={}, area={}, cluster={}",
-                    trajectoryFileName, rowAreaName, clusterName);
-            return;
-        }
-
         // Clone filtered parameters (for concurrency)
-        List<StConstraintsParameterEntity> filteredNewParams = deepCopyParams(filteredParams);
         log.info("STS constraints assigned to trajectory={}, area={}, cluster={}: filteredCount={}",
-                trajectoryFileName, rowAreaName, clusterName, filteredNewParams.size());
+                trajectoryFileName, rowAreaName, clusterName, parsedTemplateParams.size());
 
-        filteredNewParams.forEach(p -> p.setStorage(storage));
-        storage.setParameters(filteredNewParams);
+        parsedTemplateParams.forEach(p -> p.setStorage(storage));
+        storage.setParameters(parsedTemplateParams);
 
         String constraintsCapacityFileName =
                 getFileNameWithoutExtensionAndWithoutPrefix(
@@ -535,70 +549,5 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
                 ) + EXCEL_EXTENSION;
         Path fullConstraintsPath = constraintsPath.resolve(constraintsCapacityFileName);
         storage.setConstraintsPath(fullConstraintsPath.toString());
-    }
-
-
-
-    /**
-     * Merges the new parameters into the storage entity's parameter list, ensuring that
-     * any existing parameters with the same key are replaced by the new parameters.
-     *
-     * @param storage the storage entity containing the existing list of parameters
-     * @param newParams a list of new parameters to be merged with the existing parameters
-     */
-    private void mergeWithPriority(StStorageEntity storage,
-                                   List<StConstraintsParameterEntity> newParams) {
-
-        if (storage.getParameters() == null) {
-            storage.setParameters(new ArrayList<>());
-        }
-
-        Map<String, StConstraintsParameterEntity> map = storage.getParameters().stream()
-                .collect(Collectors.toMap(
-                        this::buildKey,
-                        Function.identity(),
-                        (a, b) -> a
-                ));
-
-        for (StConstraintsParameterEntity newParam : newParams) {
-            String key = buildKey(newParam);
-            map.put(key, newParam); // remplace si doublon
-        }
-
-        storage.setParameters(new ArrayList<>(map.values()));
-    }
-
-    private String buildKey(StConstraintsParameterEntity p) {
-        return (p.getName() + "|" + p.getZone() + "|" + p.getCluster()).toLowerCase();
-    }
-
-    private List<StConstraintsParameterEntity> deepCopyParams(List<StConstraintsParameterEntity> source) {
-        if (source == null || source.isEmpty()) {
-            return List.of();
-        }
-        return source.stream().map(this::deepCopyParam).toList();
-    }
-
-    private StConstraintsParameterEntity deepCopyParam(StConstraintsParameterEntity source) {
-        StConstraintsParameterEntity copy = new StConstraintsParameterEntity();
-        copy.setName(source.getName());
-        copy.setZone(source.getZone());
-        copy.setCluster(source.getCluster());
-        copy.setVariable(source.getVariable());
-        copy.setOperator(source.getOperator());
-        copy.setEnabled(source.getEnabled());
-
-        List<StConstraintsHoursEntity> copiedHours =
-                Optional.ofNullable(source.getHours()).orElse(List.of()).stream().map(hour -> {
-                    StConstraintsHoursEntity h =
-                            new StConstraintsHoursEntity();
-                    h.setOccurrence(hour.getOccurrence());
-                    h.setStartHour(hour.getStartHour());
-                    h.setEndHour(hour.getEndHour());
-                    h.setParameter(copy);
-                    return h;
-                }).toList();
-        copy.setHours(new ArrayList<>(copiedHours));
-        return copy;
     }
 }

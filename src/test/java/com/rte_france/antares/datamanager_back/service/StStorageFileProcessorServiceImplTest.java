@@ -1070,8 +1070,8 @@ class StStorageFileProcessorServiceImplTest {
 
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
         List<StConstraintsParameterEntity> parameters = trajectory.getStStorageEntities().getFirst().getParameters();
-        // Implementation filters by storage's area (FR) and cluster, so only FR param is matched
-        assertThat(parameters).extracting(StConstraintsParameterEntity::getZone).containsExactly("FR");
+        // Parameters are loaded for every zone returned by the constraints file processor (OTHERS mode)
+        assertThat(parameters).extracting(StConstraintsParameterEntity::getZone).containsExactlyInAnyOrder("FR", "BE");
     }
 
     @Test
