@@ -52,6 +52,15 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     private final WarningRepository warningRepository;
     private final UserService userService;
 
+    private static final String ERROR_LINKS_NOT_ALPHABETICAL = "Error: {0} cannot be imported.\nLinks {1} must be arranged in alphabetical order.";
+    private static final String ERROR_HURDLE_COST_NOT_NUMERIC = "Waiting for numeric hurdle_cost value for horizon {0} in parameters sheet";
+    private static final String ERROR_BOOLEAN_VALUE_EXPECTED = "Waiting for boolean value(s) in column(s) {0} in {1} trajectory";
+    private static final String ERROR_BUILD_LINK_LIST = "could not build link list : ";
+    private static final String ERROR_MISSING_HEADER_ROW = "Header row is missing in the sheet.";
+    private static final String ERROR_HORIZON_NOT_FOUND = "Horizon {0} not found in the header row.";
+    private static final String ERROR_INVALID_LINK = "Error: Link {0} in LINKS file is not valid";
+    private static final String ERROR_AREAS_NOT_IN_AREA_TRAJECTORY = "Areas {0} in LINKS file is not present in AREA trajectory";
+
     /**
      * Processes the given file.
      * If a trajectory with the same file name exists, it updates the trajectory.
@@ -101,9 +110,8 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         List<String> listLinksAlphabeticalOrder = LinksValidator.checkLinksAlphabeticalOrder(path, horizon, LinksColumns.NAME.getDisplayName(), areasSavedForScenario);
         if (!listLinksAlphabeticalOrder.isEmpty()) {
             var detail = String.join(", ", listLinksAlphabeticalOrder);
-            var errorMessage = "Error: {0} cannot be imported.\nLinks {1} must be arranged in alphabetical order.";
             throw BusinessException.builder()
-                    .message(errorMessage)
+                    .message(ERROR_LINKS_NOT_ALPHABETICAL)
                     .errorMessageArguments(List.of(trajectory.getFileName(), detail))
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .build();
@@ -204,7 +212,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
             Cell hurdleCostCell = hurdleCostRow != null ? hurdleCostRow.getCell(horizonCellIndex) : null;
             if (hurdleCostCell == null || hurdleCostCell.getCellType() != CellType.NUMERIC) {
                 throw BusinessException.builder()
-                        .message("Waiting for numeric hurdle_cost value for horizon {0} in parameters sheet")
+                        .message(ERROR_HURDLE_COST_NOT_NUMERIC)
                         .errorMessageArguments(List.of(horizon))
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .build();
@@ -225,7 +233,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                             .summerHcIndirectMw(getNumericCellValue(row, 8))
                             .flowbasedPerimeter(Optional.ofNullable(getBooleanCellOrDefault(row, 9, false))
                                     .orElseThrow(() -> BusinessException.builder()
-                                            .message("Waiting for boolean value(s) in column(s) {0} in {1} trajectory")
+                                            .message(ERROR_BOOLEAN_VALUE_EXPECTED)
                                             .errorMessageArguments(List.of(LinksColumns.FLOWBASED_PERIMETER.getDisplayName(), TrajectoryType.LINK.name()))
                                             .httpStatus(HttpStatus.BAD_REQUEST)
                                             .build()))
@@ -242,7 +250,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                 }
             }
         } catch (IOException e) {
-            throw TechnicalException.builder().message("could not build link list : " + e.getMessage()).build();
+            throw TechnicalException.builder().message(ERROR_BUILD_LINK_LIST + e.getMessage()).build();
         }
         return linkEntities;
     }
@@ -265,7 +273,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
     public int findCellIndexByHorizon(Sheet sheet, String horizon) {
         Row headerRow = sheet.getRow(0); // Récupère la ligne 0
         if (headerRow == null) {
-            throw BusinessException.builder().message("Header row is missing in the sheet.").build();
+            throw BusinessException.builder().message(ERROR_MISSING_HEADER_ROW).build();
         }
 
         for (Cell cell : headerRow) {
@@ -275,7 +283,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         }
 
         throw BusinessException.builder()
-                .message("Horizon {0} not found in the header row.")
+                .message(ERROR_HORIZON_NOT_FOUND)
                 .errorMessageArguments(Collections.singletonList(horizon))
                 .httpStatus(HttpStatus.BAD_REQUEST)
                 .build();
@@ -338,7 +346,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
         String[] areas = link.split("-");
         if (areas.length != 2) {
             throw BusinessException.builder()
-                    .message("Error: Link {0} in LINKS file is not valid")
+                    .message(ERROR_INVALID_LINK)
                     .httpStatus(HttpStatus.BAD_REQUEST)
                     .errorMessageArguments(List.of(link))
                     .build();
@@ -349,7 +357,7 @@ public class LinkFileProcessorServiceImpl implements LinkFileProcessorService {
                     .anyMatch(existingArea -> existingArea.equalsIgnoreCase(area));
             if (!found) {
                 throw BusinessException.builder()
-                        .message("Areas {0} in LINKS file is not present in AREA trajectory")
+                        .message(ERROR_AREAS_NOT_IN_AREA_TRAJECTORY)
                         .httpStatus(HttpStatus.BAD_REQUEST)
                         .errorMessageArguments(List.of(area))
                         .build();
