@@ -50,6 +50,17 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private static final int GROUP_MAX_LENGTH = 20;
     private static final String[] REQUIRED_FILES = {"lower_curve.xlsx", "Pmax_injection.xlsx", "Pmax_soutirage.xlsx", "upper_curve.xlsx"};
 
+    private static final String ERROR_STS_ME_AREAS_NOT_IN_AREAS_ME = "Area(s): {0} in sts_me trajectory {1}, are not present in areas_me for study {2}";
+    private static final String ERROR_NO_STS_ME_AREA_IN_AREA_ME = "No area from the STS_ME trajectory is present in the AREA_ME trajectory";
+    private static final String ERROR_MISSING_HORIZON_IN_STS_ME = "Missing horizon {0} in ST_STORAGE_ME Clusters trajectory {1}";
+    private static final String ERROR_MISSING_STS_ME_SERIES = "Missing ST_STORAGE ME Series trajectory directory {0}";
+    private static final String ERROR_MISSING_FILES = "Missing file(s) {0} in ST_STORAGE ME Series trajectory {1}";
+    private static final String ERROR_NODE_MUST_BE_FILLED_IN_STS_ME = "Node column must be filled in ST_STORAGE_ME Clusters trajectory {0}";
+    private static final String ERROR_CANNOT_EXCEED_CHARACTERS_IN_STS_ME = "{0} cannot exceed {1} characters in ST_STORAGE_ME Clusters trajectory {2}";
+    private static final String ERROR_COLUMNS_MUST_BE_NUMERIC = "Columns Injection [MW], Withdrawal [MW], Storage [MWh], Efficiency and initial_level must be numeric in ST_STORAGE_ME Clusters trajectory {0}";
+    private static final String ERROR_INITIAL_LEVEL_MUST_BE_BETWEEN_ZERO_AND_ONE = "initial_level must be between 0 and 1 in ST_STORAGE_ME Clusters trajectory {0}";
+    private static final String ERROR_COLUMNS_MUST_BE_BOOLEAN = "Columns initial_level_optim , Enabled and Series must be boolean in ST_STORAGE_ME Clusters trajectory {0}";
+
     @Transactional(rollbackFor = {IOException.class})
     @Override
     public TrajectoryEntity processStStorageMeFile(String trajectoryToUse, String horizon, Integer studyId) throws IOException {
@@ -86,7 +97,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
             if (!unexpectedAreas.isEmpty()) {
                 throw BusinessException.builder()
-                        .message("Area(s): {0} in sts_me trajectory {1}, are not present in areas_me for study {2}")
+                        .message(ERROR_STS_ME_AREAS_NOT_IN_AREAS_ME)
                         .errorMessageArguments(List.of(
                                 unexpectedAreas,
                                 trajectoryFilePath.getFileName().toString(),
@@ -106,7 +117,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private TrajectoryEntity saveTrajectoryImport(List<StStorageEntity> stStorageEntityList, Path trajectoryFilePath,
                                                    String horizon) throws IOException {
         if (stStorageEntityList.isEmpty()) {
-            throw createValidationError("No area from the STS_ME trajectory is present in the AREA_ME trajectory", List.of());
+            throw createValidationError(ERROR_NO_STS_ME_AREA_IN_AREA_ME, List.of());
         }
 
         boolean isSeriesTrue = stStorageEntityList.stream()
@@ -129,7 +140,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
             Sheet sheet = workbook.getSheet(horizonYear);
             if (sheet == null) {
-                throw createValidationError("Missing horizon {0} in ST_STORAGE_ME Clusters trajectory {1}", List.of(horizonYear, trajectoryFileName));
+                throw createValidationError(ERROR_MISSING_HORIZON_IN_STS_ME, List.of(horizonYear, trajectoryFileName));
             }
 
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
@@ -175,12 +186,12 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         if (Boolean.TRUE.equals(hasSeriesMe)) {
             Path seriesPath = buildStsOptionalFilesPathMe(trajectoryFilePath);
             if(!Files.exists(seriesPath) || !Files.isDirectory(seriesPath)) {
-                throw createValidationError("Missing ST_STORAGE ME Series trajectory directory {0}",
+                throw createValidationError(ERROR_MISSING_STS_ME_SERIES,
                         List.of(seriesPath.getFileName().toString()));
             }
             List<String> missingFiles = isOptionalStsFileMissingMe(seriesPath);
             if (!missingFiles.isEmpty()) {
-                throw createValidationError("Missing file(s) {0} in ST_STORAGE ME Series trajectory {1}",
+                throw createValidationError(ERROR_MISSING_FILES,
                         List.of(String.join(", ", missingFiles), name));
             }
             stStorageEntity.setTsPath(seriesPath.toString());
@@ -347,13 +358,13 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
 
     private void validateMeNodeField(String node, String trajectoryFileName) {
         if (node == null || node.isEmpty()) {
-            throw createValidationError("Node column must be filled in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
+            throw createValidationError(ERROR_NODE_MUST_BE_FILLED_IN_STS_ME, List.of(trajectoryFileName));
         }
     }
 
     private void validateMeFieldLength(String fieldValue, int maxLength, String fieldName, String trajectoryFileName) {
         if (fieldValue != null && fieldValue.length() > maxLength) {
-            throw createValidationError("{0} cannot exceed {1} characters in ST_STORAGE_ME Clusters trajectory {2}",
+            throw createValidationError(ERROR_CANNOT_EXCEED_CHARACTERS_IN_STS_ME,
                     List.of(fieldName, String.valueOf(maxLength), trajectoryFileName));
         }
     }
@@ -362,7 +373,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         for (int idx = StsMeColumns.INJECTION.getIndex(); idx <= StsMeColumns.INITIAL_LEVEL.getIndex(); idx++) {
             Cell numericCell = row.getCell(idx);
             if (!isNumericCell(numericCell)) {
-                throw createValidationError("Columns Injection [MW], Withdrawal [MW], Storage [MWh], Efficiency and initial_level must be numeric in ST_STORAGE_ME Clusters trajectory {0}",
+                throw createValidationError(ERROR_COLUMNS_MUST_BE_NUMERIC,
                         List.of(trajectoryFileName));
             }
         }
@@ -371,7 +382,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
     private void validateMeInitialLevelRange(Row row, String trajectoryFileName) {
         double initialLevel = row.getCell(StsMeColumns.INITIAL_LEVEL.getIndex()).getNumericCellValue();
         if (initialLevel < 0 || initialLevel > 1) {
-            throw createValidationError("initial_level must be between 0 and 1 in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
+            throw createValidationError(ERROR_INITIAL_LEVEL_MUST_BE_BETWEEN_ZERO_AND_ONE, List.of(trajectoryFileName));
         }
     }
 
@@ -379,7 +390,7 @@ public class StStorageMeFileProcessorServiceImpl implements StStorageMeFileProce
         for (int idx = StsMeColumns.INITIAL_LEVEL_OPTIM.getIndex(); idx <= StsMeColumns.SERIES.getIndex(); idx++) {
             Cell cell = row.getCell(idx);
             if (!isBooleanCell(cell)) {
-                throw createValidationError("Columns initial_level_optim , Enabled and Series must be boolean in ST_STORAGE_ME Clusters trajectory {0}", List.of(trajectoryFileName));
+                throw createValidationError(ERROR_COLUMNS_MUST_BE_BOOLEAN, List.of(trajectoryFileName));
             }
         }
     }
