@@ -4,6 +4,7 @@ import com.rte_france.antares.datamanager_back.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -113,5 +114,28 @@ class SettingsValueMapperTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertEquals("accurate, fast, milp", exception.getErrorMessageArguments().get(2));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = SettingsValueMapper.class, names = {
+            "SIMPLEX_RANGE", "HYDRO_PRICING_MODE", "UNIT_COMMITMENT_MODE",
+            "NUMBER_OF_CORES_MODE", "RENEWABLE_GENERATION_MODELLING"
+    })
+    void shouldAcceptMissingOrBlankNewlyValidatedValues(SettingsValueMapper mapper) {
+        assertEquals("", mapper.map("param", null));
+        assertEquals("", mapper.map("param", ""));
+        assertEquals("", mapper.map("param", "  "));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "SIMPLEX_RANGE, '  WeEk  ', week",
+            "HYDRO_PRICING_MODE, '  FaSt  ', fast",
+            "UNIT_COMMITMENT_MODE, '  MiLp  ', milp",
+            "NUMBER_OF_CORES_MODE, '  MeDiUm  ', medium",
+            "RENEWABLE_GENERATION_MODELLING, '  ClUsTeRs  ', clusters"
+    })
+    void shouldNormalizeNewlyValidatedValues(SettingsValueMapper mapper, String rawValue, String expected) {
+        assertEquals(expected, mapper.map("param", rawValue));
     }
 }

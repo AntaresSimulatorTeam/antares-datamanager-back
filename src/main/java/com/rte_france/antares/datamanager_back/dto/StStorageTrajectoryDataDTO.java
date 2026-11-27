@@ -13,4 +13,5 @@ public class StStorageTrajectoryDataDTO implements TrajectoryDataDTO {
 
     private String cluster;
     private String series;
+    private String constraints;
 }

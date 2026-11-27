@@ -14,6 +14,7 @@ public class StStorageMapper {
         return StStorageTrajectoryDataDTO.builder()
                 .cluster(String.format("%s - %s - %s", stsStorageEntity.getArea().toUpperCase(), stsStorageEntity.getGroupe(), stsStorageEntity.getName()))
                 .series(String.valueOf(stsStorageEntity.getSeries()).toUpperCase())
+                .constraints(String.valueOf(stsStorageEntity.getConstraintsFlag()).toUpperCase())
                 .build();
     }
 

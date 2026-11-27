@@ -90,7 +90,7 @@ public class StStorageFileProcessorServiceImpl implements StStorageFileProcessor
         }
         validateOptionalSeriesFiles(stStorageEntityList);
         boolean isSeriesTrue = stStorageEntityList.stream()
-                .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()));
+                .anyMatch(entity -> Boolean.TRUE.equals(entity.getSeries()) || Boolean.TRUE.equals(entity.getConstraintsFlag()));
         TrajectoryEntity trajectoryEntity = buildStStorageTrajectory(trajectoryFilePath, horizon, areaParam,
                 technology, isSeriesTrue, checksum);
         stStorageEntityList.forEach(storage -> storage.setTrajectory(trajectoryEntity));
