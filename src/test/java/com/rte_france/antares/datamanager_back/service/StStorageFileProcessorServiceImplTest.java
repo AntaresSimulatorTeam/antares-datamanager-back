@@ -947,6 +947,7 @@ class StStorageFileProcessorServiceImplTest {
         TrajectoryEntity trajectory = service.processStStorageFile(trajectoryToUse, horizon, 1, false, area, technology);
 
         assertThat(trajectory).isNotNull();
+        assertThat(trajectory.getHasTimeSeries()).isTrue();
         assertThat(trajectory.getStStorageEntities()).hasSize(1);
         StStorageEntity entity = trajectory.getStStorageEntities().getFirst();
         assertThat(entity.getConstraintsFlag()).isTrue();
